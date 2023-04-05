@@ -1,0 +1,3 @@
+- [Langchain如何使用？（一） ](https://www.cnblogs.com/AudreyXu/p/17233964.html)
+- [使用langchain打造自己的大型语言模型(LLMs)](https://blog.csdn.net/weixin_42608414/article/details/129493302)
+- [langchain-ChatGLM](https://github.com/imClumsyPanda/langchain-ChatGLM) - 基于本地知识的 ChatGLM 应用实现
