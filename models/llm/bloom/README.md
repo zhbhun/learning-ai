@@ -1,0 +1,3 @@
+- https://huggingface.co/bigscience/bloom
+- https://bigscience.huggingface.co/
+- https://bigscience.huggingface.co/blog/bloom

@@ -1,3 +1,7 @@
+- [那些想复刻ChatGPT的人，为何都失败了？](https://m.huxiu.com/article/799561.html)
+
+---
+
 - [ChatGPT]
 
     - [lencx/ChatGPT](https://github.com/lencx/ChatGPT) - ChatGPT Desktop Application (Mac, Windows and Linux)

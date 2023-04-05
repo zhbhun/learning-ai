@@ -1,0 +1,4 @@
+- [FLAN-T5](https://huggingface.co/docs/transformers/model_doc/flan-t5)
+- [Flan-T5: One Model for ALL Tasks](https://zhuanlan.zhihu.com/p/580468546)
+- [Hugging Face牵头，42位作者发文，1939个prompt，大幅提升Zero-Shot性能！](https://picture.iczhiku.com/weixin/message1637207434433.html)
+- [那些想复刻ChatGPT的人，为何都失败了？](https://m.huxiu.com/article/799561.html)
