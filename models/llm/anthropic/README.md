@@ -1,0 +1,2 @@
+- https://www.anthropic.com/
+- [Anthropic: Transformer可解释性系列工作，让AI更可靠！](https://zhuanlan.zhihu.com/p/597954343)
