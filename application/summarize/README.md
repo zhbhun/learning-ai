@@ -1,3 +1,4 @@
+- [chatWeb](https://github.com/SkywalkerDarren/chatWeb) - ChatWeb可以爬取任意网页并提取正文，总结概要，然后根据正文内容回答你的问题。
 - [Universal Summarizer](https://labs.kagi.com/ai/sum) - Summarize any content on the web - from articles to books - in a jiffy!
 
 ---
