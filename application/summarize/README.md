@@ -1,5 +1,13 @@
+- [ReadEasy.ai](https://readeasy.ai/) - Make the text of your website or app easy to read for people with low literacy skills. Read Easy.ai is built for editors and developers.
 - [chatWeb](https://github.com/SkywalkerDarren/chatWeb) - ChatWeb可以爬取任意网页并提取正文，总结概要，然后根据正文内容回答你的问题。
+- [ChatPDF](https://www.chatpdf.com/)
 - [Universal Summarizer](https://labs.kagi.com/ai/sum) - Summarize any content on the web - from articles to books - in a jiffy!
+- [BibiGPT](https://github.com/JimmyLv/BibiGPT) - BibiGPT · 音视频内容一键总结：哔哩哔哩丨YouTube丨播客丨会议丨本地文件等 (原 BiliGPT 省流神器 & 课代表)
+- [news-summarizer](https://github.com/Nutlope/news-summarizer) - News summarizer with GPT-3 – specifically for TechCrunch articles
+- [chat-simplifier](https://github.com/zhengbangbo/chat-simplifier/) - Simplify your chat content in seconds (by OpenAI)
+- [BilibiliSummary](https://github.com/lxfater/BilibiliSummary) - A chrome extension helps you summary video on bilibili.
+- [ArxivGPT](https://chrome.google.com/webstore/detail/arxivgpt/fbbfpcjhnnklhmncjickdipdlhoddjoh) - Summarize a arXiv paper and provide key insights.
+- [有没有插件可以通过分析网页内容来高亮我需要关注的部分](https://v2ex.com/t/923279#reply0)
 
 ---
 

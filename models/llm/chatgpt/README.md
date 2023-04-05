@@ -99,29 +99,6 @@
 
 https://writesonic.com/blog/chatgpt-alternatives/
 
-### 摘要
-
-- [BibiGPT](https://github.com/JimmyLv/BibiGPT) - BibiGPT · 音视频内容一键总结：哔哩哔哩丨YouTube丨播客丨会议丨本地文件等 (原 BiliGPT 省流神器 & 课代表)
-- [news-summarizer](https://github.com/Nutlope/news-summarizer) - News summarizer with GPT-3 – specifically for TechCrunch articles
-- [chat-simplifier](https://github.com/zhengbangbo/chat-simplifier/) - Simplify your chat content in seconds (by OpenAI)
-- [BilibiliSummary](https://github.com/lxfater/BilibiliSummary) - A chrome extension helps you summary video on bilibili.
-- [ArxivGPT](https://chrome.google.com/webstore/detail/arxivgpt/fbbfpcjhnnklhmncjickdipdlhoddjoh) - Summarize a arXiv paper and provide key insights.
-- [有没有插件可以通过分析网页内容来高亮我需要关注的部分](https://v2ex.com/t/923279#reply0)
-
-### 浏览器助手
-
-- [chat-gpt-google-extension](https://github.com/wong2/chat-gpt-google-extension)
-- [Monica](https://chrome.google.com/webstore/detail/monica-%E2%80%94-your-chatgpt-cop/ofpnmcalabcbjgholdjcjblkibolbppb) - The ChatGPT Powered Copilot that answers your question and writes your email. Works on all websites.
-
-    https://www.producthunt.com/posts/monica-3
-
-- [ChatGPT Sidebar](https://chrome.google.com/webstore/detail/chatgpt-sidebar/difoiogjjojoaoomphldepapgpbgkhkb/related) - ChatGPT 侧边栏是您的 AI 助手 🤖💬，您可以在浏览任何网站时使用它。
-ChatGPT 侧边栏可以作为您阅读📖和写作📝的助手。
-
-    - https://chatgpt-sidebar.com/
-    - https://www.producthunt.com/posts/chatgpt-sidebar-chrome-extension
-
-- [ChatSonic - ChatGPT with super powers](https://chrome.google.com/webstore/detail/chatsonic-chatgpt-with-su/kchaponcodemjigejilffhfchecpgdpf) - This advanced ChatGPT-like Chrome extension from Writesonic is designed to save you time and effort by making working with Gmail, Twitter, LinkedIn, and the web more productive.
 
 ### 客户端应用
 
@@ -148,15 +125,6 @@ ChatGPT 侧边栏可以作为您阅读📖和写作📝的助手。
 
 - [Buzz Mail](https://workspace.google.com/marketplace/app/buzz_mail/650469784389) - nstantly write professional reply to your emails using AI.
 
-### 阅读辅助
-
-- [chatWeb](https://github.com/SkywalkerDarren/chatWeb)
-- [ChatPDF](https://www.chatpdf.com/)
-- [bilingual_book_maker](https://github.com/yihong0618/bilingual_book_maker)
-
-    这个开源项目可以使用 AI 翻译制作双语 epub 书籍，自己部署之后添加 ChatGPT or OpenAI token 就可以，另外还可以使用多个密钥，减少因为 API 调用限制而导致的错误。这类在线服务应该很快也会出现很多。
-
-- [ReadEasy.ai](https://readeasy.ai/) - Make the text of your website or app easy to read for people with low literacy skills. Read Easy.ai is built for editors and developers.
 
 ### 学习辅助
 
