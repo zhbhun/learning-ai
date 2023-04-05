@@ -6,6 +6,7 @@
 - [openaizh](https://openaizh.com/)
 - [OpenAI 闭门讨论会V3纪要](https://oss.tgcto.com/2023/03/1679557975-92442e87f8f784b.pdf)
 - [Learning Prompt](https://github.com/thinkingjimmy/Learning-Prompt)
+- https://github.com/humanloop/awesome-chatgpt
 
 ## 教程
 
@@ -13,6 +14,7 @@
 - [awesome-chatgpt-prompts-zh](https://github.com/PlexPt/awesome-chatgpt-prompts-zh)
 - [What Is ChatGPT Doing … and Why Does It Work?](https://writings.stephenwolfram.com/2023/02/what-is-chatgpt-doing-and-why-does-it-work/#circle=on)
 - [零基础｜搭建基于私域数据的ChatGPT](https://mp.weixin.qq.com/s/naiVMuXHAScRb_jSEJN3zg)
+- [awesome-chatgpt-prompts-zh](https://github.com/PlexPt/awesome-chatgpt-prompts-zh) - ChatGPT 中文调教指南。各种场景使用指南。学习怎么让它听你的话。
 
 ### 应用能力
 

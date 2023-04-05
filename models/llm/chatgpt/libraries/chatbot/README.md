@@ -1,0 +1,2 @@
+- [wechat-chatgpt](https://github.com/fuergaosi233/wechat-chatgpt)
+- https://github.com/zhayujie/chatgpt-on-wechat

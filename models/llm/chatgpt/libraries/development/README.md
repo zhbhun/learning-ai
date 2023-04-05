@@ -1,0 +1,1 @@
+- [chatgpt-vscode](https://github.com/mpociot/chatgpt-vscode)

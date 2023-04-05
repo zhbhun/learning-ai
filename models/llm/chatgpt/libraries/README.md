@@ -1,1 +1,2 @@
 - [Chatgpt Libraries](https://platform.openai.com/docs/libraries)
+- https://github.com/reorx/awesome-chatgpt-api/blob/master/README.cn.md

@@ -1,0 +1,2 @@
+- [yetone/openai-translator](https://github.com/yetone/openai-translator)
+- https://github.com/yetone/bob-plugin-openai-translator - 基于 ChatGPT API 的文本翻译、文本润色、语法纠错 Bob 插件，让我们一起迎接不需要巴别塔的新时代！
