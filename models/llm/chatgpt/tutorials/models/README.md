@@ -1,0 +1,3 @@
+- [GPT-4](https://platform.openai.com/docs/models/gpt-4)
+- [GPT-3.5](https://platform.openai.com/docs/models/gpt-3-5)
+- [GPT-3](https://platform.openai.com/docs/models/gpt-3)
