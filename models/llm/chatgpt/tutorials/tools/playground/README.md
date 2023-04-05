@@ -1,0 +1,2 @@
+- [Examples](https://platform.openai.com/examples)
+- https://platform.openai.com/playground
