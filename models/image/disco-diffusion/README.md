@@ -1,0 +1,7 @@
+- https://github.com/alembics/disco-diffusion
+- [人工智能绘画工具 Disco Diffusion 入门教程](https://zhuanlan.zhihu.com/p/563831317)
+- [AI绘画小白神器-disco diffusion（入门篇）](https://zhuanlan.zhihu.com/p/571959167)
+- [最全AI绘画Disco Diffusion教程](https://www.qz.net/page/756)
+- [Disco Diffusion 快速入门](https://blog.csdn.net/qq_42635142/article/details/125481410)
+- [小白请进 · Disco Diffusion · 教程合集 ](https://www.douban.com/group/topic/264612340/?_i=9495510Wo0O0og)
+- [AI画图 Disco-diffusion 本地搭建测试](https://blog.csdn.net/WYT6889688/article/details/124674630)

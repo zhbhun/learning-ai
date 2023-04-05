@@ -1,0 +1,3 @@
+- [OpenCV](https://opencv.org)
+- [DeepDanbooru](https://github.com/KichangKim/DeepDanbooru) - AI based multi-label girl image classification system, implemented by using TensorFlow.
+- [CLIP](https://openai.com/blog/clip/) - Connecting Text and Images
