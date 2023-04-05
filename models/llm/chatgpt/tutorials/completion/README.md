@@ -1,0 +1,1 @@
+- [Text completion](https://platform.openai.com/docs/guides/completion/introduction)

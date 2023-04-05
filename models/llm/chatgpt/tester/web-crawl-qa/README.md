@@ -1,0 +1,2 @@
+- https://github.com/openai/openai-cookbook/tree/main/apps/web-crawl-q-and-a
+- [How to build an AI that can answer questions about your website](https://platform.openai.com/docs/tutorials/web-qa-embeddings)

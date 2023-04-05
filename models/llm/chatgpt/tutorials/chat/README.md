@@ -1,0 +1,1 @@
+- [Chat completions](https://platform.openai.com/docs/guides/chat)
