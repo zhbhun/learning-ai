@@ -1,0 +1,1 @@
+- https://github.com/pacholoamit/chatgpt-prompts
