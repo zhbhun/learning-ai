@@ -1,1 +1,2 @@
 - [ChatBCG](https://www.chatbcg.com/)
+- [GPT for Slides](https://www.gptforslides.app/) - 一款 Google Slides 插件，让你在 Google Slides 自动直接生成整个演示文档。
