@@ -1,0 +1,1 @@
+- [范冰：最近对 ChatGPT / LLMs 的狂飙乱想](https://mp.weixin.qq.com/s/Yjr7PC_9PKw1jzPKKw3ciw)
