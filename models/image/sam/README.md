@@ -1,0 +1,1 @@
+- [Segment Anything Model (SAM)](https://segment-anything.com/) / https://github.com/facebookresearch/segment-anything
