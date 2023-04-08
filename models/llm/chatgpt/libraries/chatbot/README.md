@@ -1,2 +1,3 @@
 - [wechat-chatgpt](https://github.com/fuergaosi233/wechat-chatgpt)
+- [chatgpt-twitter-bot](https://github.com/transitive-bullshit/chatgpt-twitter-bot)
 - https://github.com/zhayujie/chatgpt-on-wechat
