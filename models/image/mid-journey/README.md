@@ -3,6 +3,7 @@
 ## 教程
 
 - [【Midjourney】从入门到精通·全网最通俗易懂·AI绘画保姆级教程](https://space.bilibili.com/630876766/channel/collectiondetail?sid=1045607&ctype=0)
+- [Midjourney 学习导航](https://learningprompt.wiki/docs/midjourney-learning-path)
 
 ### 提示词
 
