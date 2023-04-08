@@ -1,2 +1,3 @@
 - [范冰：最近对 ChatGPT / LLMs 的狂飙乱想](https://mp.weixin.qq.com/s/Yjr7PC_9PKw1jzPKKw3ciw)
 - [我这样用 ChatGPT](https://mp.weixin.qq.com/s?__biz=MzA4NDk5OTgzMg==&mid=2650593530&idx=1&sn=3f842c3b0fbf07786ef8a5e758fb8188&chksm=87d6d30db0a15a1baf5a6db78e75a24558d057825882499f3d1e20cb0a78561ad038802739f1&scene=21#wechat_redirect)
+- [我让 ChatGPT 回答了知乎收藏最高的 Top 20 个问题](https://mp.weixin.qq.com/s?__biz=MzA4NDk5OTgzMg==&mid=2650593244&idx=1&sn=f8800ff1779598aaf5be766b87051848&chksm=87d6dc2bb0a1553d0926d58a1cb596b34571c8d93db01b6c1eea2fdf6e000be11e89148d0dbc&scene=21#wechat_redirect)
