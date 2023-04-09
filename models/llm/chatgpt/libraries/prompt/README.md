@@ -1,2 +1,3 @@
 - https://github.com/pacholoamit/chatgpt-prompts
 - [awesome-chatgpt-prompts](https://github.com/f/awesome-chatgpt-prompts)
+- [merve/ChatGPT-prompt-generator](https://huggingface.co/spaces/merve/ChatGPT-prompt-generator)
