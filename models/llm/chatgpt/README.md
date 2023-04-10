@@ -108,13 +108,6 @@ https://writesonic.com/blog/chatgpt-alternatives/
 
     一个简单的 Mac 客户端，方便用户用自己的API使用 ChatGPT，可以解决中国用户每次登陆 ChatGPT 网页的时候都需要验证的问题，已经发布三个版本，还在逐步优化。这类工具型的产品也是一个不错的方向，可以做一些增值的功能或者一些用户个性化的需求，让用户更好地使用 ChatGPT。
 
-### 翻译助手
-
-- [OpenAI Translator Bob Plugin](https://github.com/yetone/bob-plugin-openai-translator)
-- [OpenAI Translator Chrome Extension](https://github.com/yetone/openai-translator)
-
-    一个浏览器插件方便用户使用 ChatGPT 进行划词翻译。
-
 ### 写作助手
 
 - [OpenAI Polisher Bob Plugin ](https://github.com/yetone/bob-plugin-openai-polisher)

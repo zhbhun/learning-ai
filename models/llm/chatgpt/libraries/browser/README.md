@@ -1,3 +1,4 @@
+- [WebChatGPT](https://chrome.google.com/webstore/detail/webchatgpt-chatgpt-with-i/lpfemeioodjbpieminkklglpmhlngfcn) - 使用来自网络的相关结果增强您的 ChatGPT 提示。
 - [chat-gpt-google-extension](https://github.com/wong2/chat-gpt-google-extension)
 - [ChatGPT Chrome Extension](https://github.com/gragland/chatgpt-chrome-extension)
 - https://github.com/josStorer/chatGPTBox - Integrating ChatGPT into your browser deeply, everything you need is here / 将ChatGPT深度集成到浏览器中, 你所需要的一切均在于此
