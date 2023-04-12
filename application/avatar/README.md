@@ -1,0 +1,2 @@
+- https://www.headshotpro.com/
+- https://www.profilepicture.ai/
