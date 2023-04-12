@@ -94,7 +94,6 @@
 - [ChatGPT国内网页版免费使用](https://openaizh.com/?thread-19.htm)
 - [ChatGPT 国内镜像站](https://blog.forwardminded.xyz/)
 - [ Jasper Chat](https://www.jasper.ai/chat)
-- https://open-gpt.app - 立即使用海量的 ChatGPT 应用，或在几秒钟内创建属于自己的应用。
 
 ---
 

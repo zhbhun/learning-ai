@@ -1,0 +1,2 @@
+- https://sttabot.io/
+- https://open-gpt.app - 立即使用海量的 ChatGPT 应用，或在几秒钟内创建属于自己的应用。
