@@ -28,6 +28,7 @@
 - [FUTUREPEDIA](https://www.futurepedia.io) - THE LARGEST AI TOOLS DIRECTORY, UPDATED DAILY
 - https://manaai.cn/ - 中文AI算法市场 (AI MARKET)
 - [AIGC周刊](https://op7418.zhubai.love/)
+- [Chatgpt - 导航大全](https://chatgpt.yundongfang.com/#term-2)
 
 ## 教程
 

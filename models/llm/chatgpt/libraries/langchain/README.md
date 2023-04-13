@@ -7,6 +7,14 @@
 - [notion-qa](https://github.com/hwchase17/notion-qa) - Notion Question-Answering
 - [chat-langchain](https://github.com/hwchase17/chat-langchain) - This repo is an implementation of a locally hosted chatbot specifically focused on question answering over the LangChain documentation. Built with LangChain and FastAPI.
 
+## 应用
+
+### QA
+
+- [QA Generation](https://python.langchain.com/en/latest/use_cases/evaluation/qa_generation.html)
+- [Q&A Bot with Llama-Index and LangChain](https://colab.research.google.com/drive/1JYTczk-4D86XNn0GTaXux5yi2-LfoIPd?usp=sharing#scrollTo=wOWoWflrP2pO)
+- [Build your own Q&A KnowledgeBot using GPT-Index & LangChain - Document to Chatbot](https://www.youtube.com/watch?v=Dhc_fq5iCnU)
+
 ## 参考文献
 
 - [Langchain如何使用？（一） ](https://www.cnblogs.com/AudreyXu/p/17233964.html)
