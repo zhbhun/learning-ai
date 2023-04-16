@@ -14,3 +14,7 @@
   - [[Bug]: All my accounts deactivated](https://github.com/acheong08/ChatGPT/issues/1158)
 
 - [acheong08/ChatGPT-Proxy-V4](https://github.com/acheong08/ChatGPT-Proxy-V4) - Cloudflare Bypass for OpenAI based on `puid`
+
+---
+
+- [使用 Cloudflare Workers 让 OpenAI API 绕过 GFW 且避免被封禁](https://github.com/noobnooc/noobnooc/discussions/9)
