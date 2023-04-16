@@ -12,3 +12,9 @@
 - https://www.tuningbox.com/en/
 - https://greengpt.app/
 - https://hotoke.ai/
+
+---
+
+- [openai-sb](https://chat.openai-sb.com/zh) / [OpenAI-SB](https://openai-sb.com/guide/)
+
+  - [免费送 50 万中文字符的 GPT-3.5 支持 GPT-4](https://www.v2ex.com/t/932200?utm_source=pocket_saves)

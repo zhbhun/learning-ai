@@ -1,3 +1,5 @@
+## 开源
+
 - [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) - 用 Express 和 Vue3 搭建的 ChatGPT 演示网页
 - [lencx/ChatGPT](https://github.com/lencx/ChatGPT) - ChatGPT Desktop Application (Mac, Windows and Linux)
 - [binary-husky/chatgpt_academic](https://github.com/binary-husky/chatgpt_academic) - 科研工作专用ChatGPT拓展，特别优化学术Paper润色体验，支持自定义快捷按钮，支持自定义函数插件，支持markdown表格显示，Tex公式双显示，代码显示功能完善，新增本地Python/C++/Go项目树剖析功能/项目源代码自译解能力，新增PDF和Word文献批量总结功能
