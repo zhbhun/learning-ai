@@ -1,5 +1,11 @@
 - [AI 数字绘画 stable-diffusion 保姆级教程](https://sspai.com/post/75771)
 
+## 社区
+
+- https://huggingface.co/
+- https://civitai.com/
+- [低成本体验生成 AI 小姐姐照片](https://medium.com/@croath/%E4%BD%8E%E6%88%90%E6%9C%AC%E4%BD%93%E9%AA%8C%E7%94%9F%E6%88%90-ai-%E5%B0%8F%E5%A7%90%E5%A7%90%E7%85%A7%E7%89%87-85ffa7c13cd7)
+
 ## 教程
 
 - [最强AI绘画工具——Stable Diffusion](https://space.bilibili.com/31501856/channel/collectiondetail?sid=1179528)
@@ -18,6 +24,7 @@
 - [Stable Diffusion + Novelai模型 使用经验（1）](https://www.bilibili.com/read/cv19030954?from=search&spm_id_from=333.337.0.0)
 - [【AI绘画】全网Stable Diffusion WebUI Model模型资源汇总（自用）](https://www.bilibili.com/read/cv20039815?from=search&spm_id_from=333.337.0.0)
 - [模型应用---使用Stable Diffusion UI手册](https://zhuanlan.zhihu.com/p/570954565)
+
 
 ## 关键词
 
