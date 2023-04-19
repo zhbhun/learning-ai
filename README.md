@@ -4,10 +4,14 @@
 - [The Complete Resource Of Artificial Intelligence Tools & Services](https://allthingsai.com/)
 - [FUTUREPEDIA](https://www.futurepedia.io) - THE LARGEST AI
 
+## 平台
+
+- [huggingface](https://huggingface.co/) - The AI community building the future.
+
 ## 社区
 
 - [ai weekly](https://aiweekly.co/issues/)
-- [huggingface](https://huggingface.co/) - The AI community building the future.
+- [AI 研究所](https://www.aiyjs.com/)
 
 ## 书籍
 

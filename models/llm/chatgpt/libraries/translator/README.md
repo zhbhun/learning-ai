@@ -8,3 +8,6 @@
 - [风声雨声](https://fsys.app/)
 
   功能简单说就是上传中文文档，然后返回给中英双语对照的版本。适合沉浸式英文阅读、严谨材料的学习。
+
+- [字幕酱](https://www.zimujiang.com/) - 在线字幕生成工具
+- [AI 研究所 - 翻译复制](https://www.aiyjs.com/category/ai%e5%b7%a5%e5%85%b7/%e7%bf%bb%e8%af%91%e8%be%85%e5%8a%a9)
