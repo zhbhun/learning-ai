@@ -24,6 +24,7 @@
 - [Stable Diffusion + Novelai模型 使用经验（1）](https://www.bilibili.com/read/cv19030954?from=search&spm_id_from=333.337.0.0)
 - [【AI绘画】全网Stable Diffusion WebUI Model模型资源汇总（自用）](https://www.bilibili.com/read/cv20039815?from=search&spm_id_from=333.337.0.0)
 - [模型应用---使用Stable Diffusion UI手册](https://zhuanlan.zhihu.com/p/570954565)
+- [【AI绘画教程】Stable Diffusion - 哇咔咔路人甲](https://space.bilibili.com/36911668/channel/collectiondetail?sid=1253394)
 
 
 ## 关键词
