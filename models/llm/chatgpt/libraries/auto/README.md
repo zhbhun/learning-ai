@@ -1,0 +1,2 @@
+- autogpt
+- [Agent GPT](https://agentgpt.pixocial.io/)
