@@ -37,3 +37,6 @@
 - [三个基础假设](https://mp.weixin.qq.com/s/jC-_B_arDpm1dsEmJLZYIw) TOOLS DIRECTORY, UPDATED DAILY.
 - [showmeai](https://www.showmeai.tech/) - 
 
+## 前沿
+
+- [YC Demo Day来了，这届「含AI量」严重超标！｜一周硅秘](https://mp.weixin.qq.com/s/_6aNSbtyI4VCFm2NZIfuvg)
