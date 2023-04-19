@@ -1,1 +1,2 @@
 - [Segment Anything Model (SAM)](https://segment-anything.com/) / https://github.com/facebookresearch/segment-anything
+- [sd-webui-segment-anything](https://github.com/continue-revolution/sd-webui-segment-anything) - Segment Anything for Stable Diffusion Webui
