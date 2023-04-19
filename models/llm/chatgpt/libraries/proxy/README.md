@@ -4,6 +4,7 @@
   - https://github.com/Chanzhaoyu/chatgpt-web/issues/595
   - https://mp.weixin.qq.com/s/1M8JFbq9Ea29EzE9QqocPQ
 
+- [go-chatgpt-api](https://github.com/linweiyuan/go-chatgpt-api) - Unofficial API in Go (bypass Cloudflare 403).
 - [waylaidwanderer/node-chatgpt-api](https://github.com/waylaidwanderer/node-chatgpt-api)
 - [ikechan8370/node-chatgpt-proxy](https://github.com/ikechan8370/node-chatgpt-proxy) - a stable proxy solution of chat.openai.com which can bypass cloudflare with browser
 
