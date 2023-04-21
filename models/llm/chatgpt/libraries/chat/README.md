@@ -1,6 +1,9 @@
+
 ## 开源
 
+- [整理了一份github上比较热门的ChatGPT项目，值得收藏](https://blog.csdn.net/sinat_28521487/article/details/129745595)
 - [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) - 用 Express 和 Vue3 搭建的 ChatGPT 演示网页
+- [ChatGPT-Next-Web](https://github.com/Yidadaa/ChatGPT-Next-Web) - One-Click to deploy well-designed ChatGPT web UI on Vercel.
 - [lencx/ChatGPT](https://github.com/lencx/ChatGPT) - ChatGPT Desktop Application (Mac, Windows and Linux)
 - [binary-husky/chatgpt_academic](https://github.com/binary-husky/chatgpt_academic) - 科研工作专用ChatGPT拓展，特别优化学术Paper润色体验，支持自定义快捷按钮，支持自定义函数插件，支持markdown表格显示，Tex公式双显示，代码显示功能完善，新增本地Python/C++/Go项目树剖析功能/项目源代码自译解能力，新增PDF和Word文献批量总结功能
 - [chatbot-ui](https://github.com/mckaywrigley/chatbot-ui) - An open source ChatGPT UI.
@@ -15,7 +18,19 @@
 - [chatbot-ui-lite](https://github.com/mckaywrigley/chatbot-ui-lite) - A simple chatbot starter kit for OpenAI's chat model using Next.js, TypeScript, and Tailwind CSS.
 - [ChatGPT Siri](https://github.com/Yue-Yang/ChatGPT-Siri) - Shortcuts for Siri using ChatGPT API gpt-3.5-turbo & gpt-4 model, supports continuous conversations, configure the API key & save chat records. 
 - [yakGPT](https://github.com/yakGPT/yakGPT) - Locally running, hands-free ChatGPT UI
+- [waylaidwanderer/PandoraAI](https://github.com/waylaidwanderer/PandoraAI) - About PandoraAI is a web chat client powered by node-chatgpt-api, allowing users to easily chat with multiple AI systems while also offering support for custom presets. With its seamless and convenient design, PandoraAI provides an engaging conversational AI experience.
+- [danny-avila/chatgpt-clone](https://github.com/jaredhanson/passport) - Simple, unobtrusive authentication for Node.js.
+- [excing/chatgpt](https://github.com/excing/chatgpt) - 构建你的 OpenAI ChatGPT Web 站点
+- https://github.com/frontend-engineering/chatgpt-webapp-fullstack
+- [chatgpt-web-share](https://github.com/moeakwak/chatgpt-web-share) - 共享 ChatGPT 账号给多用户同时使用！A web application that allows multiple users to share one ChatGPT account at the same time, developed using fastapi & vue3. Supports GPT-4! 用于朋友之间共享或合租 ChatGPT 账号。使用 FastAPI + Vue3 开发。支持 ChatGPT Plus / 使用 GPT-4 / 用户请求限制等功能。
 
---- 
+## 商业
 
-- [整理了一份github上比较热门的ChatGPT项目，值得收藏](https://blog.csdn.net/sinat_28521487/article/details/129745595)
+- https://weexai.com
+- https://console.openai-asia.com/
+
+  https://www.v2ex.com/t/931431#reply96
+
+- https://ohmygpt.com/
+
+  https://www.v2ex.com/t/925975#reply49
