@@ -23,6 +23,7 @@
 - [excing/chatgpt](https://github.com/excing/chatgpt) - 构建你的 OpenAI ChatGPT Web 站点
 - https://github.com/frontend-engineering/chatgpt-webapp-fullstack
 - [chatgpt-web-share](https://github.com/moeakwak/chatgpt-web-share) - 共享 ChatGPT 账号给多用户同时使用！A web application that allows multiple users to share one ChatGPT account at the same time, developed using fastapi & vue3. Supports GPT-4! 用于朋友之间共享或合租 ChatGPT 账号。使用 FastAPI + Vue3 开发。支持 ChatGPT Plus / 使用 GPT-4 / 用户请求限制等功能。
+- [KiritoCheng/openai-public](https://github.com/KiritoCheng/openai-public) - 搭配openai3.5接口写出的聊天AI页，后端项目请前往openai-server仓库查看。
 
 ## 商业
 
