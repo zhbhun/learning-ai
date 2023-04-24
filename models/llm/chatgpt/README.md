@@ -68,6 +68,7 @@
 ### 实践案例
 
 - [ChatGPT ✖️ 前端 = 有点er意思](https://juejin.cn/post/7199607659992907832?utm_source=pocket_reader#heading-15)
+- [ChatGPT 有什么新奇的使用方式？](https://www.zhihu.com/question/582979328/answer/2991009864?utm_oi=35897751896064&utm_psn=1633025738663145472&utm_source=pocket_reader)
 
 ### 开发集成
 

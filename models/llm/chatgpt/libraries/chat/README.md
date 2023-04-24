@@ -27,6 +27,10 @@
 
 ## 商业
 
+- [poe](https://poe.com)
+
+  [ChatGPT 有什么新奇的使用方式？](https://www.zhihu.com/question/582979328/answer/2991009864?utm_oi=35897751896064&utm_psn=1633025738663145472&utm_source=pocket_reader)
+
 - https://weexai.com
 - https://console.openai-asia.com/
 
