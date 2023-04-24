@@ -1,0 +1,1 @@
+- [Text2Human](https://github.com/yumingj/Text2Human) - Code for Text2Human (SIGGRAPH 2022). Paper: Text2Human: Text-Driven Controllable Human Image Generation
