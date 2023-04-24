@@ -4,6 +4,10 @@
 - [整理了一份github上比较热门的ChatGPT项目，值得收藏](https://blog.csdn.net/sinat_28521487/article/details/129745595)
 - [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) - 用 Express 和 Vue3 搭建的 ChatGPT 演示网页
 - [ChatGPT-Next-Web](https://github.com/Yidadaa/ChatGPT-Next-Web) - One-Click to deploy well-designed ChatGPT web UI on Vercel.
+- [chathub](https://github.com/chathub-dev/chathub) - All-in-one chatbot client
+
+  - [【Chathub】一个不需要使用魔方就可以用 New bing（基于ChatGPT4）的浏览器插件](https://mp.weixin.qq.com/s?__biz=Mzg4NjcyNDYxMw==&mid=2247484241&idx=1&sn=f041cfa1bb163f9346ac5b6e31af38e6&chksm=cf94023bf8e38b2dd21d75b3d3521de4c611d9727bb34883c8f2fa666eebc676c3458bf893f5&scene=21#wechat_redirect)
+
 - [lencx/ChatGPT](https://github.com/lencx/ChatGPT) - ChatGPT Desktop Application (Mac, Windows and Linux)
 - [binary-husky/chatgpt_academic](https://github.com/binary-husky/chatgpt_academic) - 科研工作专用ChatGPT拓展，特别优化学术Paper润色体验，支持自定义快捷按钮，支持自定义函数插件，支持markdown表格显示，Tex公式双显示，代码显示功能完善，新增本地Python/C++/Go项目树剖析功能/项目源代码自译解能力，新增PDF和Word文献批量总结功能
 - [chatbot-ui](https://github.com/mckaywrigley/chatbot-ui) - An open source ChatGPT UI.
