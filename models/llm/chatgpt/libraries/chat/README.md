@@ -35,3 +35,5 @@
 - https://ohmygpt.com/
 
   https://www.v2ex.com/t/925975#reply49
+
+- [Chatmosphere](https://chatmosphere.ai/) - Generate a Chat Room From Your Description
