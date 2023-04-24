@@ -335,7 +335,7 @@ content-type: application/json
 ## message
 
 ```
-POST  https://chat.openai.com/backend-api/conversation
+POST https://chat.openai.com/backend-api/conversation
 
 authorization: Bearer ...
 content-type: application/json
@@ -398,4 +398,51 @@ content-type: text/event-stream
 }
 ```
 
-## ...
+## 提示词定制
+
+1. POST https://chat.openai.com/backend-api/conversation
+
+  ```json
+  {
+    "action": "next",
+    "messages": [
+      {
+        "id": "947190de-1943-4cc6-8bdc-c16147c241c9",
+        "author": { "role": "user" },
+        "content": {
+          "content_type": "text",
+          "parts": [
+            "As a prompt generator for a generative AI called \"Midjourney\", you will create image prompts for the AI to visualize. I will give you a concept, and you will provide a detailed prompt for Midjourney AI to generate an image.\n\nPlease adhere to the structure and formatting below, and follow these guidelines:\n\n- Do not use the words \"description\" or \":\" in any form.\n- Do not place a comma between [ar] and [v].\n- Write each prompt in one line without using return.\n\nStructure:\n[1] = 一朵鲜花\n[2] = a detailed description of [1] with specific imagery details.\n[3] = a detailed description of the scene's environment.\n[4] = a detailed description of the scene's mood, feelings, and atmosphere.\n[5] = A style (e.g. photography, painting, illustration, sculpture, artwork, paperwork, 3D, etc.) for [1].\n[6] = A description of how [5] will be executed (e.g. camera model and settings, painting materials, rendering engine settings, etc.)\n[ar] = Use \"--ar 16:9\" for horizontal images, \"--ar 9:16\" for vertical images, or \"--ar 1:1\" for square images.\n[v] = Use \"--niji\" for Japanese art style, or \"--v 5\" for other styles.\n\nFormatting: \nFollow this prompt structure: \"/imagine prompt: [1], [2], [3], [4], [5], [6], [ar] [v]\".\n\nYour task: Create 4 distinct prompts for each concept [1], varying in description, environment, atmosphere, and realization.\n\n- Write your prompts in English.\n- Do not describe unreal concepts as \"real\" or \"photographic\".\n- Include one realistic photographic style prompt with lens type and size.\n- Separate different prompts with two new lines.\n\nExample Prompts:\nPrompt 1:\n/imagine prompt: A stunning Halo Reach landscape with a Spartan on a hilltop, lush green forests surround them, clear sky, distant city view, focusing on the Spartan's majestic pose, intricate armor, and weapons, Artwork, oil painting on canvas, --ar 16:9 --v 5\n\nPrompt 2:\n/imagine prompt: A captivating Halo Reach landscape with a Spartan amidst a battlefield, fallen enemies around, smoke and fire in the background, emphasizing the Spartan's determination and bravery, detailed environment blending chaos and beauty, Illustration, digital art, --ar 16:9 --v 5"
+          ]
+        }
+      }
+    ],
+    "parent_message_id": "ee283f64-94aa-4629-9856-23ca040322cf",
+    "model": "text-davinci-002-render-sha",
+    "timezone_offset_min": -480,
+    "variant_purpose": "none"
+  }
+  ```
+
+2. POST https://chat.openai.com/backend-api/conversation 
+
+  ```json
+  {
+    "action": "next",
+    "messages": [
+      {
+        "id": "641cdbe9-39e8-4097-b393-e5445d56cb76",
+        "author": { "role": "user" },
+        "content": {
+          "content_type": "text",
+          "parts": ["一朵鲜花\n\nPlease write in English language."]
+        }
+      }
+    ],
+    "conversation_id": "ea976e80-62e7-4eb5-8a91-363e073a41f6",
+    "parent_message_id": "a6109e13-579c-4f79-a7a5-bb543b07f931",
+    "model": "text-davinci-002-render-sha",
+    "timezone_offset_min": -480,
+    "variant_purpose": "none"
+  }
+  ```
