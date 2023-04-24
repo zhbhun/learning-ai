@@ -1,0 +1,2 @@
+- [databricks/dolly-v2-12b](https://huggingface.co/databricks/dolly-v2-12b)
+- [世界首款真开源类ChatGPT大模型Dolly 2.0，可随意修改商用](https://finance.sina.com.cn/tech/roll/2023-04-13/doc-imyqffyn3656363.shtml)
