@@ -1,4 +1,5 @@
 - [那些想复刻ChatGPT的人，为何都失败了？](https://m.huxiu.com/article/799561.html)
+- [How to train your own Large Language Models](https://blog.replit.com/llm-training)
 
 ---
 
