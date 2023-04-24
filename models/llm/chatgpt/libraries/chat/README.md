@@ -45,3 +45,4 @@
   https://www.v2ex.com/t/925975#reply49
 
 - [Chatmosphere](https://chatmosphere.ai/) - Generate a Chat Room From Your Description
+- [Typing Mind](https://typingmind.com/) / https://www.producthunt.com/products/typing-mind - Use ChatGPT with enhanced features like fast response, chat search, integrations, prompt library, etc. Use your own API Key, run locally on your browser, macOS App, and self-host available.
