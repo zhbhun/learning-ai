@@ -1,0 +1,1 @@
+- [dynamic-interface-web](https://github.com/zckly/dynamic-interface-web) - Dynamically generate UI with Large Language Models
