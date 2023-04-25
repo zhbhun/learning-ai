@@ -43,3 +43,7 @@
 ## 工具
 
 - [stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
+
+## 应用
+
+- [roomGPT](https://github.com/Nutlope/roomGPT) - Upload a photo of your room to generate your dream room with AI.
