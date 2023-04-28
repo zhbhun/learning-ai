@@ -25,6 +25,7 @@
 - [《Python机器学习基础教程》](https://book.douban.com/subject/30147778/) - 豆瓣 8.8
 - [《白话机器学习的数学》](https://book.douban.com/subject/35126508/) - 豆瓣 8.8
 - [AI collecting books, papers and docs. - Kensuke-Hinata/statistic](https://github.com/Kensuke-Hinata/statistic/tree/master/AI)
+- [AIGC交流群工具沉淀](https://bytedance.feishu.cn/base/AIMAbnJxQaNgSGsBAtwcdAkLnvf?table=tblmZTd8VuUOOONh&view=vew0Eo17BB)
 
 ## 导航
 
