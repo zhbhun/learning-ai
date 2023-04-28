@@ -13,3 +13,4 @@ ChatGPT 侧边栏可以作为您阅读📖和写作📝的助手。
     - https://www.producthunt.com/posts/chatgpt-sidebar-chrome-extension
 
 - [ChatSonic - ChatGPT with super powers](https://chrome.google.com/webstore/detail/chatsonic-chatgpt-with-su/kchaponcodemjigejilffhfchecpgdpf) - This advanced ChatGPT-like Chrome extension from Writesonic is designed to save you time and effort by making working with Gmail, Twitter, LinkedIn, and the web more productive.
+- https://sharegpt.com/

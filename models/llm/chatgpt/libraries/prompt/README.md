@@ -5,3 +5,4 @@
 - [awesome-chatgpt-prompts](https://github.com/f/awesome-chatgpt-prompts)
 - [merve/ChatGPT-prompt-generator](https://huggingface.co/spaces/merve/ChatGPT-prompt-generator)
 - [The Art of ChatGPT Prompting: A Guide to Crafting Clear and Effective Prompts](https://fka.gumroad.com/l/art-of-chatgpt-prompting)
+- [OpenPrompt](https://github.com/thunlp/OpenPrompt)

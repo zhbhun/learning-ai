@@ -1,0 +1,2 @@
+- https://huggingface.co/
+- https://civitai.com/
