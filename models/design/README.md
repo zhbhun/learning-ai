@@ -1,1 +1,2 @@
 - [Falileo AI](https://www.usegalileo.ai/) - Galileo AI creates delightful, editable UI designs from a simple text description. It empowers you to design faster than ever.
+- https://magician.design/
