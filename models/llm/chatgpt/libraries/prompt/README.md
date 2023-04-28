@@ -1,4 +1,5 @@
 - https://github.com/pacholoamit/chatgpt-prompts
+- https://snackprompt.com/
 - [aiprm](https://www.aiprm.com/) / https://chrome.google.com/webstore/detail/aiprm-for-chatgpt/ojnbohmppadfgpejeebfnmnknjdlckgj
 - [ChatGPT Shortcut](https://ai.newzone.top/) - https://github.com/rockbenben/ChatGPT-Shortcut
 - [awesome-chatgpt-prompts](https://github.com/f/awesome-chatgpt-prompts)
