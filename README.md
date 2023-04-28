@@ -4,14 +4,19 @@
 - [The Complete Resource Of Artificial Intelligence Tools & Services](https://allthingsai.com/)
 - [FUTUREPEDIA](https://www.futurepedia.io) - THE LARGEST AI
 
-## 平台
-
-- [huggingface](https://huggingface.co/) - The AI community building the future.
-
-## 社区
+## 订阅
 
 - [ai weekly](https://aiweekly.co/issues/)
+
+## 导航
+
 - [AI 研究所](https://www.aiyjs.com/)
+- [AIGC交流群工具沉淀](https://bytedance.feishu.cn/base/AIMAbnJxQaNgSGsBAtwcdAkLnvf?table=tblmZTd8VuUOOONh&view=vew0Eo17BB)
+- [AInav](https://www.ainav.cn/) - AInav 是一个专为您整理最前沿的精选人工智能工具的平台，让您直接找到适合的工具，成为超人
+- [Chatgpt - 导航大全](https://chatgpt.yundongfang.com/#term-2)
+- [FUTUREPEDIA](https://www.futurepedia.io) - THE LARGEST AI TOOLS DIRECTORY, UPDATED DAILY
+- https://manaai.cn/ - 中文AI算法市场 (AI MARKET)
+- [AIGC周刊](https://op7418.zhubai.love/)
 
 ## 书籍
 
@@ -25,15 +30,6 @@
 - [《Python机器学习基础教程》](https://book.douban.com/subject/30147778/) - 豆瓣 8.8
 - [《白话机器学习的数学》](https://book.douban.com/subject/35126508/) - 豆瓣 8.8
 - [AI collecting books, papers and docs. - Kensuke-Hinata/statistic](https://github.com/Kensuke-Hinata/statistic/tree/master/AI)
-- [AIGC交流群工具沉淀](https://bytedance.feishu.cn/base/AIMAbnJxQaNgSGsBAtwcdAkLnvf?table=tblmZTd8VuUOOONh&view=vew0Eo17BB)
-
-## 导航
-
-- [AInav](https://www.ainav.cn/) - AInav 是一个专为您整理最前沿的精选人工智能工具的平台，让您直接找到适合的工具，成为超人
-- [FUTUREPEDIA](https://www.futurepedia.io) - THE LARGEST AI TOOLS DIRECTORY, UPDATED DAILY
-- https://manaai.cn/ - 中文AI算法市场 (AI MARKET)
-- [AIGC周刊](https://op7418.zhubai.love/)
-- [Chatgpt - 导航大全](https://chatgpt.yundongfang.com/#term-2)
 
 ## 教程
 
