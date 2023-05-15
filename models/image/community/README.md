@@ -1,2 +1,2 @@
-- https://huggingface.co/
+- https://huggingface.co/ / https://huggingface.co/blog/zh
 - https://civitai.com/
