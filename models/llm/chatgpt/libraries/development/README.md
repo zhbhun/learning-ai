@@ -1,2 +1,3 @@
+- [cursor](https://www.cursor.so/) - Build Software. Fast.
 - [tabnine](https://www.tabnine.com/) - AI assistant for software developers, Code faster with whole-line & full-function code completions
 - [chatgpt-vscode](https://github.com/mpociot/chatgpt-vscode)
