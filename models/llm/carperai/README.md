@@ -1,0 +1,2 @@
+- https://huggingface.co/CarperAI
+- https://huggingface.co/spaces/CarperAI/StableVicuna
