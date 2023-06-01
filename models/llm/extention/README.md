@@ -1,0 +1,1 @@
+- [LaWGPT](https://github.com/pengxiao-song/LawGPT) - Repo for LaWGPT, Chinese-Llama tuned with Chinese Legal knowledge. 基于中文法律知识的大语言模型
