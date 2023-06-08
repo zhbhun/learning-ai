@@ -10,6 +10,7 @@
 
 ## 导航
 
+- [ithinkai](https://app.ithinkai.world/)
 - [AI 研究所](https://www.aiyjs.com/)
 - [AIGC交流群工具沉淀](https://bytedance.feishu.cn/base/AIMAbnJxQaNgSGsBAtwcdAkLnvf?table=tblmZTd8VuUOOONh&view=vew0Eo17BB)
 - [AInav](https://www.ainav.cn/) - AInav 是一个专为您整理最前沿的精选人工智能工具的平台，让您直接找到适合的工具，成为超人
