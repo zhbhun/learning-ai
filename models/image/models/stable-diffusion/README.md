@@ -26,7 +26,6 @@
 - [模型应用---使用Stable Diffusion UI手册](https://zhuanlan.zhihu.com/p/570954565)
 - [【AI绘画教程】Stable Diffusion - 哇咔咔路人甲](https://space.bilibili.com/36911668/channel/collectiondetail?sid=1253394)
 
-
 ## 关键词
 
 - https://danbooru.donmai.us/
