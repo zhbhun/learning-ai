@@ -24,3 +24,7 @@
 ## 案例
 
 - [2天300+作品，Midjourney将彻底颠覆食品包装设计！](https://mp.weixin.qq.com/s/b1v2Jp04119bDeyuBLv_Iw)
+
+## 代理
+
+- [midjourney-proxy](https://github.com/novicezk/midjourney-proxy) - 代理 MidJourney 的discord频道，实现api形式调用AI绘图
