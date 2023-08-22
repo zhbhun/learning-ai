@@ -1,2 +1,3 @@
 - https://huggingface.co/ / https://huggingface.co/blog/zh
 - https://civitai.com/
+- [modelscope](https://www.modelscope.cn/my/overview)
