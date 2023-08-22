@@ -27,4 +27,5 @@
 
 ## 代理
 
+- [midjourneybyapi](https://midjourneybyapi.cloud/) - We love Midjourney as much as you do and we wanted to integrate it in our applications, that’s why we developed this API.
 - [midjourney-proxy](https://github.com/novicezk/midjourney-proxy) - 代理 MidJourney 的discord频道，实现api形式调用AI绘图
