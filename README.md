@@ -10,6 +10,7 @@
 
 ## 导航
 
+- https://www.aihub.cn/
 - [ithinkai](https://app.ithinkai.world/)
 - [AI 研究所](https://www.aiyjs.com/)
 - [AIGC交流群工具沉淀](https://bytedance.feishu.cn/base/AIMAbnJxQaNgSGsBAtwcdAkLnvf?table=tblmZTd8VuUOOONh&view=vew0Eo17BB)
