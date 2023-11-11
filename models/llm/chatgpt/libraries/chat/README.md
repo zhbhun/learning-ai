@@ -1,6 +1,7 @@
 
 ## 开源
 
+- [chatbox](https://github.com/Bin-Huang/chatbox)
 - [整理了一份github上比较热门的ChatGPT项目，值得收藏](https://blog.csdn.net/sinat_28521487/article/details/129745595)
 - [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) - 用 Express 和 Vue3 搭建的 ChatGPT 演示网页
 - [ChatGPT-Next-Web](https://github.com/Yidadaa/ChatGPT-Next-Web) - One-Click to deploy well-designed ChatGPT web UI on Vercel.
