@@ -3,6 +3,10 @@
 - [Text2Performer](https://yumingj.github.io/projects/Text2Performer.html) / https://github.com/yumingj/Text2Performer - Text-Driven Human Video Generation
 - [Track-Anything](https://github.com/gaomingqi/Track-Anything) - Track-Anything is a flexible and interactive tool for video object tracking and segmentation, based on Segment Anything, XMem, and E2FGVI.
 - [DeepFaceLive](https://github.com/iperov/DeepFaceLive) - Real-time face swap for PC streaming or video calls
+- [ChatAnything](https://github.com/zhoudaquan/ChatAnything) - Official Repo for the Paper: CHATANYTHING: FACETIME CHAT WITH LLM-ENHANCED PERSONAS
+
+  - https://chatanything.github.io/
+  - https://twitter.com/xiaohuggg/status/1724597996225232906
 
 ## 参考文献
 
