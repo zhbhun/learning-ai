@@ -1,0 +1,3 @@
+- https://huggingface.co/spaces/HumanAIGC/OutfitAnyone/
+- https://humanaigc.github.io/outfit-anyone/
+- https://github.com/HumanAIGC/OutfitAnyone
