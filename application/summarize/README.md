@@ -1,3 +1,4 @@
+- [Glarity](https://chromewebstore.google.com/detail/cmnlolelipjlhfkhpohphpedmkfbobjc)
 - [wiseone](https://wiseone.io/) - Helps you master any topic you are reading online by bringing relevant and reliable information
 - [chatgpt-google-summary-extension](https://github.com/sparticleinc/chatgpt-google-summary-extension) - Chrome extension to view ChatGPT summaries alongside Google search results and YouTube videos, also supports Yahoo! ニュース、PubMed、PMC、NewsPicks、Github、Nikkei、 Bing、Google Patents, and any page summary.
 - [ReadEasy.ai](https://readeasy.ai/) - Make the text of your website or app easy to read for people with low literacy skills. Read Easy.ai is built for editors and developers.
