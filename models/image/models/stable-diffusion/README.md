@@ -43,6 +43,8 @@
 ## 工具
 
 - [stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
+- [Gauss](https://github.com/justjake/Gauss) - A Stable Diffusion app for macOS built with SwiftUI 
+- [Amazing AI](https://sindresorhus.com/amazing-ai) - Generate images from text using Stable Diffusion
 
 ## 应用
 
