@@ -1,6 +1,7 @@
 
 ## 开源
 
+- [lobe-chat](https://github.com/lobehub/lobe-chat) - Lobe Chat - an open-source, high-performance chatbot framework that supports speech synthesis, multimodal, and extensible Function Call plugin system. Supports one-click free deployment of your private ChatGPT/LLM web application.
 - [LibreChat](https://github.com/danny-avila/LibreChat) - Enhanced ChatGPT Clone: Features OpenAI, GPT-4 Vision, Bing, Anthropic, OpenRouter, Google Gemini, AI model switching, message search, langchain, DALL-E-3, ChatGPT Plugins, OpenAI Functions, Secure Multi-User System, Presets, completely open-source for self-hosting. More features in development
 - [chatbox](https://github.com/Bin-Huang/chatbox)
 - [整理了一份github上比较热门的ChatGPT项目，值得收藏](https://blog.csdn.net/sinat_28521487/article/details/129745595)
