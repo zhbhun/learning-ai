@@ -1,6 +1,7 @@
 
 ## 开源
 
+- [LibreChat](https://github.com/danny-avila/LibreChat) - Enhanced ChatGPT Clone: Features OpenAI, GPT-4 Vision, Bing, Anthropic, OpenRouter, Google Gemini, AI model switching, message search, langchain, DALL-E-3, ChatGPT Plugins, OpenAI Functions, Secure Multi-User System, Presets, completely open-source for self-hosting. More features in development
 - [chatbox](https://github.com/Bin-Huang/chatbox)
 - [整理了一份github上比较热门的ChatGPT项目，值得收藏](https://blog.csdn.net/sinat_28521487/article/details/129745595)
 - [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) - 用 Express 和 Vue3 搭建的 ChatGPT 演示网页
