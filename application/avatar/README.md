@@ -1,3 +1,4 @@
 - https://www.headshotpro.com/
 - https://www.profilepicture.ai/
 - [Face2Emoji](https://magickimg.com/face2emoji/)
+- [PhotoMaker](https://github.com/TencentARC/PhotoMaker) - PhotoMaker: Customizing Realistic Human Photos via Stacked ID Embedding
