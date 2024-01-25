@@ -43,6 +43,7 @@
 ## 工具
 
 - [stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
+- [ComfyUI](https://github.com/comfyanonymous/ComfyUI) - The most powerful and modular stable diffusion GUI, api and backend with a graph/nodes interface.
 - [Gauss](https://github.com/justjake/Gauss) - A Stable Diffusion app for macOS built with SwiftUI 
 - [Amazing AI](https://sindresorhus.com/amazing-ai) - Generate images from text using Stable Diffusion
 
