@@ -1,0 +1,6 @@
+- https://emojis.sh/
+- https://replicate.com/search?query=emoji
+- https://replicate.com/fofr/sdxl-emoji
+- https://huggingface.co/SvenN/sdxl-emoji
+- https://www.toolify.ai/tool/emoji-studio
+- https://www.toolify.ai/tool/ai-emoji-generator / https://aiemojigenerator.org/emojis/a627cc21096e901e2069
