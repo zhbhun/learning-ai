@@ -16,4 +16,9 @@
 
 ## How
 
+- [ColossalAI](https://github.com/hpcaitech/ColossalAI) - Colossal-AI 为您提供了一系列并行组件。我们的目标是让您的分布式 AI 模型像构建普通的单 GPU 模型一样简单。我们提供的友好工具可以让您在几行代码内快速开始分布式训练和推理。
 - [unsloth](https://github.com/unslothai/unsloth) - Finetune Llama 3, Mistral & Gemma LLMs 2-5x faster with 80% less memory
+
+---
+
+- [中文指令微调数据集（长期更新）](https://zhuanlan.zhihu.com/p/631640097)
