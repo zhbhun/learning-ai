@@ -20,6 +20,7 @@
 - [unsloth](https://github.com/unslothai/unsloth) - Finetune Llama 3, Mistral & Gemma LLMs 2-5x faster with 80% less memory
 - [baize-chatbot](https://github.com/project-baize/baize-chatbot) - Let ChatGPT teach your own chatbot in hours with a single GPU!
 
----
+  [用ChatGPT训练羊驼：「白泽」开源，轻松构建专属模型，可在线试玩](https://developer.aliyun.com/article/1228540)
 
-- [中文指令微调数据集（长期更新）](https://zhuanlan.zhihu.com/p/631640097)
+- [Play with LLMs](https://github.com/evilpsycho/play-with-llms)
+- [使用 Hugging Face 微调 Gemma 模型](https://huggingface.co/blog/zh/gemma-peft)

@@ -1,0 +1,1 @@
+- [什么是生成式 AI？](https://www.elastic.co/cn/what-is/generative-ai)
