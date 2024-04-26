@@ -1,6 +1,8 @@
 
 ## 数据
 
+- [基于ChatGPT输出的10个精选数据集](https://www.atyun.com/56192.html)
+
 ### 书籍
 
 - [bookcorpus](https://huggingface.co/datasets/bookcorpus) - 小语言模型如 GPT-2 常用的数据集，包括超过 11000 本电子书，主要包括小说和传记。
@@ -17,6 +19,10 @@
 
 - Github
 - StackOverflow
+
+### 对话
+
+- [ultrachat](https://huggingface.co/datasets/stingning/ultrachat) - An open-source, large-scale, and multi-round dialogue data powered by Turbo APIs. 
 
 ## 生成
 
