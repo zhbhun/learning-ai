@@ -41,6 +41,7 @@
 ### 中文
 
 - [CBook-150K](https://github.com/FudanNLPLAB/CBook-150K)
+- [LLM-SFT](https://github.com/yongzhuo/LLM-SFT) - 中文大模型微调(LLM-SFT), 数学指令数据集
 - https://github.com/BAAI-Zlab/COIG - https://huggingface.co/datasets/BAAI/COIG
 - [国产ChatGPT「套壳」的秘密，现在被找到了](https://wallstreetcn.com/articles/3689782)
 - [中文指令微调数据集（长期更新）](https://zhuanlan.zhihu.com/p/631640097)
