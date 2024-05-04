@@ -1,0 +1,6 @@
+- [LangChain](https://github.com/hwchase17/langchain) - 提供了标准的内存接口和内存实现，支持自定义大模型的封装。
+- [Dust.tt](https://github.com/dust-tt/dust) - 提供了简单易用的API，可以让开发者快速构建自己的LLM应用程序。
+- [Semantic-kernel](https://github.com/microsoft/semantic-kernel) - 轻量级SDK，可将AI大型语言模型（LLMs）与传统编程语言集成在一起。
+- [Fixie.ai](https://www.fixie.ai/) - 开放、免费、简单，多模态（images, audio, video...）
+- [Brancher AI](https://www.brancher.ai/) - 链接所有大模型，无代码快速生成应用, Langchain产品）
+- Dify
