@@ -16,11 +16,28 @@
 
 ## How
 
+- [FastChat](https://github.com/lm-sys/FastChat) - An open platform for training, serving, and evaluating large language models. Release repo for Vicuna and Chatbot Arena.
+- [peft](https://github.com/huggingface/peft) - PEFT: State-of-the-art Parameter-Efficient Fine-Tuning.
 - [ColossalAI](https://github.com/hpcaitech/ColossalAI) - Colossal-AI 为您提供了一系列并行组件。我们的目标是让您的分布式 AI 模型像构建普通的单 GPU 模型一样简单。我们提供的友好工具可以让您在几行代码内快速开始分布式训练和推理。
+- [LMFlow](https://github.com/OptimalScale/LMFlow/blob/main/readme/README_zh-hans.md) - 一个可扩展、方便和高效的工具箱，用于微调大型机器学习模型。我们的目标是开发一套用户友好、快速可靠，并对整个社区开放的全流程微调代码库。
 - [unsloth](https://github.com/unslothai/unsloth) - Finetune Llama 3, Mistral & Gemma LLMs 2-5x faster with 80% less memory
+- https://github.com/hiyouga/ChatGLM-Efficient-Tuning - 对 ChatGLM-6B 进行参数高效微调。
+- https://github.com/AGI-Edgerunners/LLM-Adapters
+
+---
+
 - [baize-chatbot](https://github.com/project-baize/baize-chatbot) - Let ChatGPT teach your own chatbot in hours with a single GPU!
 
   [用ChatGPT训练羊驼：「白泽」开源，轻松构建专属模型，可在线试玩](https://developer.aliyun.com/article/1228540)
 
 - [Play with LLMs](https://github.com/evilpsycho/play-with-llms)
 - [使用 Hugging Face 微调 Gemma 模型](https://huggingface.co/blog/zh/gemma-peft)
+- [大语言模型（LLM）微调技术笔记](https://www.mingliumengshao.com/2023/06/08/%E5%A4%A7%E8%AF%AD%E8%A8%80%E6%A8%A1%E5%9E%8B%EF%BC%88llm%EF%BC%89%E5%BE%AE%E8%B0%83%E6%8A%80%E6%9C%AF%E7%AC%94%E8%AE%B0/)
+- [LLM微调:如何制作自己的指令数据集](https://zhuanlan.zhihu.com/p/686408310)
+
+## Example
+
+- [Awesome Domain LLM：收集和梳理垂直领域的开源大语言模型、数据集及评测基准](https://www.mingliumengshao.com/2023/10/11/awesome-domain-llm%ef%bc%9a%e6%94%b6%e9%9b%86%e5%92%8c%e6%a2%b3%e7%90%86%e5%9e%82%e7%9b%b4%e9%a2%86%e5%9f%9f%e7%9a%84%e5%bc%80%e6%ba%90%e5%a4%a7%e8%af%ad%e8%a8%80%e6%a8%a1%e5%9e%8b%e3%80%81%e6%95%b0/)
+- [中文儿童情感陪伴大模型“巧板”](https://github.com/HIT-SCIR-SC/QiaoBan)
+- [国际中文教育大模型](https://github.com/blcuicall/taoli)
+- [EduChat](https://github.com/ECNU-ICALK/EduChat) - 开源中英教育对话大模型。(通用基座模型，GPU部署，数据清理) 
