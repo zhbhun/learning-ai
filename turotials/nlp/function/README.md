@@ -1,0 +1,1 @@
+- [Using tool required for customer service](https://cookbook.openai.com/examples/using_tool_required_for_customer_service)

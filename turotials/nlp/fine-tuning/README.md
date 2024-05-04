@@ -41,3 +41,8 @@
 - [中文儿童情感陪伴大模型“巧板”](https://github.com/HIT-SCIR-SC/QiaoBan)
 - [国际中文教育大模型](https://github.com/blcuicall/taoli)
 - [EduChat](https://github.com/ECNU-ICALK/EduChat) - 开源中英教育对话大模型。(通用基座模型，GPU部署，数据清理) 
+
+## Reference
+
+- [Data preparation and analysis for chat model fine-tuning](https://cookbook.openai.com/examples/chat_finetuning_data_prep)
+- [How to fine-tune chat models](https://cookbook.openai.com/examples/how_to_finetune_chat_models)
