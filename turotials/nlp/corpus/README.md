@@ -6,6 +6,7 @@
 - [A Complete Guide to LLM Datasets | Machine Learning Dataset](https://medium.com/@wangshally11/a-complete-guide-to-llm-datasets-machine-learning-dataset-2865bbc7332c)
 - [Open-Sourced Training Datasets for Large Language Models (LLMs)](https://kili-technology.com/large-language-models-llms/9-open-sourced-datasets-for-training-large-language-models)
 - [LLMDataHub](https://github.com/Zjh-819/LLMDataHub) - A quick guide (especially) for trending instruction finetuning datasets
+- [LLM-数据集收集](https://zhuanlan.zhihu.com/p/648412136)
 
 ### 书籍
 
@@ -40,9 +41,16 @@
 
 ### 中文
 
+- https://github.com/BAAI-Zlab/COIG - https://huggingface.co/datasets/BAAI/COIG - 	Chinese Open Instruction Generalist project
+- https://github.com/ymcui/Chinese-LLaMA-Alpaca - Alpaca 数据集中文翻译（ChatGPT 辅助翻译）
+- https://huggingface.co/datasets/BelleGroup/train_2M_CN - BELLE 项目的中文数据集（ChatGPT 生成）
+- https://huggingface.co/datasets/JosephusCheung/GuanacoDataset - Guannaco 模型的对话数据集
+- https://huggingface.co/datasets/suolyer/webqa - 中文网络问答
+- https://github.com/CLUEbenchmark/pCLUE - 基于提示的大规模预训练数据集，用于多任务学习和零样本学习
+- https://github.com/CVI-SZU/Linly/blob/main/instructions/README.md
+- https://github.com/hiyouga/ChatGLM-Efficient-Tuning/blob/main/data/README.md
 - [CBook-150K](https://github.com/FudanNLPLAB/CBook-150K)
 - [LLM-SFT](https://github.com/yongzhuo/LLM-SFT) - 中文大模型微调(LLM-SFT), 数学指令数据集
-- https://github.com/BAAI-Zlab/COIG - https://huggingface.co/datasets/BAAI/COIG
 - [国产ChatGPT「套壳」的秘密，现在被找到了](https://wallstreetcn.com/articles/3689782)
 - [中文指令微调数据集（长期更新）](https://zhuanlan.zhihu.com/p/631640097)
 
