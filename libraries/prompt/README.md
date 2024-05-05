@@ -1,0 +1,2 @@
+- [LangGPT](https://github.com/langgptai/LangGPT) - LangGPT: Empowering everyone to become a prompt expert!🚀 Structured Prompt，Language of GPT - 一种面向大模型的 prompt 编程语言
+- [Guidance](https://github.com/microsoft/guidance)：微软开源 prompt 编程框架
