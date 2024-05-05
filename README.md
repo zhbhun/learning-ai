@@ -22,6 +22,10 @@
 - https://manaai.cn/ - 中文AI算法市场 (AI MARKET)
 - [AIGC周刊](https://op7418.zhubai.love/)
 
+## 社区
+
+- [AI 魔法学校](https://www.wehelpwin.com/)
+
 ## 书籍
 
 - [豆瓣热门人工智能图书 Top 10](https://m.douban.com/subject_collection/EC7U5FQMI)
