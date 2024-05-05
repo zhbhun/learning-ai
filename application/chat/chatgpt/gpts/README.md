@@ -6,7 +6,11 @@
 - Code Interpreter：执行代码
 - Actions：执行动作
 
-## 参考示例
+## 收集
+
+- [Awesome-AI-GPTs](https://github.com/EmbraceAGI/Awesome-AI-GPTs) - Awesome AI GPTs, OpenAI GPTs, GPT-4, ChatGPT, GPTs, Prompts, plugins, Prompts leaking
+
+## 示例
 
 - [GPTs](https://github.com/linexjlin/GPTs) - leaked prompts of GPTs
 
