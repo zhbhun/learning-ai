@@ -1,20 +1,7 @@
 - https://learningprompt.wiki/
 - https://learnprompting.org/
 - https://www.promptingguide.ai/zh/
-
-## 原则
-
-- 包含完整的信息
-
-  - Bad：`Write a poem about OpenAI.`
-  - Good: `Write a short inspiring poem about OpenAI, focusing on the recent DALL-E product launch (DALL-E is a text to image ML model) in the style of a {famous poet}`
-
-- 简洁易懂，并减少歧义
-
-  - Bad：`The description for this product should be fairly short, a few sentences only, and not too much more.`
-  - Good: `Use a 3 to 5 sentence paragraph to describe this product.`
-
-- 使用正确的语法、拼写，以及标点
+- [LangGPT 结构化提示词](https://langgptai.feishu.cn/wiki/RXdbwRyASiShtDky381ciwFEnpe)
 
 ## 技巧
 
@@ -167,6 +154,10 @@
 - 总结：对一堆信息进行总结。
 
 ### 扩写
+
+## 工具
+
+- [Kimi 提示词专家](https://kimi.moonshot.cn/kimiplus/conpg00t7lagbbsfqkq0)
 
 ## 词库
 
