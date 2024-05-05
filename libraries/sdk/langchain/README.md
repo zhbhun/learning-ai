@@ -1,1 +1,5 @@
+- [Langchain Hub](https://smith.langchain.com/hub)
+
+## Usage
+
 - [大模型应用开发框架 LangChain 学习笔记](https://www.aneasystone.com/archives/2023/08/llm-application-frameworks-langchain.html)
