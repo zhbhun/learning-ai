@@ -1,11 +1,11 @@
 
 ## 技巧
 
-- Start Simple
-- The Instruction
-- Specificity
-- Avoid Impreciseness
-- To do or not to do?
+- Start Simple：从简单开始
+- The Instruction：使用指令
+- Specificity：具体性
+- Avoid Impreciseness：精确性
+- To do or not to do?：做还是不做？
 
 ## 技术
 
@@ -55,6 +55,36 @@
 - ReAct：ReAct 框架
 - Reflexion：自我反思（Reflexion）
 - Multimodal CoT：多模态思维链提示方法
+
+## 安全
+
+### 对抗性提示
+
+存在问题
+
+- 提示注入
+- 提示泄漏
+
+解决方案
+
+- 在指令中添加防御
+- 参数化提示组件
+- 引用和其他格式
+- 对抗提示检测器
+
+### 真实性
+
+### 偏见
+
+存在问题
+
+LLM 模型有时会生成听起来连贯且令人信服但有时是虚构的回答。
+
+解决方案
+
+- 在上下文中提供基本事实（例如相关文章段落或维基百科条目），以减少模型生成虚构文本的可能性。
+- 通过降低概率参数并指示模型在不知道答案时承认（例如，“我不知道”）来配置模型以生成更少样式的响应。
+- 在提示中提供问题和答案的组合示例，其中可能知道和不知道的问题和答案。
 
 ## 应用
 
