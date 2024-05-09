@@ -1,1 +1,2 @@
 - [ChatGPT-Assistant](https://github.com/houaohui/ChatGPT-Assistant)
+- [wukong-robot](https://github.com/wzpan/wukong-robot) - 5.8k ★, wukong-robot 是一个简单、灵活、优雅的中文语音对话机器人/智能音箱项目，支持ChatGPT多轮对话能力，还可能是首个支持脑机交互的开源智能音箱项目。
