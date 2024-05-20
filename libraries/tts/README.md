@@ -19,7 +19,9 @@
 - [LocalAI](https://github.com/mudler/LocalAI) - 20k ★,🤖 The free, Open Source OpenAI alternative. Self-hosted, community-driven and local-first. Drop-in replacement for OpenAI running on cons…
 - [tortoise-tts](https://github.com/neonbjb/tortoise-tts) - 11.9k ★, A multi-voice TTS system trained with an emphasis on quality
 
-  - [Demo](https://huggingface.co/spaces/Manmay/tortoise-tts)
+  优点：支持多声，且生成的音频会根据语句意思调整语气
+
+  缺点：多人声混乱，并且同一句话不同地方语气、语调和音色会不同
 
 - [PaddleSpeech](https://github.com/PaddlePaddle/PaddleSpeech) - 10.2k ★, Easy-to-use Speech Toolkit including Self-Supervised Learning model, SOTA/Streaming ASR with punctuation, Streaming TTS with text frontend, Speaker Verification System, End-to-End Speech Translation and Keyword Spotting. Won NAACL2022 Best Demo Award.
 - [NeMo](https://github.com/NVIDIA/NeMo) - 10.1k ★, A scalable generative AI framework built for researchers and developers working on Large Language Models, Multimodal, and Speech AI (Automatic Speech Recognition and Text-to-Speech)
