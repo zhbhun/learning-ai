@@ -1,6 +1,13 @@
+## 框架
+
+- [VITS](https://huggingface.co/docs/transformers/model_doc/vits)
+- Tacotron
+- Tacotron 2
+- Transformer TTS
+
 ## 开源
 
-- [TTS](https://github.com/coqui-ai/TTS) - 29.6k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
+- [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
 
   - [字正腔圆,万国同音,coqui-ai TTS跨语种语音克隆,钢铁侠讲16国语言(Python3.10) ](https://www.cnblogs.com/v3ucn/p/17944671)
   - [【TTS】4：coqui-ai代码实战](https://zhuanlan.zhihu.com/p/680441700)
@@ -8,6 +15,9 @@
 - [Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning) - 50.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 - [MockingBird](https://github.com/babysor/MockingBird) - 33.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 - [Bark](https://github.com/suno-ai/bark) - 32.8k ★, Text-Prompted Generative Audio Model
+
+  - https://huggingface.co/spaces/suno/bark
+
 - [OpenVoice](https://github.com/myshell-ai/OpenVoice) - 24.3k ★, Instant voice cloning by MyShell.
 - [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) - 23.9k ★, 1 min voice data can also be used to train a good TTS model! (few shot voice cloning)
 
@@ -28,12 +38,23 @@
 - [mozilla/TTS](https://github.com/mozilla/TTS) - 8.8k ★, Deep learning for Text to Speech
 - [VALL-E-X](https://github.com/Plachtaa/VALL-E-X) - 7.2k ★, An open source implementation of Microsoft's VALL-E X zero-shot TTS model.
 - [EmotiVoice](https://github.com/netease-youdao/EmotiVoice) - 6.4k ★, EmotiVoice 😊: a Multi-Voice and Prompt-Controlled TTS Engine
+- [MeloTTS](https://github.com/myshell-ai/MeloTTS) - 3.7k ★, High-quality multi-lingual text-to-speech library by MyShell.ai. Support English, Spanish, French, Chinese, Japanese and Korean.
+
+  - [MeloTTS HuggingFace](https://huggingface.co/myshell-ai/MeloTTS-English)
+  - [MeloTTS Demo](https://huggingface.co/spaces/mrfakename/MeloTTS)
+
 - [tts-generation-webui](https://github.com/rsxdalv/tts-generation-webui) - 1.3k ★, TTS Generation Web UI (Bark, MusicGen + AudioGen, Tortoise, RVC, Vocos, Demucs, SeamlessM4T, MAGNet, StyleTTS2, MMS)
 
   - [TTS Generation WebUI-用于AI音频生成的WebUI](https://www.noiseblogs.top/posts/3edd9196/)
 
+- [mms](https://github.com/facebookresearch/fairseq/blob/main/examples/mms/README.md)
+
+  - https://github.com/jaywalnut310/vits
+  - https://github.com/ylacombe/finetune-hf-vits
+
 ## Sass
 
+- [Azure Speech Studio](https://speech.microsoft.com/portal)：语音库、定制声音、有声内容创作、
 - [ElevenLabs](https://elevenlabs.io/) - 19.6M/Monthly, Text to Speech & AI Voice Generator
 
   Features
@@ -56,3 +77,4 @@
 - [TTSMaker](https://ttsmaker.com/) - 4.2M/Monthly, TTSMaker is a completely free online text-to-speech tool that supports unlimited usage, including commercial use. With over 200 AI voices and support for multiple languages, you can choose from a variety of voice styles to read your text and e-books aloud. You can also download the synthesized audio files. No registration or payment is required, you can use it directly online for free forever.
 - [NaturalReader](https://www.naturalreaders.com/) - 3.8M/Monthly, https://www.naturalreaders.com/
 - https://www.toolify.ai/search/text%20to%20speach?r=search-handle
+- [MiniMax TTS](https://www.minimaxi.com/document/speech-synthesis-engine?id=645e034eeb82db92fba9ac20)
