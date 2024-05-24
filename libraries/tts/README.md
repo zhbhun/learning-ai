@@ -1,16 +1,30 @@
 ## 框架
 
-- [VITS](https://huggingface.co/docs/transformers/model_doc/vits)
-- Tacotron
-- Tacotron 2
+- [VITS](https://huggingface.co/docs/transformers/model_doc/vits) -  An end-to-end TTS architecture that utilizes conditional variational autoencoder with adversarial learning
+
+  - https://arxiv.org/abs/2106.06103
+
+- [FastSpeech2](https://arxiv.org/abs/2006.04558) - A non-autoregressive TTS architecture that utilizes feed-forward Transformer blocks.
+- [Tacotron]()
+- [Vall-E](https://arxiv.org/abs/2301.02111) - A zero-shot TTS architecture that uses a neural codec language model with discrete codes.
+- [NaturalSpeech2](https://arxiv.org/abs/2304.09116) - An architecture for TTS that utilizes a latent diffusion model to generate natural-sounding voices.
 - Transformer TTS
 
-## 开源
+## 模型
 
-- [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
+| 模型 | 时间 | 语种 | 效果(MOS) | RTF(速度) | Finetune / Clone | License |
+| --- | --- | --- | --- | --- | --- | --- |
+| [Tacotron2](https://github.com/NVIDIA/tacotron2) | 2018 | 中英西法 | 可用(很多其他模型以此为基础训练) | CPU 0.2 | 支持 | BSD-3-Clause |
+| [FastSpeech2](https://github.com/ming024/FastSpeech2) | 2020 | 中英西法 | 从架构上看逊色于Tacotron2 | CPU 0.06 | 支持 | MIT |
+| [VITS](https://huggingface.co/docs/transformers/model_doc/vits) | 2023 | 中英西法 |	优于 Tacotron2	 | CPU 0.18 | 支持 | MIT |
+| [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2) | 2023 | 中英日 | 惊艳，10min语料基本能完全复刻声音（音色、语气、韵律等） | CPU 0.88，GPU 0.04 | 支持 | AGPL-3.0 |
+| [VITS Fast Fine-tuning](https://github.com/Plachtaa/VITS-fast-fine-tuning) | 2023 | 中英日 | 惊艳，20-30条语料基本能完全复刻声音（音色、语气、韵律等） |	 CPU 0.95，GPU 0.05 |	支持 | Apache-2.0 |
+| [VALL-E-X](https://github.com/Plachtaa/VALL-E-X) | 2023	| 中英日 | 音色像，底模中文语料可能不足，发音不地道，且无需训练，1条音频跨语种克隆推理	 | colab 环境下 GPU 推理很慢 | 支持 |	MIT |
+| [OpenVoice](https://github.com/myshell-ai/OpenVoice) | 2024 | 中英 | 文本 |	音色克隆很不像，音质还行，可通过参数调节情绪、语速 | 很快，堪比流式 | 无需训练，1条音频跨语种克隆推理 |	Free commercial usage |
+| [MeloTTS](https://github.com/myshell-ai/MeloTTS) | 2024 |	中英西法日韩 | 音量不稳定，忽高忽低	号称CPU级别实时推理 | 实测 CPU 0.75，GPU 0.04 |	底模只能推理，无法 ft，训练语料要求未知 | MIT |
 
-  - [字正腔圆,万国同音,coqui-ai TTS跨语种语音克隆,钢铁侠讲16国语言(Python3.10) ](https://www.cnblogs.com/v3ucn/p/17944671)
-  - [【TTS】4：coqui-ai代码实战](https://zhuanlan.zhihu.com/p/680441700)
+
+Reference
 
 - [Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning) - 50.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 - [MockingBird](https://github.com/babysor/MockingBird) - 33.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
@@ -25,6 +39,7 @@
   - [24天9.3k star! GPT-SoVITS语音克隆超详细教程](https://zhuanlan.zhihu.com/p/681754094)
   - [GPT-SoVITS整合包部署及使用教程](https://www.bilibili.com/read/cv30898214/)
   - [你的声音，现在是我的了！- 手把手教你用 GPT-SoVITS 克隆声音！](https://www.bilibili.com/video/BV1P541117yn)
+  - [GPT-SoVITS在线一键语音生成合集（Xz乔希）](https://www.modelscope.cn/studios/xzjosh/GPT-SoVITS/summary)
 
 - [LocalAI](https://github.com/mudler/LocalAI) - 20k ★,🤖 The free, Open Source OpenAI alternative. Self-hosted, community-driven and local-first. Drop-in replacement for OpenAI running on cons…
 - [tortoise-tts](https://github.com/neonbjb/tortoise-tts) - 11.9k ★, A multi-voice TTS system trained with an emphasis on quality
@@ -37,20 +52,38 @@
 - [NeMo](https://github.com/NVIDIA/NeMo) - 10.1k ★, A scalable generative AI framework built for researchers and developers working on Large Language Models, Multimodal, and Speech AI (Automatic Speech Recognition and Text-to-Speech)
 - [mozilla/TTS](https://github.com/mozilla/TTS) - 8.8k ★, Deep learning for Text to Speech
 - [VALL-E-X](https://github.com/Plachtaa/VALL-E-X) - 7.2k ★, An open source implementation of Microsoft's VALL-E X zero-shot TTS model.
+- [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2)
+
+  - [Bert-VITS2在线一键语音生成合集（Xz乔希）](https://www.modelscope.cn/studios/xzjosh/Bert-VITS2/summary)
+  - [【AI星瞳（坏女人）】在线语音合成（Bert-Vits2 2.3中日英）](https://huggingface.co/spaces/XzJosh/badXT-Bert-VITS2-2.3)
+
+- [fish-speech](https://github.com/fishaudio/fish-speech)
+- [VALL-E-X](https://github.com/Plachtaa/VALL-E-X) -  7.3k ★, An open source implementation of Microsoft's VALL-E X zero-shot TTS model. Demo is available in
 - [EmotiVoice](https://github.com/netease-youdao/EmotiVoice) - 6.4k ★, EmotiVoice 😊: a Multi-Voice and Prompt-Controlled TTS Engine
+- [VITS Fast Fine-tuning](https://github.com/Plachtaa/VITS-fast-fine-tuning) - This repo is a pipeline of VITS finetuning for fast speaker adaptation TTS, and many-to-many voice conversion
 - [MeloTTS](https://github.com/myshell-ai/MeloTTS) - 3.7k ★, High-quality multi-lingual text-to-speech library by MyShell.ai. Support English, Spanish, French, Chinese, Japanese and Korean.
 
   - [MeloTTS HuggingFace](https://huggingface.co/myshell-ai/MeloTTS-English)
   - [MeloTTS Demo](https://huggingface.co/spaces/mrfakename/MeloTTS)
 
-- [tts-generation-webui](https://github.com/rsxdalv/tts-generation-webui) - 1.3k ★, TTS Generation Web UI (Bark, MusicGen + AudioGen, Tortoise, RVC, Vocos, Demucs, SeamlessM4T, MAGNet, StyleTTS2, MMS)
-
-  - [TTS Generation WebUI-用于AI音频生成的WebUI](https://www.noiseblogs.top/posts/3edd9196/)
-
+- [FastSpeech2](https://github.com/ming024/FastSpeech2) - 1.6k ★, An implementation of Microsoft's "FastSpeech 2: Fast and High-Quality End-to-End Text to Speech"
 - [mms](https://github.com/facebookresearch/fairseq/blob/main/examples/mms/README.md)
 
   - https://github.com/jaywalnut310/vits
   - https://github.com/ylacombe/finetune-hf-vits
+
+## 工具
+
+- [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
+
+  - [字正腔圆,万国同音,coqui-ai TTS跨语种语音克隆,钢铁侠讲16国语言(Python3.10) ](https://www.cnblogs.com/v3ucn/p/17944671)
+  - [【TTS】4：coqui-ai代码实战](https://zhuanlan.zhihu.com/p/680441700)
+
+- [Amphion](https://github.com/open-mmlab/Amphion) - 4K ★, Amphion (/æmˈfaɪən/) is a toolkit for Audio, Music, and Speech Generation. Its purpose is to support reproducible research and help junior researchers and engineers get started in the field of audio, music, and speech generation research and development.
+- [tts-generation-webui](https://github.com/rsxdalv/tts-generation-webui) - 1.3k ★, TTS Generation Web UI (Bark, MusicGen + AudioGen, Tortoise, RVC, Vocos, Demucs, SeamlessM4T, MAGNet, StyleTTS2, MMS)
+
+  - [TTS Generation WebUI-用于AI音频生成的WebUI](https://www.noiseblogs.top/posts/3edd9196/)
+
 
 ## Sass
 
@@ -78,3 +111,7 @@
 - [NaturalReader](https://www.naturalreaders.com/) - 3.8M/Monthly, https://www.naturalreaders.com/
 - https://www.toolify.ai/search/text%20to%20speach?r=search-handle
 - [MiniMax TTS](https://www.minimaxi.com/document/speech-synthesis-engine?id=645e034eeb82db92fba9ac20)
+
+## 参考
+
+- [语音合成（TTS）开源调研与测评](https://zhuanlan.zhihu.com/p/687094556)
