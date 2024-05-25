@@ -28,6 +28,9 @@ Reference
 
 - [Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning) - 50.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 - [MockingBird](https://github.com/babysor/MockingBird) - 33.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
+
+  - [实时中文语音克隆——开源项目MockingBird体验](https://security.tencent.com/index.php/blog/msg/204)
+
 - [Bark](https://github.com/suno-ai/bark) - 32.8k ★, Text-Prompted Generative Audio Model
 
   - https://huggingface.co/spaces/suno/bark
@@ -48,9 +51,10 @@ Reference
 
   缺点：多人声混乱，并且同一句话不同地方语气、语调和音色会不同
 
+  https://huggingface.co/spaces/Manmay/tortoise-tts
+
 - [PaddleSpeech](https://github.com/PaddlePaddle/PaddleSpeech) - 10.2k ★, Easy-to-use Speech Toolkit including Self-Supervised Learning model, SOTA/Streaming ASR with punctuation, Streaming TTS with text frontend, Speaker Verification System, End-to-End Speech Translation and Keyword Spotting. Won NAACL2022 Best Demo Award.
 - [NeMo](https://github.com/NVIDIA/NeMo) - 10.1k ★, A scalable generative AI framework built for researchers and developers working on Large Language Models, Multimodal, and Speech AI (Automatic Speech Recognition and Text-to-Speech)
-- [mozilla/TTS](https://github.com/mozilla/TTS) - 8.8k ★, Deep learning for Text to Speech
 - [VALL-E-X](https://github.com/Plachtaa/VALL-E-X) - 7.2k ★, An open source implementation of Microsoft's VALL-E X zero-shot TTS model.
 - [Bert-VITS2](https://github.com/fishaudio/Bert-VITS2)
 
@@ -65,6 +69,7 @@ Reference
 
   - [MeloTTS HuggingFace](https://huggingface.co/myshell-ai/MeloTTS-English)
   - [MeloTTS Demo](https://huggingface.co/spaces/mrfakename/MeloTTS)
+  - https://huggingface.co/spaces/myshell-ai/OpenVoiceV2
 
 - [FastSpeech2](https://github.com/ming024/FastSpeech2) - 1.6k ★, An implementation of Microsoft's "FastSpeech 2: Fast and High-Quality End-to-End Text to Speech"
 - [mms](https://github.com/facebookresearch/fairseq/blob/main/examples/mms/README.md)
@@ -79,6 +84,8 @@ Reference
   - [字正腔圆,万国同音,coqui-ai TTS跨语种语音克隆,钢铁侠讲16国语言(Python3.10) ](https://www.cnblogs.com/v3ucn/p/17944671)
   - [【TTS】4：coqui-ai代码实战](https://zhuanlan.zhihu.com/p/680441700)
 
+- [PaddleSpeech](https://github.com/PaddlePaddle/PaddleSpeech) - 10.3k ★,  Easy-to-use Speech Toolkit including Self-Supervised Learning model, SOTA/Streaming ASR with punctuation, Streaming TTS with text frontend, Speaker Verification System, End-to-End Speech Translation and Keyword Spotting. Won NAACL2022 Best Demo Award.
+- [mozilla/TTS](https://github.com/mozilla/TTS) - 8.8k ★, Deep learning for Text to Speech
 - [Amphion](https://github.com/open-mmlab/Amphion) - 4K ★, Amphion (/æmˈfaɪən/) is a toolkit for Audio, Music, and Speech Generation. Its purpose is to support reproducible research and help junior researchers and engineers get started in the field of audio, music, and speech generation research and development.
 - [tts-generation-webui](https://github.com/rsxdalv/tts-generation-webui) - 1.3k ★, TTS Generation Web UI (Bark, MusicGen + AudioGen, Tortoise, RVC, Vocos, Demucs, SeamlessM4T, MAGNet, StyleTTS2, MMS)
 
