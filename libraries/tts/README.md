@@ -64,6 +64,9 @@ Reference
 - [fish-speech](https://github.com/fishaudio/fish-speech)
 - [VALL-E-X](https://github.com/Plachtaa/VALL-E-X) -  7.3k ★, An open source implementation of Microsoft's VALL-E X zero-shot TTS model. Demo is available in
 - [EmotiVoice](https://github.com/netease-youdao/EmotiVoice) - 6.4k ★, EmotiVoice 😊: a Multi-Voice and Prompt-Controlled TTS Engine
+
+  https://replicate.com/bramhooimeijer/emotivoice
+
 - [VITS Fast Fine-tuning](https://github.com/Plachtaa/VITS-fast-fine-tuning) - This repo is a pipeline of VITS finetuning for fast speaker adaptation TTS, and many-to-many voice conversion
 - [MeloTTS](https://github.com/myshell-ai/MeloTTS) - 3.7k ★, High-quality multi-lingual text-to-speech library by MyShell.ai. Support English, Spanish, French, Chinese, Japanese and Korean.
 
@@ -76,6 +79,8 @@ Reference
 
   - https://github.com/jaywalnut310/vits
   - https://github.com/ylacombe/finetune-hf-vits
+
+- [microsoft/speecht5_tts](https://huggingface.co/microsoft/speecht5_tts)
 
 ## 工具
 
