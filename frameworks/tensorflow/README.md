@@ -1,0 +1,1 @@
+- [Awesome TensorFlow Lite](https://github.com/margaretmz/awesome-tensorflow-lite) - https://github.com/margaretmz/awesome-tensorflow-lite.
