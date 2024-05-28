@@ -81,6 +81,7 @@ Reference
   - https://github.com/ylacombe/finetune-hf-vits
 
 - [microsoft/speecht5_tts](https://huggingface.co/microsoft/speecht5_tts)
+- [edge-tts](https://github.com/rany2/edge-tts/) - Use Microsoft Edge's online text-to-speech service from Python WITHOUT needing Microsoft Edge or Windows or an API key
 
 ## 工具
 
