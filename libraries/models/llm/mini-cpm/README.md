@@ -1,3 +1,4 @@
 - https://github.com/OpenBMB/MiniCPM-V/blob/main/README_zh.md
 - https://github.com/OpenBMB/MiniCPM
+- https://huggingface.co/spaces/openbmb/MiniCPM-V-2
 - [国产「小钢炮」一夜干翻巨无霸GPT-4V、Gemini Pro！稳坐端侧多模态铁王座](https://mp.weixin.qq.com/s?__biz=MzI3MTA0MTk1MA%3D%3D&mid=2652482198&idx=1&sn=4b5d6b23b577e83ac7ca1e799b4a67d7&chksm=f04972e2fbc7df450a2a6264793f279bdae69ab7d152c99377eef50b81526c1e1db15aa525dd&version=4.1.22.70350&platform=mac&nwr_flag=1&from=industrynews#wechat_redirect)
