@@ -82,6 +82,7 @@ Reference
 
 - [microsoft/speecht5_tts](https://huggingface.co/microsoft/speecht5_tts)
 - [edge-tts](https://github.com/rany2/edge-tts/) - Use Microsoft Edge's online text-to-speech service from Python WITHOUT needing Microsoft Edge or Windows or an API key
+- [clone-voice](https://github.com/jianchang512/clone-voice?tab=readme-ov-file)
 
 ## 工具
 
