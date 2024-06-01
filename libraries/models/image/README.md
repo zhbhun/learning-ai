@@ -1,3 +1,0 @@
-- [出图效率倍增！47个高质量的 Stable Diffusion 常用模型推荐](https://www.uisdc.com/47-stable-diffusion-models)
-- [Stable Diffusion 7 个顶流大模型推荐！哪个更好用？](https://www.uisdc.com/group/533713.html)
-- [2023年10月最新stable diffusion模型推荐（含：各类模型介绍）](https://www.stablediffusion-cn.com/sd/sd-model/3976.html)
