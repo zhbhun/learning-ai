@@ -85,7 +85,7 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 
   ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d4609b5f-a44b-4864-79ed-16f49de45400/width=450/00021.jpeg)
 
-- [MeinaMix](https://civitai.com/models/7240/meinamix)：高质量二次元、人物模型。
+- [MeinaMix](https://civitai.com/models/7240/meinamix)：高质量二次元、人物模型，场景动漫风格化明显，常用来生成壁纸以及电影化的图。
 
   ```
   1girl, japanese clothes, ponytail ,white hair, purple eyes, magic circle, blue fire, blue flames, wallpaper, landscape, blood, blood splatter, depth of field, night, light particles, light rays, sidelighting, thighs, fate \(series\), genshin impact, ****, open jacket, skirt, thighhighs, cloud
@@ -94,6 +94,15 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
   ```
 
   ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d0c38bc9-bc80-458a-93f6-550cac33b7ab/width=450/00001.jpeg)
+
+- [AnythingElse V4](https://civitai.com/models/4855/anythingelse-v4)：简单的阴影，整体亮度，饱和的颜色，干净明快。
+
+  ```
+  paint, on table, room, morning, leaf, lgbtq
+  Steps: 25, Size: 512x768, Seed: 1247105077, Sampler: Euler a, CFG scale: 7, Clip skip: 2, Created Date: 2024-06-01T1212:20.9443792Z
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/f01066c6-ad41-4d5b-834a-874d5b1150b3/width=450/B50974F3116AAC2B97922EE590474D3CB20507EAEEB2953756C628D415FD150E.jpeg)
 
 - [AbyssOrangeMix2](https://civitai.com/models/4437?modelVersionId=5021)：适用于绘制动漫角色
 
@@ -104,6 +113,10 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
   ```
 
   ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/49e0950a-ec4f-4ea6-cfb2-fd1951c14600/width=450/00713-b644d850c9-1565672939.jpeg)
+
+---
+
+[Stable Diffusion | 13款卡通动漫模型出图测试](https://www.uied.cn/38605.html)
 
 ### 插画
 
@@ -243,6 +256,8 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 ### 提示词
 
 - [gsdf/EasyNegative](https://huggingface.co/datasets/gsdf/EasyNegative/tree/main)
+
+  [stablediffusion插件：简易负向提示词 EasyNegative](https://www.stablediffusion-cn.com/sd/sd-use/1598.html)
 
 ## 参考
 
