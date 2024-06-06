@@ -3,6 +3,7 @@
 
 ## 教程
 
+- [Large Language Model Course](https://github.com/mlabonne/llm-course)
 - [LLM 应用开发实践笔记](https://aitutor.liduos.com/)
 
 ---
