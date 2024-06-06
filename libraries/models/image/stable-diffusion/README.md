@@ -8,6 +8,11 @@
 
 ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpoint 模型搭配 LoRA 或 Textual Inversion 模型使用，可以获得更好的出图效果。
 
+
+参考
+
+- [SD好复杂，是不是很糊，一文搞懂Stable Diffusion的各种模型及用户操作界面](https://www.aimaven.vip/article/5068)
+
 ### 综合
 
 - [SD XL](https://civitai.com/models/101055/sd-xl)
