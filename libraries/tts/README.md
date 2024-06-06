@@ -128,6 +128,7 @@ Reference
 - [NaturalReader](https://www.naturalreaders.com/) - 3.8M/Monthly, https://www.naturalreaders.com/
 - https://www.toolify.ai/search/text%20to%20speach?r=search-handle
 - [MiniMax TTS](https://www.minimaxi.com/document/speech-synthesis-engine?id=645e034eeb82db92fba9ac20)
+- https://www.lmnt.com/
 
 ## 参考
 
