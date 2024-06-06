@@ -1,5 +1,9 @@
 - [Langchain Hub](https://smith.langchain.com/hub)
 
+## Lesson
+
+- [开发必看】AI应用开发LangChain系列课程](https://www.bilibili.com/video/BV1Uh4y1X76G/?p=2&spm_id_from=pageDriver&vd_source=2e69ba889e556e858093542d78fc08c0)
+
 ## Usage
 
 - [大模型应用开发框架 LangChain 学习笔记](https://www.aneasystone.com/archives/2023/08/llm-application-frameworks-langchain.html)
