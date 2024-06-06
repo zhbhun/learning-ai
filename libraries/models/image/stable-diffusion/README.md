@@ -189,8 +189,9 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 
   ps：建议配合 LoRA 使用： https://civitai.com/models/25383/xsarchitectural-7modern-interior。
 
-### ToB
+### 图标
 
+- [大厂落地实战！如何用Stable Diffusion完成B端和C端图标设计？](https://www.uisdc.com/aigc-icon-design)
 - [DDicon](https://civitai.com/models/38511/ddicon?modelVersionId=44447)：一款生成 B 端风格元素的模型
 
   ps：需要结合对应版本的 DDicon lora 使用。V1 版本细节多，v2 版本更简洁，使用时搭配 LoRA 模型 DDICON_lora（ https://civitai.com/models/38558/ddiconlora ）。
