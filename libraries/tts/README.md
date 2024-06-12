@@ -87,6 +87,10 @@ Reference
 
   - https://github.com/jianchang512/ChatTTS-ui?tab=readme-ov-file
 
+- [Seed-TTS](https://github.com/BytedanceSpeech/seed-tts-eval)
+
+  https://bytedancespeech.github.io/seedtts_tech_report/
+
 ## 工具
 
 - [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
