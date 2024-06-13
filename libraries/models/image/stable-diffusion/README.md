@@ -16,6 +16,7 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 ### 综合
 
 - [SD XL](https://civitai.com/models/101055/sd-xl)
+- [Stable Diffusion 3 medium](https://huggingface.co/stabilityai/stable-diffusion-3-medium/tree/main)
 - [DreamShaper](https://civitai.com/models/4384?modelVersionId=128713)：胜任多种风格（写实、原画、2.5D 等），能生成很棒的人像和风景图。
 
   ```
@@ -165,6 +166,94 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 
   ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/9be91741-ef69-4d63-1245-1daea0387300/width=450/06925-2461294032-trapped%20princess%20looking%20at%20the%20viewer%20from%20behind%20the%20window,%20royal%20clothes,%203d%20render%20Pixar%20stylemodel%20made%20of%20Hiroaki%20Takahas.jpeg)
 
+- [Jasmine Art Style SDXL 1.0](https://civitai.com/models/118845/jasmine-art-style-sdxl-10?modelVersionId=135738)
+
+  ```
+  jsmn style, a german shepherd dog lying in grass thicket
+  Negative prompt: text, watermark, realistic, semi realistic, real photo
+  Steps: 42, Seed: 952542452477185, Model: sd_xl_base_1.0, width: 896, height: 1152, Sampler: DPM++ 2M Karras, CFG scale: 6.5, modelIds: , versionIds: 
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/34304492-7903-4a30-af01-ad880a984bc5/width=450/ComfyUI_04187_.jpeg)
+
+- [Painted World | Pony & SDXL](https://civitai.com/models/242763/painted-world-or-pony-and-sdxl?modelVersionId=273924)
+
+  ```
+  masterpiece, breathtaking scenery, painted world,  rocky terrain, night time, <lora:Painted World-000006:.5>
+  Steps: 20, Size: 768x512, Seed: 1325740788, Model: zavychromaxl_v30, Version: v1.3.2, Sampler: Euler a, CFG scale: 7, Model hash: f1270c1f02, Hires upscale: 2, Hires upscaler: Latent, Denoising strength: 0.5, "Painted World-000006: ce9353b2e240"
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/ed137dcb-d0fe-46e5-b3c4-ad353204ac9c/width=450/00428-1325740788.jpeg)
+
+- [Comic style SDXL - Jhyd SDXL](https://civitai.com/models/134144/comic-style-sdxl-jhyd-sdxl?modelVersionId=147719)
+
+  ```
+  jhyd style <lora:jhyd-step00001000:1>, masterpiece, cute fluffy friendly monsters playing in the grass, high saturation, highest detailed, 8k, highest resolution, anatomical correct
+  Negative prompt: photo, armor, scifi, weapon, clothes, (blurry), b&w, black and white, monochrome, Watermark, Text, censored, poorly drawn face, extra limb, poorly drawn hands, missing limb, floating limbs, disconnected limbs, malformed hands, long neck, mutated hands and fingers, bad hands, missing fingers, cropped, worst quality, low quality, poorly drawn, huge calf, bad hands, fused hand, missing hand, disappearing arms, disappearing thigh, disappearing calf, disappearing legs, missing fingers, fused fingers, Abnormal hands, abnormal legs, abnormal feet,  abnormal fingers
+  Steps: 40, Size: 1280x1024, Seed: 3088927319, Version: v1.5.2, Sampler: DPM++ 2M Karras, CFG scale: 9, Model hash: 31e35c80fc, Refiner model: sdxl\sd_xl_refiner_1.0, Refiner steps: 8, "jhyd-step00001000: 51c6248093ab"
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c1c8ffc9-420a-48fb-a1b9-3a11c43856f3/width=450/01150-3088927319-jhyd%20style%20_lora_jhyd-step00001000_1_,%20masterpiece,%20cute%20fluffy%20friendly%20monsters%20playing%20in%20the%20grass,%20high%20saturation,%20highest.jpeg)
+
+- [Psy Animated XL](https://civitai.com/models/124736/psy-animated-xl?modelVersionId=136271)
+
+  ````
+  a photo of a  armored heaven dansesh field dragonborn product photography, darth maul by paris, blade runner, akira, unreal engine 5 colorful rendering, 4 k resolution, cosmic fortnite concept art, deep ocean fish swimming above
+  Negative prompt: (bad quality), (worst quality), broken hands, bad anatomy, deformed, boring
+  Steps: 35, Size: 736x1344, Seed: 929565135, Model: sdXLpsyanimated06, Version: v1.5.1, Sampler: DPM++ 2M, CFG scale: 7, Model hash: d8af33f324, Hires upscale: 1.5, Hires upscaler: Latent, Denoising strength: 0.55
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/bf2d8dc1-1f71-47e4-a832-b0e09255c99f/width=450/00812-929565135.jpeg)
+
+- [[SDXL1.0] GHIBLI style V1](https://civitai.com/models/120860/sdxl10-ghibli-style-v1?modelVersionId=131471)
+
+  ```
+  ghibli, misty world, wonder land and full of fantasy
+  Japanimation Japanese Animation (Ink Manga:1.2) (manga:2.0) (anime:1.5) , <lora:ghibli_last:1>
+  Negative prompt: logo,text, mutated hands and fingers,poorly drawn face,extra limb,missing limb,disconnected limbs,malformed hands,ugly, medium quality, blurry, censored, signature, text, ugly, poorly drawn, text, watermark
+  Steps: 40, Size: 1024x1024, Seed: 112358132134, Model: sd_xl_base_1.0_0.9vae, Refiner: sd_xl_refiner_1.0_0.9vae [8d0ce6c016], Version: v1.6.0, Sampler: DPM++ 3M SDE Karras, CFG scale: 7, Model hash: e6bb9ea85b, "ghibli_last: 56d1eeb58396", Refiner switch at: 0.8
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/0a1a440b-2eed-4238-b640-4528381e0fc5/width=450/00271-112358132134.jpeg)
+
+- [COOLKIDS_XL](https://civitai.com/models/170566/coolkidsxl?modelVersionId=191653)
+
+  ```
+  a Bobcat kid character running in flower field <lora:COOLKIDS_XL_0.3_RC:1.0>
+  Steps: 20, Size: 1024x1024, Seed: 3101814372, Model: juggernautXL_version5, Version: v1.6.0, Sampler: Euler a, CFG scale: 7, Model hash: 70229e1d56, "COOLKIDS_XL_0.3_RC: 707767c651d3"
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/d02bb7c3-6af0-4db5-aa0f-25610c1fae59/width=450/07260-3101814372-a%20Bobcat%20kid%20character%20running%20in%20flower%20field%20_lora_COOLKIDS_XL_0.3_RC_1.0_.jpeg)
+
+- [VanGoghBrushwork SD XL 1.0](https://civitai.com/models/157780/vangoghbrushwork-sd-xl-10?modelVersionId=177248)：梵高
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/2f316e09-5a53-48cc-bbf4-77ad070a8a6f/width=450/ComfyUI_09530_.jpeg)
+
+- [Studio Ghibli Style](https://civitai.com/models/106712/studio-ghibli-style?modelVersionId=154226)
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c4b0c6e0-d2ed-4547-9056-900713ba41a9/width=450/00071-299717056-_lora_Studio%20Ghibli%20Style_1_Studio%20Ghibli%20Style%20-%20As%20the%20unwitting%20young%20guardian%20of%20a%20perimeter,%20explore%20a%20unspoiled%20nature%20res.jpeg)
+
+- [Animat background v1](https://civitai.com/models/270238/animat-background-v1?modelVersionId=458977)
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c173c0d6-e70b-460b-9eef-a4028f946907/width=450/00002-159689018.jpeg)
+
+- [Mind Warp](https://civitai.com/models/138585/mind-warp?modelVersionId=153153)
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/9b43df3c-1a69-4c68-a31f-8b2a1b6db167/width=450/00039-3612694312.jpeg)
+
+- [Picture-Story Book For Children XL 儿童绘本 XL](https://civitai.com/models/119288/picture-story-book-for-children-xl-xl?modelVersionId=129548)
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/6c47a32c-cc6b-4df1-8daf-c18e3432d6a9/width=450/ComfyUI_0030.jpeg)
+
+- [SDXL Inkdrawing Directors Cut](https://civitai.com/models/156143/sdxl-inkdrawing-directors-cut?modelVersionId=175225)
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/88de1cf6-7de7-4129-8b53-cb9594d39546/width=450/00139-2572237091.jpeg)
+
+- [蔚蓝Blue2D游戏地图Game map](https://civitai.com/models/367128/blue2dgame-map?modelVersionId=424401)
+- [Dixit Card Generator](https://civitai.com/models/34608/dixit-card-generator?modelVersionId=153737)
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/f910592f-7bae-4c48-b8d7-780f54de07bb/width=450/00128-4184293451-_lora_Dixit%20Card%20Generator_1_Dixit%20Card%20Generator%20-%20A%20cloud%20raining%20showers%20of%20lemondrops%20and%20toffee%20bits%20A%20surreal,%20dreamlike%20i.jpeg)
+
 ### 写实
 
 - [Realistic vision](https://civitai.com/models/4201/reaistic-ision-v20)：能很好的实现极具真实感的人物和环境塑造，还原真实世界风格。
@@ -187,6 +276,58 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 
   ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/1cacfbac-88cb-479b-9889-5bd8cf2b5a87/width=450/5e871b49-6fc6-4657-a7c8-c2db07735d9a.jpeg)
 
+- [（SDXL）chinese style illustration -- 国风插画](https://civitai.com/models/120206/sdxlchinese-style-illustration?modelVersionId=130709)
+
+  ```
+  guofeng,chinese style,((summer, Huangshan National Park,painting antient arts style,traditional Chinese painting,painting lake and mountain landscape, mountain reflection on lake surface)),Painting,Volumetric sun Lighting,((high quality:1.2, masterpiece:1.2)),oil landscape,extreme wide perfect composition,(("Mysterious, Enigmatic and Intriguing landscape")),<lora:国风插画SDXL:1>,
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/5a5ceaee-362c-417a-8f22-e21e569feb74/width=450/z-GfFcH6m6OMQNkoygt1U.jpeg)
+
+- [【Picture book illustration】Children's story picture book animation film style XL & SD 1.5](https://civitai.com/models/277453/picture-book-illustrationchildrens-story-picture-book-animation-film-style-xl-and-sd-15?modelVersionId=396609)
+
+  ```
+  a cute little bird in the tree, singing,cartoon,<lora:J_cartoon:0.8>,j_cartoon,
+  Negative prompt: easy_negative,
+  Steps: 30, Size: 928x1232, Seed: 3038952676, Model: sdXL_v10VAEFix, Version: v1.6.0, Sampler: Euler a, CFG scale: 7, Clip skip: 2, Model hash: e6bb9ea85b, Style Selector Style: base, Style Selector Enabled: True, Style Selector Randomize: False
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/3c402d2a-a64f-4314-b2ca-282a3bf11d21/width=450/00028-3038952676.jpeg)
+
+- [picture books-Children cartoon](https://civitai.com/models/176435/picture-books-children-cartoon?modelVersionId=198105)：儿童绘本插图
+
+  ```
+  <lora:children huiben11-20231007-000006:0.75>,children's picture books,crayon paintings,blush,white background,simple background,Two fashionable people, face to face, affectionately looking at each other, holding hands, creating a festive atmosphere, Valentine's Day
+  Negative prompt: things on forehead,(forehead jewel:1.1),bad quality,bad anatomy,blurry,stretched,deformed,bad lighting,EasyNegative,signature,watermark,text,
+  Steps: 30, VAE: sdxl_vae.safetensors, ENSD: 31337, Size: 1024x1280, Seed: 2527051582, Model: sd_xl_base_1.0, Version: v1.6.0, Sampler: Euler a, VAE hash: 63aeecb90f, CFG scale: 7, Clip skip: 2, Model hash: 31e35c80fc, Hires upscale: 1.25, Hires upscaler: R-ESRGAN 4x+ Anime6B, Denoising strength: 0.47, "children huiben11-20231007-000006: 575023ebd04d"
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/4cece1a2-db70-485c-b654-75f468871255/width=450/00194-2527051582-_lora_children%20huiben11-20231007-000006_0.75_,children's%20picture%20books,crayon%20paintings,blush,white%20background,simple%20background.jpeg)
+
+- [DreamyVibes Artsyle - SDXL LoRA](https://civitai.com/models/255143/dreamyvibes-artsyle-sdxl-lora?modelVersionId=287607)：艺术画
+
+  ```
+  <lora:Dreamyvibes artstyle SDXL - Reddit - Trigger with dreamyvibes artstyle:1> Dreamyvibes artstyle, sunset in seattle
+  Steps: 30, VAE: sdxl_vae.safetensors, Size: 1024x1024, Seed: 4273748483, Model: sd_xl_base_1.0, Version: v1.7.0, Sampler: DPM++ 2M Karras, VAE hash: ff724e9611, CFG scale: 6, Model hash: 31e35c80fc, Negative Template: , Dreamyvibes artstyle SDXL - Reddit - Trigger with dreamyvibes artstyle: 1>  Dreamyvibes artstyle, sunset in seattle ", "Dreamyvibes artstyle SDXL - Reddit - Trigger with dreamyvibes artstyle: 878e2d40fdc5"
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/81c5dda5-bff5-475e-8b33-d53c4889ca5f/width=450/00459-[number]-4273748483-_lora_Dreamyvibes%20artstyle%20SDXL%20-%20Reddit%20-%20Trigger%20with%20dreamyvibes%20artstyle_1_%20Dreamyvibes%20artstyle,%20sunset%20in%20seattle.jpeg)
+
+- [（SDXL）Oil painting(oil brush stroke) - 油画笔触](https://civitai.com/models/118223/sdxloil-paintingoil-brush-stroke?modelVersionId=128212)：油画
+
+  ```
+  bichu,oil painting,masterpiece,cinematic scene,ancient magical ruins,deep forest,overgrown with vines,crumbling architecture,ornate carvings,glowing sigils,mystical energy,shining pedestals,floating platforms,shining crystals,particle effects,Volumetric light rays,tranquil pond,fireflies,tall lush trees,stepping stones,foggy atmosphere,painterly rendering,extremely detailed elements,photorealistic style,dreamlike lighting,high resolution,depth of field,
+
+  Negative prompt: lowres,bad anatomy,bad hands,text,error,missing fingers,extra digit,fewer digits,cropped,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,username,
+  Steps: 24, Seed: 960644122000849, Model: SD\SDXL--dreamshaperXL10_alpha2Xl10, width: 1024, height: 1024, Sampler: DPM++ 2M Karras, CFG scale: 7
+  ```
+
+  ![](https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/accd873d-e7ae-4881-a6dd-831db4a569cb/width=450/ComfyUI_00142_.jpeg)
+
+- [Eldritch Impressionism oil painting](https://civitai.com/models/312341/eldritch-impressionism-oil-painting?modelVersionId=360775)：油画
+
+  ![](https://civitai.com/models/312341/eldritch-impressionism-oil-painting?modelVersionId=360775)
+
 ### 建筑
 
 - [architectural design sketches with markers](https://civitai.com/models/34384/architectural-design-sketches-with-markers)：建筑设计草图模型
@@ -202,10 +343,12 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
   ps：需要结合对应版本的 DDicon lora 使用。V1 版本细节多，v2 版本更简洁，使用时搭配 LoRA 模型 DDICON_lora（ https://civitai.com/models/38558/ddiconlora ）。
 
 - [Product Design](https://civitai.com/models/23893/product-design-minimalism-eddiemauro)：一个工业产品设计模型。
+- [Round Logo icon avatar - Style (SD1.5-SDXL)](https://civitai.com/models/154474/round-logo-icon-avatar-style-sd15-sdxl?modelVersionId=477851)
 
 ### 特殊
 
 - [Isometric Future](https://civitai.com/models/10063/isometric-future)：一个等距微缩模型。
+- [Pixel Art XL](https://civitai.com/models/120096/pixel-art-xl?modelVersionId=135931)
 
 ### Lora
 
