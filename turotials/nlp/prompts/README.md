@@ -55,6 +55,11 @@
 - ReAct：ReAct 框架
 - Reflexion：自我反思（Reflexion）
 - Multimodal CoT：多模态思维链提示方法
+- Pseudocode：伪代码
+
+  - [Prompt 高级技巧：借助伪代码精准的控制 LLM 的输出结果和定义其执行逻辑](https://baoyu.io/blog/prompt-engineering/advanced-prompting-using-pseudocode-to-control-llm-output)
+  - https://x.com/ihower/status/1801537916222771613?s=09&utm_source=pocket_saves
+  - [GPT-4o偽代碼繪本生成術](https://www.youtube.com/watch?v=3rb-54Q5fig)
 
 ## 安全
 
@@ -107,3 +112,24 @@ LLM 模型有时会生成听起来连贯且令人信服但有时是虚构的回�
 - 总结：对一堆信息进行总结。
 
 ### 扩写
+
+## 工具
+
+- [Kimi 提示词专家](https://kimi.moonshot.cn/kimiplus/conpg00t7lagbbsfqkq0)
+
+## 参考
+
+- https://learningprompt.wiki/
+- https://learnprompting.org/
+- https://www.promptingguide.ai/zh/
+- [LangGPT 结构化提示词](https://langgptai.feishu.cn/wiki/RXdbwRyASiShtDky381ciwFEnpe)
+- https://snackprompt.com/
+- https://github.com/f/awesome-chatgpt-prompts
+- https://contentatscale.ai/ai-prompt-library/
+- https://www.aishort.top/en/
+- https://prompthero.com/chatgpt-prompts
+- https://www-aiprm-com.webpkgcache.com/doc/-/s/www.aiprm.com/
+- https://www.explainthis.io/zh-hans/chatgpt
+- https://www.atlassian.com/software/confluence/templates
+- https://promptport.ai/
+- [Prompt Engineering Guide](https://www.promptingguide.ai/zh)
