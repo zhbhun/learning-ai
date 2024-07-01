@@ -345,6 +345,10 @@ ps：Checkpoint > LoRA > Textual Inversion > Hypernetwork，通常情况 Checkpo
 - [Product Design](https://civitai.com/models/23893/product-design-minimalism-eddiemauro)：一个工业产品设计模型。
 - [Round Logo icon avatar - Style (SD1.5-SDXL)](https://civitai.com/models/154474/round-logo-icon-avatar-style-sd15-sdxl?modelVersionId=477851)
 
+### 文字
+
+- [Glyph-ByT5](https://glyph-byt5.github.io/)
+
 ### 特殊
 
 - [Isometric Future](https://civitai.com/models/10063/isometric-future)：一个等距微缩模型。
