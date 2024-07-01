@@ -173,6 +173,10 @@
 
 - `a AND b`：这个格式实现 a 和 b 关键词的混合（就是逻辑“与”运算），香蕉和西瓜的混合体。
 - `a | b`: 表示提示词 a 和提示词 b 交替计算（就是逻辑“或”运算），可以理解为提示词 a 采样 1 步，提示词 b 再采样 1 步，然后提示词 a 再采样，提示词b再采样……依次轮流采样，最后的效果也是混合。
+- BREAK：
+
+  - [进化你的stable diffusion提示词 一些可能你尚未了解的提示词技巧](https://zhuanlan.zhihu.com/p/638421908)
+  - [Stable Diffusion 提示词中的“BREAK”有什么用？](https://medium.com/@h.zuomin/%E5%9C%A8%E8%89%BA%E6%9C%AF%E5%92%8Cai%E7%94%9F%E6%88%90%E5%9B%BE%E5%83%8F%E7%9A%84%E4%B8%96%E7%95%8C%E4%B8%AD-%E6%8F%90%E7%A4%BA%E8%AF%8D-prompt-%E8%B5%B7%E7%9D%80%E8%87%B3%E5%85%B3%E9%87%8D%E8%A6%81%E7%9A%84%E4%BD%9C%E7%94%A8-%E7%89%B9%E5%88%AB%E6%98%AF%E5%9C%A8%E4%BD%BF%E7%94%A8stable-diffusion%E7%AD%89%E6%A8%A1%E5%9E%8B%E6%97%B6-%E6%8F%90%E7%A4%BA%E8%AF%8D%E7%9A%84%E9%80%89%E6%8B%A9%E5%92%8C%E6%8E%92%E5%88%97%E6%96%B9%E5%BC%8F%E5%8F%AF%E4%BB%A5%E6%9E%81%E5%A4%A7%E5%9C%B0%E5%BD%B1%E5%93%8D%E7%94%9F%E6%88%90%E5%9B%BE%E5%83%8F%E7%9A%84%E8%B4%A8%E9%87%8F%E5%92%8C%E7%89%B9%E7%82%B9-39c9dca20f3a)
 
 ### 反向提示词
 
