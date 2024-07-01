@@ -215,3 +215,9 @@
 ### 微调模型提示词
 
 - EasyNegative
+
+## 工具
+
+- [gokaygokay/sd3-long-captioner](https://huggingface.co/gokaygokay/sd3-long-captioner) - Fine-tuned version of PaliGemma 224x224 on google/docci and google/imageinwords datasets.
+
+  https://huggingface.co/spaces/gokaygokay/SD3-Long-Captioner
