@@ -3,6 +3,7 @@
 - https://promptbase.com/
 - https://publicprompts.art/
 - https://prompthero.com/
+- https://catjourney.life/
 
 ## 语法
 
