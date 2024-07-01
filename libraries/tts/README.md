@@ -86,10 +86,13 @@ Reference
 - [ChatTTS](https://github.com/2noise/chattts)
 
   - https://github.com/jianchang512/ChatTTS-ui?tab=readme-ov-file
+  - [Awesome-ChatTTS](https://github.com/panyanyany/Awesome-ChatTTS) - ChatTTS资源大全，免费体验地址，音色库等
 
 - [Seed-TTS](https://github.com/BytedanceSpeech/seed-tts-eval)
 
   https://bytedancespeech.github.io/seedtts_tech_report/
+
+- [StreamSpeech](https://github.com/ictnlp/StreamSpeech) - StreamSpeech is an “All in One” seamless model for offline and simultaneous speech recognition, speech translation and speech synthesis.
 
 ## 工具
 
