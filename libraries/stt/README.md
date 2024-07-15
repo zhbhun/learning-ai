@@ -8,6 +8,7 @@
 
 - [pocketsphinx](https://github.com/cmusphinx/pocketsphinx) - 3.8k ★, A small speech recognizer
 - [kaldi](https://github.com/kaldi-asr/kaldi) - 13.8k ★, kaldi-asr/kaldi is the official location of the Kaldi project.
+- [SenseVoice](https://github.com/FunAudioLLM/SenseVoice) - Multilingual Voice Understanding Model
 
 ## Saas
 
