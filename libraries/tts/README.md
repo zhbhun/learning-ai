@@ -93,6 +93,8 @@ Reference
   https://bytedancespeech.github.io/seedtts_tech_report/
 
 - [StreamSpeech](https://github.com/ictnlp/StreamSpeech) - StreamSpeech is an “All in One” seamless model for offline and simultaneous speech recognition, speech translation and speech synthesis.
+- [parler-tts](https://github.com/huggingface/parler-tts) - Inference and training library for high-quality TTS models.
+- [fish-speech](https://github.com/fishaudio/fish-speech)
 
 ## 工具
 
