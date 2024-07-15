@@ -5,6 +5,7 @@
 
 - [translation-agent](https://github.com/andrewyng/translation-agent) - Translation Agent: Agentic translation using reflection workflow
 
+    - https://www.coze.com/store/bot/7380242913063698433?bid=6d0rcst7c9007&panel=1
 
 ## 配音
 
