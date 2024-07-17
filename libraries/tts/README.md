@@ -23,8 +23,14 @@
 | [OpenVoice](https://github.com/myshell-ai/OpenVoice) | 2024 | 中英 | 文本 |	音色克隆很不像，音质还行，可通过参数调节情绪、语速 | 很快，堪比流式 | 无需训练，1条音频跨语种克隆推理 |	Free commercial usage |
 | [MeloTTS](https://github.com/myshell-ai/MeloTTS) | 2024 |	中英西法日韩 | 音量不稳定，忽高忽低	号称CPU级别实时推理 | 实测 CPU 0.75，GPU 0.04 |	底模只能推理，无法 ft，训练语料要求未知 | MIT |
 
+---
 
-Reference
+| 技术\特性 | 多语言 | 效果（情感、重音、节奏、停顿和语调） | SSML | 克隆 | 速度 | 其他 |
+| --- | --- | --- | --- | --- | --- | --- |
+| CosyVoice | 中英日粤韩5种语言 | 支持 | 支持 | 仅需要3~10s的原始音频，支持跨语种的语音合成中 | ？| 英语等语言推理生成的音频会多出一些奇怪的声音 |
+| OpenVoice | 中英法日韩西班牙等 | 一般 | 不支持 | 支持，但不太像 | ？ | 生成语音效果较为一般 |
+
+---
 
 - [Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning) - 50.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 - [MockingBird](https://github.com/babysor/MockingBird) - 33.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
@@ -96,6 +102,11 @@ Reference
 - [parler-tts](https://github.com/huggingface/parler-tts) - Inference and training library for high-quality TTS models.
 - [fish-speech](https://github.com/fishaudio/fish-speech)
 - [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) - Multi-lingual large voice generation model, providing inference, training and deployment full-stack ability.
+
+  - CosyVoice-base-300M：擅长准确代表说话者身份，无需微调即可适应不同上下文，能够跨语言克隆声音。
+  - CosyVoice-instruct-300M：能够生成富有情感表现力的语音，允许通过指令文本进行精细调整。
+  - CosyVoice-sft-300M：已针对七位多语言说话者进行了微调，适合立即部署使用。
+  - https://developer.aliyun.com/article/1562292
 
 ## 工具
 
