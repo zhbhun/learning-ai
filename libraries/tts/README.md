@@ -10,6 +10,10 @@
 - [NaturalSpeech2](https://arxiv.org/abs/2304.09116) - An architecture for TTS that utilizes a latent diffusion model to generate natural-sounding voices.
 - Transformer TTS
 
+## 数据集
+
+- [The LJ Speech Dataset](https://keithito.com/LJ-Speech-Dataset/)
+
 ## 模型
 
 | 模型 | 时间 | 语种 | 效果(MOS) | RTF(速度) | Finetune / Clone | License |
@@ -28,7 +32,7 @@
 | 技术\特性 | 多语言 | 效果（情感、重音、节奏、停顿和语调） | SSML | 克隆 | 速度 | 其他 |
 | --- | --- | --- | --- | --- | --- | --- |
 | CosyVoice | 中英日粤韩5种语言 | 支持 | 支持 | 仅需要3~10s的原始音频，支持跨语种的语音合成中 | ？| 英语等语言推理生成的音频会多出一些奇怪的声音 |
-| OpenVoice | 中英法日韩西班牙等 | 一般 | 不支持 | 支持，但不太像 | ？ | 生成语音效果较为一般 |
+| OpenVoice | 中英法日韩西班牙等 | 一般 | 不支持 | 支持 | ？ | 生成语音效果较为一般，可以集合其他 TTS 来改变音频音色 |
 
 ---
 
@@ -108,12 +112,15 @@
   - CosyVoice-sft-300M：已针对七位多语言说话者进行了微调，适合立即部署使用。
   - https://developer.aliyun.com/article/1562292
 
+- [mars5-tts](https://github.com/camb-ai/mars5-tts) - MARS5 speech model (TTS) from CAMB.AI
+
 ## 工具
 
 - [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
 
   - [字正腔圆,万国同音,coqui-ai TTS跨语种语音克隆,钢铁侠讲16国语言(Python3.10) ](https://www.cnblogs.com/v3ucn/p/17944671)
   - [【TTS】4：coqui-ai代码实战](https://zhuanlan.zhihu.com/p/680441700)
+  - https://huggingface.co/spaces/coqui/xtts
 
 - [PaddleSpeech](https://github.com/PaddlePaddle/PaddleSpeech) - 10.3k ★,  Easy-to-use Speech Toolkit including Self-Supervised Learning model, SOTA/Streaming ASR with punctuation, Streaming TTS with text frontend, Speaker Verification System, End-to-End Speech Translation and Keyword Spotting. Won NAACL2022 Best Demo Award.
 - [mozilla/TTS](https://github.com/mozilla/TTS) - 8.8k ★, Deep learning for Text to Speech
@@ -121,6 +128,8 @@
 - [tts-generation-webui](https://github.com/rsxdalv/tts-generation-webui) - 1.3k ★, TTS Generation Web UI (Bark, MusicGen + AudioGen, Tortoise, RVC, Vocos, Demucs, SeamlessM4T, MAGNet, StyleTTS2, MMS)
 
   - [TTS Generation WebUI-用于AI音频生成的WebUI](https://www.noiseblogs.top/posts/3edd9196/)
+
+- https://luvvoice.com/ - 基于微软 TTS 开发的在线工具
 
 
 ## Sass
