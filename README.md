@@ -38,6 +38,7 @@
 - [《Python机器学习基础教程》](https://book.douban.com/subject/30147778/) - 豆瓣 8.8
 - [《白话机器学习的数学》](https://book.douban.com/subject/35126508/) - 豆瓣 8.8
 - [AI collecting books, papers and docs. - Kensuke-Hinata/statistic](https://github.com/Kensuke-Hinata/statistic/tree/master/AI)
+- [Generative AI Handbook: A Roadmap for Learning Resources](https://genai-handbook.github.io/)
 
 ## 教程
 
