@@ -1,0 +1,2 @@
+- [Flux.1 生态最新梳理！新增 4 款新模型，支持 Controlnet 和 Lora （附模型/工作流文件）](https://www.uisdc.com/flux-1-2)
+- [ComfyUI workflow for Flux (simple)](https://openart.ai/workflows/maitruclam/comfyui-workflow-for-flux-simple/iuRdGnfzmTbOOzONIiVV)
