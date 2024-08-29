@@ -25,6 +25,7 @@
 ## 社区
 
 - [modelscope](https://www.modelscope.cn/)
+- [liblib](https://www.liblib.art/)
 - [AI 魔法学校](https://www.wehelpwin.com/)
 
 ## 书籍
