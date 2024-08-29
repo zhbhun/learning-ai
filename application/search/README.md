@@ -5,6 +5,7 @@
 - [perplexity](https://www.perplexity.ai/)
 - https://devv.ai/zh
 - [秘塔AI搜索](https://metaso.cn/) - 屏蔽广告 自动分析生成答案
+- https://felo.ai
 
 ## 参考文献
 
