@@ -24,6 +24,7 @@
 
 ## 社区
 
+- [https://huggingface.co](https://huggingface.co/) / https://hf-mirror.com/
 - [modelscope](https://www.modelscope.cn/)
 - [liblib](https://www.liblib.art/)
 - [kaggle](https://www.kaggle.com)
