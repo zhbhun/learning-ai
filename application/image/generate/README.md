@@ -1,4 +1,7 @@
 - [通义万相](https://tongyi.aliyun.com/wanxiang/)
+- [可图大模型](https://kolors.kuaishou.com/)
+
+  https://huggingface.co/Kwai-Kolors/Kolors
 
 ## 玩法
 
