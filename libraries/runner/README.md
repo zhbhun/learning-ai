@@ -2,3 +2,4 @@
 - [llama.cpp](https://github.com/ggerganov/llama.cpp/) - LLM inference in C/C++
 - [fastllm](https://github.com/ztxz16/fastllm) - 纯c++的全平台llm加速库，支持python调用，chatglm-6B级模型单卡可达10000+token / s，支持glm, llama, moss基座，手机端流畅运行
 - https://github.com/ml-explore/mlx-examples
+- [lmstudio](https://lmstudio.ai/) - Your local AI toolkit.
