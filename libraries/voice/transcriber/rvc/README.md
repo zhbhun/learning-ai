@@ -2,6 +2,7 @@
 
 ## 教程
 
+- [声音克隆RVC训练](https://zhuanlan.zhihu.com/p/679384829)
 - [RVC变声器最新版附安装教程~](https://www.bilibili.com/video/BV1jF411D7KH)
 - [AI一键实时变声](https://www.bilibili.com/video/BV1Wp4y1g76w/)
 

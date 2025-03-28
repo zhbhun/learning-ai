@@ -2,3 +2,4 @@
 - https://github.com/svc-develop-team/so-vits-svc
 - https://github.com/yxlllc/DDSP-SVC
 - https://github.com/isletennos/MMVC_Trainer
+- [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/issues/639)
