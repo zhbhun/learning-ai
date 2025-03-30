@@ -114,6 +114,7 @@
 
 - [mars5-tts](https://github.com/camb-ai/mars5-tts) - MARS5 speech model (TTS) from CAMB.AI
 - https://github.com/espeak-ng/espeak-ng - eSpeak NG is an open source speech synthesizer that supports more than hundred languages and accents.
+- https://github.com/SWivid/F5-TTS - A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching
 
 ## 工具
 
