@@ -116,6 +116,8 @@
 - https://github.com/espeak-ng/espeak-ng - eSpeak NG is an open source speech synthesizer that supports more than hundred languages and accents.
 - https://github.com/SWivid/F5-TTS - A Fairytaler that Fakes Fluent and Faithful Speech with Flow Matching
 
+  https://www.bilibili.com/video/BV1cbm5YTEPN/?spm_id_from=333.788.recommend_more_video.11&vd_source=2e69ba889e556e858093542d78fc08c0
+
 ## 工具
 
 - [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production

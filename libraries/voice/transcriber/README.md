@@ -11,4 +11,5 @@
 
 - [DiffSinger](https://github.com/MoonInTheRiver/DiffSinger) - Singing Voice Synthesis via Shallow Diffusion Mechanism
 - [DDSP-SVC](https://github.com/yxlllc/DDSP-SVC) - Real-time end-to-end singing voice conversion system based on DDSP
+- [Seed VC](https://github.com/Plachtaa/seed-vc) - zero-shot voice conversion & singing voice conversion, with real-time support
 - https://github.com/isletennos/MMVC_Trainer
