@@ -38,4 +38,5 @@
 ## 模型
 
 - https://mxgf.cc/
+- https://www.ai-hobbyist.com/forum-132-1.html
 - [RVC模型和RVC变声器下载，RVC百款模型分享](https://zhuanlan.zhihu.com/p/702097218)
