@@ -133,3 +133,4 @@ LLM 模型有时会生成听起来连贯且令人信服但有时是虚构的回�
 - https://www.atlassian.com/software/confluence/templates
 - https://promptport.ai/
 - [Prompt Engineering Guide](https://www.promptingguide.ai/zh)
+- [提示工程：概览和指南](https://cloud.google.com/discover/what-is-prompt-engineering)
