@@ -30,6 +30,7 @@
 - 讯飞听见（Android / iOS）：国内常用的语音转文字应用，准确率高，支持实时字幕、导出文字
 - Google 录音机（Android Pixel）：支持离线语音识别、自动转录、关键词搜索(可通过APK安装)
 - Otter.ai（Android /iOS）：专业会议转录工具，自动分段、区分说话人，提供云同步
+- [通义听悟](https://tingwu.aliyun.com)
 
 ## 测试
 

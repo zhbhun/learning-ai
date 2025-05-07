@@ -3,5 +3,5 @@
 
 ## 排行榜
 
-- [LMSYS Chatbot Arena Leaderboard](https://huggingface.co/spaces/lmsys/chatbot-arena-leaderboard)
 - [LMSYS Chatbot Arena](https://lmarena.ai/)
+- [Chatbot Arena LLM Leaderboard](https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard)
