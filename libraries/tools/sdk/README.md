@@ -5,3 +5,6 @@
 - Dify
 - [Dust.tt](https://github.com/dust-tt/dust) - 提供了简单易用的API，可以让开发者快速构建自己的LLM应用程序。
 - [Fixie.ai](https://www.fixie.ai/) - 开放、免费、简单，多模态（images, audio, video...）
+- [gensx](https://github.com/gensx-inc/gensx) - The TypeScript framework for agents & workflows with react-like components. Lightning fast dev loop. Easy to learn. Easy to extend.
+
+  [hy React is surprisingly the best model for LLM workflows](https://www.gensx.com/blog/why-react-is-the-best-backend-workflow-engine)
