@@ -1,1 +1,0 @@
-- [hallo](https://github.com/fudan-generative-vision/hallo) - 输入音频和角色图片，可以生成该角色讲对应语音的视频，嘴型与语音匹配，有表情，有头部动作。

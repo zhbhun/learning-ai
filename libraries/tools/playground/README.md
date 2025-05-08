@@ -1,3 +1,5 @@
+- https://console.groq.com/playground
+
 ## 综合
 
 - https://poe.com/
