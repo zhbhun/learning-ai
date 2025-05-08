@@ -1,0 +1,5 @@
+- [Helicone](https://www.helicone.ai/) - 专门做 OpenAI 接口代理和监控的。
+- [Langfuse](https://langfuse.com/) - 可以监控 OpenAI、Anthropic、Cohere、Together、LLaMA、Mistral 等所有 API 调用。
+- [PromptLayer](https://www.promptlayer.com/) - OpenAI 专用的 prompt 管理与调用监控平台。
+- [OpenLLMetry](https://github.com/traceloop/openllmetry) - 开源的 LLM observability 方案，支持 OpenTelemetry 标准，可以接到 Datadog、Prometheus、Grafana。
+- [GraphSignal](https://graphsignal.com/) - AI observability 平台，支持监控 LLM 推理过程。
