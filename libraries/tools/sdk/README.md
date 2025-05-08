@@ -1,4 +1,5 @@
 - [LangChain](https://github.com/hwchase17/langchain) - 提供了标准的内存接口和内存实现，支持自定义大模型的封装。
+- https://ai-sdk.dev/
 - [Semantic-kernel](https://github.com/microsoft/semantic-kernel) - 轻量级SDK，可将AI大型语言模型（LLMs）与传统编程语言集成在一起。
 - [Brancher AI](https://www.brancher.ai/) - 链接所有大模型，无代码快速生成应用, Langchain产品）
 - Dify
