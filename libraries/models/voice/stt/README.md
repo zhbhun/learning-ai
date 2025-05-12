@@ -13,6 +13,10 @@
 | [kaldi](https://github.com/kaldi-asr/kaldi) | ✔ | | | | 经典的语音识别引擎，C++ 编写，被广泛用于学术研究和工业界，但非常复杂，部署难度高，学习曲线陡峭 |
 | [espnet](https://github.com/espnet/espnet) | ✔ | | | | 学术模型质量高（适合自定义训练），但不适合初学者，依赖多，使用复杂 |
 
+- [Kimi-Audio](https://github.com/MoonshotAI/Kimi-Audio) - Kimi-Audio, an open-source audio foundation model excelling in audio understanding, generation, and conversation
+- [Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2) - parakeet-tdt-0.6b-v2 is a 600-million-parameter automatic speech recognition (ASR) model designed for high-quality English transcription, featuring support for punctuation, capitalization, and accurate timestamp prediction.
+- [3D-Speaker](https://github.com/modelscope/3D-Speaker) - A Repository for Single- and Multi-modal Speaker Verification, Speaker Recognition and Speaker Diarization
+
 ### 付费
 
 - [Azure Speech Studio](https://speech.microsoft.com/portal)：实时语音转文本、批处理语音转文本、自定义语音识别、语音翻译
@@ -33,6 +37,11 @@
 - [通义听悟](https://tingwu.aliyun.com)
 
 ## 测试
+
+- [Kimi-Audio-Evalkit](https://github.com/MoonshotAI/Kimi-Audio-Evalkit) - Kimi-Audio-Evalkit是一个为音频大模型评测设计的评测框架，基于Kimi-Audio-Evalkit，你可以快速实现自己的模型或数据集，并公平的与其他开源模型进行比对。
+- [fleurs](https://huggingface.co/datasets/google/fleurs)
+
+---
 
 - SenseVoice
 
