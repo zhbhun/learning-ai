@@ -1,0 +1,4 @@
+- [pocketpal-ai](https://github.com/a-ghorbani/pocketpal-ai) - An app that brings language models directly to your phone.
+- [MNN Chat](https://github.com/alibaba/MNN/tree/master/apps/Android/MnnLlmChat) - https://github.com/alibaba/MNN/tree/master/apps/Android/MnnLlmChat
+- [mlc-llm](https://github.com/mlc-ai/mlc-llm) - Universal LLM Deployment Engine with ML Compilation
+- https://github.com/ggml-org/llama.cpp
