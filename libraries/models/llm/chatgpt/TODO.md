@@ -13,4 +13,3 @@
 
 - [ChatGPT: Optimizing Language Models for Dialogue](https://openai.com/blog/chatgpt/)
 - [OpenAI新上线GPT太强了，服务器瞬间挤爆，马斯克：你们太沉迷了](https://zhuanlan.zhihu.com/p/588699297)
-- https://github.com/acheong08/ChatGPT

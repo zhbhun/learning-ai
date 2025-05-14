@@ -1,1 +1,0 @@
-- https://bard.google.com/
