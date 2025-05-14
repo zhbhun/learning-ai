@@ -1,5 +1,6 @@
 - [ollama](https://github.com/ollama/ollama) - Get up and running with Llama 3, Mistral, Gemma, and other large language models.
 - [lmstudio](https://lmstudio.ai/) - Your local AI toolkit.
 - [llama.cpp](https://github.com/ggerganov/llama.cpp/) - LLM inference in C/C++
+- [BitNet](https://github.com/microsoft/BitNet) - Official inference framework for 1-bit LLMs
 - [fastllm](https://github.com/ztxz16/fastllm) - 纯c++的全平台llm加速库，支持python调用，chatglm-6B级模型单卡可达10000+token / s，支持glm, llama, moss基座，手机端流畅运行
 - https://github.com/ml-explore/mlx-examples
