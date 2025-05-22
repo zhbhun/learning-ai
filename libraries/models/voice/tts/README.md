@@ -1,3 +1,6 @@
+- [TTS Arena By Huggingface](https://huggingface.co/spaces/TTS-AGI/TTS-Arena-V2)
+- [TTS Artificial Analysis](https://artificialanalysis.ai/text-to-speech/arena?tab=leaderboard)
+
 ## 框架
 
 - [VITS](https://huggingface.co/docs/transformers/model_doc/vits) -  An end-to-end TTS architecture that utilizes conditional variational autoencoder with adversarial learning
