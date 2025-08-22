@@ -1,5 +1,2 @@
 - Figma
 - Penport
-- Framer
-- v0
-- lovable
