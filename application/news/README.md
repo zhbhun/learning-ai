@@ -1,0 +1,1 @@
+- [kite-public](https://github.com/kagisearch/kite-public) - 
