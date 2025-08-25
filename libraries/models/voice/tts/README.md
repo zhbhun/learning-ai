@@ -121,6 +121,8 @@
 
   https://www.bilibili.com/video/BV1cbm5YTEPN/?spm_id_from=333.788.recommend_more_video.11&vd_source=2e69ba889e556e858093542d78fc08c0
 
+- [IndexTTS](https://github.com/index-tts/index-tts) - An Industrial-Level Controllable and Efficient Zero-Shot Text-To-Speech System
+
 ## 工具
 
 - [TTS](https://github.com/coqui-ai/TTS) - 29.9k ★, a deep learning toolkit for Text-to-Speech, battle-tested in research and production
