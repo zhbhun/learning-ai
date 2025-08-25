@@ -1,3 +1,5 @@
 - v0
 - Framer
 - lovable
+- [bolt](https://bolt.new/) - Create stunning apps & websites by chatting with AI.
+- [replit](https://www.replit.com/) - Turn your ideas into apps
