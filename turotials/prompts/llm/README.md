@@ -1,0 +1,1 @@
+- [wshobson/agents](https://github.com/wshobson/agents) - A collection of production-ready subagents for Claude Code
