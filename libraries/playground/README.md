@@ -1,4 +1,5 @@
 - https://console.groq.com/playground
+- https://github.com/marketplace/models
 
 ## 综合
 
