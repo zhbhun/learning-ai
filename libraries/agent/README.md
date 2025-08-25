@@ -1,3 +1,10 @@
+- [Langchain/LangGraph](https://www.langchain.com/langgraph)
+- [Autogen](https://github.com/microsoft/autogen)
+- [DSPy](https://github.com/stanfordnlp/dspy)
+- [crewAI](https://github.com/crewAIInc/crewAI)
+
+---
+
 - [Real-time Voice AI Agent](https://github.com/CerebriumAI/examples/tree/master/18-realtime-voice-agent)
 
 ## 框架
