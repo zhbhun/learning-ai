@@ -1,0 +1,2 @@
+- [copilot-cli](https://github.com/github/copilot-cli)
+- [gemini-cli](https://github.com/google-gemini/gemini-cli)
