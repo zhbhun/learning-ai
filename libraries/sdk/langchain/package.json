@@ -1,0 +1,37 @@
+{
+  "name": "langchain-tester",
+  "version": "1.0.0",
+  "description": "LangChain + Gemini ReAct 提示词示例集合",
+  "scripts": {
+    "simple": "node react-simple.js",
+    "full": "node temp.js",
+    "custom": "node react-custom-prompt.js",
+    "all": "npm run simple && npm run custom",
+    "native": "node native-react-simple.js",
+    "native-advanced": "node native-react-advanced.js"
+  },
+  "keywords": [
+    "langchain",
+    "gemini",
+    "react",
+    "agent",
+    "ai"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^1.25.0",
+    "@langchain/core": "^0.3.78",
+    "@langchain/google-genai": "^0.2.18",
+    "langchain": "^0.3.36"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.8.1",
+    "dotenv": "^17.2.3",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.5",
+    "typescript": "^5.9.3"
+  }
+}
