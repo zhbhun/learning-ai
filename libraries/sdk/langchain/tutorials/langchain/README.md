@@ -7,5 +7,7 @@
 ## 概念
 
 - Model
-- Message
 - Prompt
+- Tool
+- Agent: Model + Prompt + Tool
+- Message
