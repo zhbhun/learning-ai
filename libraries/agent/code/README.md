@@ -1,0 +1,7 @@
+- [cline](https://cline.bot/)
+- [augmentcode](https://www.augmentcode.com/)
+- [kilocode](https://kilocode.ai/)
+- [roocode](https://roocode.com/)
+- [Claude Code](https://www.claude.com/product/claude-code)
+- [gemini-cli](https://github.com/google-gemini/gemini-cli)
+- [copilot-cli](https://github.com/features/copilot/cli)
