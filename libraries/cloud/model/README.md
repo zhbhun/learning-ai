@@ -1,0 +1,8 @@
+- [openrouter](https://openrouter.ai/)
+- [requesty](https://www.requesty.ai/)
+- https://www.together.ai/
+- https://novita.ai/
+- https://deepinfra.com/
+- https://fireworks.ai/
+- https://console.groq.com/home
+- https://www.siliconflow.com/
