@@ -1,0 +1,3 @@
+- comfyui
+- https://app.florafauna.ai/
+- https://app.weavy.ai/
