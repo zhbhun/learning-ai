@@ -1,1 +1,5 @@
 - [ollama search](https://ollama.com/blog/web-search)
+- [firecrawl](https://www.firecrawl.dev/)
+- [searxng](https://github.com/searxng/searxng) - SearXNG is a free internet metasearch engine which aggregates results from various search services and databases. Users are neither tracked nor profiled.
+- [yacy](https://github.com/yacy/yacy_search_server) - Distributed Peer-to-Peer Web Search Engine and Intranet Search Appliance
+- https://github.com/brave/brave-search-mcp-server
