@@ -1,0 +1,1 @@
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec) - Spec-driven development for AI coding assistants.

@@ -3,9 +3,9 @@
 
 ## 排行榜
 
+- https://lmarena.ai/
 - https://chat.lmsys.org/
 - https://www.coze.cn/model/arena
-- [LMSYS Chatbot Arena](https://lmarena.ai/)
 - [Chatbot Arena LLM Leaderboard](https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard)
 
 ---
