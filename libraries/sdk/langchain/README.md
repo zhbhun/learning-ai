@@ -9,6 +9,7 @@
 ## Lesson
 
 - [开发必看】AI应用开发LangChain系列课程](https://www.bilibili.com/video/BV1Uh4y1X76G/?p=2&spm_id_from=pageDriver&vd_source=2e69ba889e556e858093542d78fc08c0)
+- [LangGraph 1.0 完全指南](https://www.luochang.ink/dive-into-langgraph//)
 
 ## Usage
 
