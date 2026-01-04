@@ -6,3 +6,4 @@
 - https://fireworks.ai/
 - https://console.groq.com/home
 - https://www.siliconflow.com/
+- https://sufy.com/zh-CN/services/ai-inference/models
