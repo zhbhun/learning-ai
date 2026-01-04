@@ -39,6 +39,7 @@
 
 ---
 
+- [VibeVoice](https://github.com/microsoft/VibeVoice) - Open-Source Frontier Voice AI
 - [Real-Time-Voice-Cloning](https://github.com/CorentinJ/Real-Time-Voice-Cloning) - 50.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 - [MockingBird](https://github.com/babysor/MockingBird) - 33.9k ★, Clone a voice in 5 seconds to generate arbitrary speech in real-time
 
