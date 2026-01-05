@@ -1,0 +1,3 @@
+- https://app.florafauna.ai/
+- https://app.weavy.ai/
+- https://app.tapnow.ai/
