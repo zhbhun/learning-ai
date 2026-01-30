@@ -1,0 +1,3 @@
+- https://skillsmp.com/zh
+- https://github.com/anthropics/skills
+- https://code.claude.com/docs/en/skills
