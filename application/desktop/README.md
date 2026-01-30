@@ -1,3 +1,4 @@
 - claudework
 - clawdbot
 - minimax agent
+- https://github.com/different-ai/openwork
