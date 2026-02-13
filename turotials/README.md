@@ -1,1 +1,2 @@
 - [什么是生成式 AI？](https://www.elastic.co/cn/what-is/generative-ai)
+- [Agentic Design Patterns](https://adp.xindoo.xyz/)
