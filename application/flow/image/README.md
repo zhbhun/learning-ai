@@ -2,3 +2,4 @@
 - https://app.weavy.ai/
 - https://app.tapnow.ai/
 - https://app.fuser.studio/
+- https://www.imagine.art/flow
