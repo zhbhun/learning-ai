@@ -1,11 +1,22 @@
+## 开源
+
 - [chatfire-AI/huobao-drama](https://github.com/chatfire-AI/huobao-drama)
 - [Toonflow-app](https://github.com/HBAI-Ltd/Toonflow-app)
 - https://github.com/freestylefly/director_ai
 - https://www.animeaistudio.com/cartoon
 
-## 通用
+## 剪辑
+
+- https://www.flexclip.com/
+- https://www.animaker.com/home
+
+## 生成
 
 - https://ai.tvi.v.qq.com/zenstudio
+- https://toon-crafter.com/
+- https://www.mootion.com/
+- https://namistory.n.cn/
+- https://lingjingai.cn/
 
 ## 参考
 
