@@ -2,3 +2,4 @@
 - https://llamagen.ai
 - https://anifusion.ai/
 - https://aicomicfactory.com/
+- https://www.neuralcanvas.io/
