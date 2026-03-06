@@ -27,3 +27,8 @@
 - [Readwise](https://read.readwise.io/)
 - [Read Pilot](https://readpilot.vercel.app/)
 - [markprompt](https://github.com/motifland/markprompt)
+
+
+---
+
+- [Now I Get It!](https://nowigetit.us/)
