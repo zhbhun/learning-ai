@@ -1,0 +1,1 @@
+- https://youmind.com/zh-CN/seedance-2-0-prompts?utm_source=nav
