@@ -1,6 +1,6 @@
-import { createAgent, tool } from 'langchain'
-import { MemorySaver, type Runtime } from '@langchain/langgraph'
 import * as z from 'zod'
+import { MemorySaver } from '@langchain/langgraph'
+import { createAgent, tool, type ToolRuntime } from 'langchain'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 
 describe('Weather', () => {
@@ -30,8 +30,8 @@ describe('Weather', () => {
     )
 
     const getUserLocation = tool(
-      (_: any, config: Runtime<{ user_id: string }>) => {
-        const { user_id } = config.context || { user_id: '1' }
+      (_: any, runtime: ToolRuntime<unknown, { user_id: string }>) => {
+        const { user_id } = runtime.context || { user_id: '1' }
         return user_id === '1' ? 'Florida' : 'SF'
       },
       {
@@ -43,7 +43,7 @@ describe('Weather', () => {
 
     // Configure model
     const model = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash-lite',
+      model: 'gemini-2.5-flash-lite',
     })
 
     // Define response format
@@ -80,7 +80,7 @@ describe('Weather', () => {
     //   punny_response: "Florida is still having a 'sun-derful' day! The sunshine is playing 'ray-dio' hits all day long! I'd say it's the perfect weather for some 'solar-bration'! If you were hoping for rain, I'm afraid that idea is all 'washed up' - the forecast remains 'clear-ly' brilliant!",
     //   weather_conditions: "It's always sunny in Florida!"
     // }
-    expect(response.weather_conditions).toEqual('sunny')
+    expect(response.structuredResponse.weather_conditions).toEqual('sunny')
 
     // Note that we can continue the conversation using the same `thread_id`.
     const thankYouResponse = await agent.invoke(
