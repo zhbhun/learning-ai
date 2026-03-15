@@ -1,0 +1,2 @@
+- [openwork](https://github.com/different-ai/openwork)
+- [cowork](https://claude.com/product/cowork)
