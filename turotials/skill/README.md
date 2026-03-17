@@ -1,8 +1,9 @@
 # Skill
 
+- https://agentskills.io/home
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)
 
-## 教程
+## 构建
 
 - [Claude Skills 完整构建指南](https://github.com/libukai/awesome-agent-skills/blob/main/docs/Claude-Skills-%E5%AE%8C%E5%85%A8%E6%9E%84%E5%BB%BA%E6%8C%87%E5%8D%97.md)
 
@@ -80,3 +81,12 @@ description: [它做什么] + [何时使用] + [核心能力]
 - 触发测试: 在正确时机加载。
 - 功能测试：能产生正确的输出。
 - 性能测试：相比基线有所改善。
+
+## 使用
+
+- 查找：`npx skills find [query]`
+- 罗列：`npx skills list`
+- 安装：`npx skills add owner/repo`
+- 删除：`npx skills remove [skills]`
+- 更新：`npx skills update`
+- 创建：`npx skills init [name]`
