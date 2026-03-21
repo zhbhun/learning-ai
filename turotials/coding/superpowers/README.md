@@ -6,6 +6,8 @@ https://github.com/obra/superpowers
 
 1. Brainstorming 
 
+  Workflow：
+
   - Refines rough ideas through questions;
   - Explores alternatives;
   - Presents design in sections for validation;
@@ -13,11 +15,21 @@ https://github.com/obra/superpowers
 
 2. Writing Plans
 
-  Breaks work into bite-sized tasks (2-5 minutes each).
+  - Worlflow: Breaks work into bite-sized tasks (2-5 minutes each).
 
-  ps: Every task has exact file paths, complete code, verification steps.
+    ps: Every task has exact file paths, complete code, verification steps.
+
+  - Subagent: plan-document-reviewer
 
 3. Executing Plans or Subagent Driven Development
+
+  - Workflow: 实现 => 规范审查 => 质量审查
+  - Subagent
+
+    - Implementer
+    - Spec compliance Reviewer
+    - Code quality Reviewer
+
 4. Finishing A Development Branch
 
 ## 优缺点
