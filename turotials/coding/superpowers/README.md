@@ -1,5 +1,25 @@
 https://github.com/obra/superpowers
 
+## 原理
+
+设计 => 规划 => 实现 => 提交
+
+1. Brainstorming 
+
+  - Refines rough ideas through questions;
+  - Explores alternatives;
+  - Presents design in sections for validation;
+  - Saves design document.
+
+2. Writing Plans
+
+  Breaks work into bite-sized tasks (2-5 minutes each).
+
+  ps: Every task has exact file paths, complete code, verification steps.
+
+3. Executing Plans or Subagent Driven Development
+4. Finishing A Development Branch
+
 ## 优缺点
 
 - 优点：访谈式完善需求，有详细的设计文档和任务规划
@@ -8,4 +28,5 @@ https://github.com/obra/superpowers
   - 规划和执行任务时会提交代码，会出现较多 commit，有些东西没有生成最终效果可能得二次修改。
   - 一个简单的需求会过度设计，并且任务拆分过细，导致生成成本较高且时间较长
   - 没有维护一份完整的技术设计文档，每次都要查看全部代码来完成访谈，Token 消耗过高
+  - 默认为英文，对英文不熟练的开发者不够友好
 
