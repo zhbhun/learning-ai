@@ -1,0 +1,24 @@
+{
+  "name": "llm-prompt-tester",
+  "version": "1.0.0",
+  "description": "LLM 提示词示例集合",
+  "keywords": [
+    "llm",
+    "prompt"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^1",
+    "debug": "^4.4.3"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30",
+    "@types/jest": "^30",
+    "@types/node": "^25",
+    "dotenv": "^17",
+    "jest": "^30",
+    "ts-jest": "^29",
+    "typescript": "^5"
+  }
+}
