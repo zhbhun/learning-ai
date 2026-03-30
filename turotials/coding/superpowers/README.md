@@ -32,6 +32,22 @@ https://github.com/obra/superpowers
 
 4. Finishing A Development Branch
 
+---
+
+- systematic-debugging
+
+---
+
+ 
+1. Explore project context - check files, docs, recent commits 
+2. Ask clarifying questions one at a time 
+3. Propose 2-3 approaches with trade-offs 
+4. Present design sections and get approval 
+5. Write design doc to specs folder 
+6. Spec review loop 
+7. User reviews written spec 
+8. Transition to implementation via writing-plans skill
+
 ## 优缺点
 
 - 优点：访谈式完善需求，有详细的设计文档和任务规划
