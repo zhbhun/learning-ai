@@ -1,0 +1,1 @@
+- [autoresearch](https://github.com/karpathy/autoresearch) - AI agents running research on single-GPU nanochat training automatically
