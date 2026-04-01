@@ -90,3 +90,7 @@ description: [它做什么] + [何时使用] + [核心能力]
 - 删除：`npx skills remove [skills]`
 - 更新：`npx skills update`
 - 创建：`npx skills init [name]`
+
+## 参考
+
+- [终于有人把 Claude Skills 官方教程讲清楚了](https://zhuanlan.zhihu.com/p/1987581624360145862)
