@@ -1,0 +1,3 @@
+- https://github.com/anthropics/claude-code
+- [claude-code-book](https://github.com/lintsinghua/claude-code-book)
+- https://github.com/sanbuphy/claude-code-source-code
