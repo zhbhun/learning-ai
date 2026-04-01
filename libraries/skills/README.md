@@ -3,3 +3,4 @@
 - https://github.com/anthropics/skills
 - https://claude.com/plugins
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)
+- https://skillhub.tencent.com/
