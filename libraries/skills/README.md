@@ -1,4 +1,5 @@
 - https://skills.sh
 - https://skillsmp.com/zh
 - https://github.com/anthropics/skills
-- https://code.claude.com/docs/en/skills
+- https://claude.com/plugins
+- [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)

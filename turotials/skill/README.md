@@ -1,7 +1,7 @@
 # Skill
 
 - https://agentskills.io/home
-- [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)
+- https://code.claude.com/docs/en/skills
 
 ## 构建
 
