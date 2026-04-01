@@ -1,0 +1,5 @@
+- https://github.com/obra/superpowers
+- https://github.com/darrenhinde/OpenAgentsControl
+- https://github.com/VoltAgent/awesome-claude-code-subagents
+- https://github.com/affaan-m/everything-claude-code/tree/main
+- https://github.com/gsd-build/get-shit-done
