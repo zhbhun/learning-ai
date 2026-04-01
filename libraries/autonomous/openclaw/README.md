@@ -1,5 +1,6 @@
 - https://clawhub.ai/
 - https://openclaw-docs.dx3n.cn
+- https://github.com/shareAI-lab/claw0
 - https://github.com/hesamsheikh/awesome-openclaw-usecases
 
 ## 插件
