@@ -3,3 +3,6 @@
 - https://github.com/VoltAgent/awesome-claude-code-subagents
 - https://github.com/affaan-m/everything-claude-code/tree/main
 - https://github.com/gsd-build/get-shit-done
+- https://github.com/msitarzewski/agency-agents
+- https://github.com/wanikua/danghuangshang
+- https://github.com/garrytan/gstack
