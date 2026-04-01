@@ -2,6 +2,7 @@
 
 - https://github.com/agentsmd/agents.md
 - https://agents.md/#examples
+- https://claude.com/plugins/claude-md-management
 
 ## 教程
 
