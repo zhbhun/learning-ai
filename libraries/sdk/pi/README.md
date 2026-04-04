@@ -1,1 +1,2 @@
 - [从 pi-mono 到 OpenClaw：源码拆解，21 万 Star 背后的 Agent 工程减法](https://zhuanlan.zhihu.com/p/2009031121334207641)
+- [pi-mono](https://github.com/badlogic/pi-mono)
