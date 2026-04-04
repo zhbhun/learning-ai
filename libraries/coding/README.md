@@ -14,3 +14,5 @@
 - [kimi code](https://www.kimi.com/code)
 - claude code
 - opencode
+- https://factory.ai/
+- https://github.com/charmbracelet/crush
