@@ -1,6 +1,12 @@
 - [TTS Arena By Huggingface](https://huggingface.co/spaces/TTS-AGI/TTS-Arena-V2)
 - [TTS Artificial Analysis](https://artificialanalysis.ai/text-to-speech/arena?tab=leaderboard)
 
+---
+
+TODO
+
+- [Gemini 3.1 Flash TTS](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-flash-tts/)
+
 ## 框架
 
 - [VITS](https://huggingface.co/docs/transformers/model_doc/vits) -  An end-to-end TTS architecture that utilizes conditional variational autoencoder with adversarial learning
