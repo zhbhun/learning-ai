@@ -1,1 +1,2 @@
+- [calude design](https://www.anthropic.com/news/claude-design-anthropic-labs)
 - https://stitch.withgoogle.com
