@@ -2,3 +2,5 @@
 - [frontend-design](https://github.com/anthropics/skills/tree/main/skills/frontend-design)
 - [shadcn-ui](https://ui.shadcn.com/docs/skills)
 - [web-design-guidelines](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines)
+- [huashu-design](https://github.com/alchaincyf/huashu-design) - Huashu Design · HTML-native design skill for Claude Code
+- [guizang-ppt-skill](https://github.com/op7418/guizang-ppt-skill) - A Claude Code Skill that turns prompts into horizontal-swipe magazine-style HTML decks — 10 layouts, 5 curated themes, WebGL hero backgrounds, single-file output.
