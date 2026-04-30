@@ -1,2 +1,7 @@
 - [calude design](https://www.anthropic.com/news/claude-design-anthropic-labs)
+- [Open Design](https://github.com/nexu-io/open-design) 
+- [open-codesign](https://github.com/OpenCoworkAI/open-codesign)
+- https://www.pencil.dev/
+- https://impeccable.style/
+- https://variant.com/
 - https://stitch.withgoogle.com

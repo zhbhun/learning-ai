@@ -109,7 +109,9 @@
 - 优点：成本低，批评内容本身就是对错误的分析，可通过 prompt 自动优化生成质量
 - 缺点：受限于模型自身，可能会过度修改而增加延迟和成本，无法跳出模型的认知边界
 - 场景：代码生成、文本润色、数学问题对话系统
-- 原理：Basic Reflection 可以类比于学生(Generator)写作业，老师(Reflector)来批改建议，学生根据批改建议来修改，如此反复。
+- 原理：
+
+  Basic Reflection 可以类比于学生(Generator)写作业，老师(Reflector)来批改建议，学生根据批改建议来修改，如此反复。
 
   ```mermaid
   flowchart TB
