@@ -1,2 +1,2 @@
 - [DESIGN.md](https://stitch.withgoogle.com/docs/design-md/overview)
-- https://github.com/VoltAgent/awesome-design-md
+- [awesome-design-md](https://github.com/VoltAgent/awesome-design-md/tree/ef729b271802ce7ed50f9e0928137b18942cde80)
