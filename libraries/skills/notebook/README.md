@@ -1,0 +1,1 @@
+- [notebooklm-skill](https://github.com/PleasePrompto/notebooklm-skill)
