@@ -1,0 +1,1 @@
+- [logo-generator-skill](https://github.com/op7418/logo-generator-skill) - Professional SVG logo generator with high-end showcase presentations. Generate 6+ design variants based on product characteristics, then create stunning showcase images with 12 professional background styles.
