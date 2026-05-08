@@ -3,4 +3,5 @@
 - https://github.com/anthropics/skills
 - https://claude.com/plugins
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)
+- [awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) - A curated list of awesome Claude Skills, resources, and tools for customizing Claude AI workflows
 - https://skillhub.tencent.com/
