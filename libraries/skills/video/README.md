@@ -1,0 +1,1 @@
+- [Remotion Agent Skills](https://www.remotion.dev/docs/ai/skills)
