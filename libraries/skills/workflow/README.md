@@ -1,1 +1,7 @@
+- [get-shit-done](https://github.com/gsd-build/get-shit-done) - A light-weight and powerful meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES.
+- [mattpocock](https://github.com/mattpocock/skills) - Skills for Real Engineers. Straight from my .claude directory.
+- [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) - Breakthrough Method for Agile Ai Driven Development
+- [spec-kit](https://github.com/github/spec-kit) - Toolkit to help you get started with Spec-Driven Development
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec) - Spec-driven development (SDD) for AI coding assistants.
 - [Trellis](https://github.com/mindfold-ai/Trellis) - The best agent harness.
+- [waza](https://github.com/tw93/waza) - Engineering habits you already know, turned into skills Claude can run.
