@@ -1,3 +1,2 @@
 - https://flipbook.page/
 - https://github.com/lightpanda-io/browser - Lightpanda: the headless browser designed for AI and automation
-- [opencli](https://github.com/jackwener/opencli) - Make Any Website & Tool Your CLI. A universal CLI Hub and AI-native runtime. Transform any website, Electron app, or local binary into a standardized command-line interface. Built for AI Agents to discover, learn, and execute tools seamlessly via a unified AGENT.md integration.
