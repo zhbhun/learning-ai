@@ -3,6 +3,7 @@
 - https://skillhub.tencent.com/
 - https://claude.com/plugins
 - https://awesome-skills.com/
+- https://explainx.ai/
 - [anthropics-skills](https://github.com/anthropics/skills) - Public repository for Agent Skills
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)
 - [awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) - A curated list of awesome Claude Skills, resources, and tools for customizing Claude AI workflows

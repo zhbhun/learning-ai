@@ -1,0 +1,1 @@
+- [planning-with-files](https://github.com/othmanadi/planning-with-files) - Claude Code skill implementing Manus-style persistent markdown planning — the workflow pattern behind the $2B acquisition.
