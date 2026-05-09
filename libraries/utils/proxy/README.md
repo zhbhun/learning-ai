@@ -1,0 +1,1 @@
+- [copilot-api](https://github.com/ericc-ch/copilot-api) - Turn GitHub Copilot into OpenAI/Anthropic API compatible server. Usable with Claude Code!
