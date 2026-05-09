@@ -1,1 +1,2 @@
 - https://flipbook.page/
+- https://github.com/lightpanda-io/browser - Lightpanda: the headless browser designed for AI and automation
