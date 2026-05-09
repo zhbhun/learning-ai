@@ -16,3 +16,4 @@
 - opencode
 - https://factory.ai/
 - https://github.com/charmbracelet/crush
+- [Kode-Agent](https://github.com/shareAI-lab/Kode-Agent)
