@@ -1,0 +1,3 @@
+- [pm-skills](https://github.com/phuryn/pm-skills) - PM Skills Marketplace: 100+ agentic skills, commands, and plugins — from discovery to strategy, execution, launch, and growth.
+- [Product-Manager-Skills](https://github.com/deanpeters/Product-Manager-Skills) - Product Management skills framework built on battle-tested methods for Claude Code, Cowork, Codex, and AI agents.
+- [产品经理综合技能](https://skillhub.cn/skills/pmaster)
