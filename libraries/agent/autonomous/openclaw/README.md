@@ -117,3 +117,8 @@ TODO
 
 - [paperclip](https://github.com/paperclipai/paperclip)
 - [clawith](https://github.com/dataelement/Clawith)
+
+## 参考
+
+- [深入理解 OpenClaw 技术架构与实现原理](https://www.bestblogs.dev/article/278b3853)
+- [从架构到代码：深入理解 OpenClaw 的双源记忆系统](https://www.bestblogs.dev/article/a8299f4e)

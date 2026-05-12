@@ -1,0 +1,1 @@
+- [Claude Code + OpenSpec 正在加速 AICoding 落地：从模型博弈到工程化的范式转移｜得物技术](https://www.bestblogs.dev/article/d222a5d7)

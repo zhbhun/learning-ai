@@ -22,3 +22,4 @@
 
 - [LLM Powered Autonomous Agents](https://lilianweng.github.io/posts/2023-06-23-agent/)
 - [Real-time Voice AI Agent](https://github.com/CerebriumAI/examples/tree/master/18-realtime-voice-agent)
+- [你不知道的 Agent：原理、架构与工程实践](https://tw93.fun/2026-03-21/agent.html)
