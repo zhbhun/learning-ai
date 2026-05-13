@@ -1,0 +1,5 @@
+- [Screeps](https://screeps.com) - 一个“用 JavaScript 写 AI”的 MMO RTS 游戏。
+- [Halite](https://halite.io) - 一个经典 AI 编程竞赛平台（已停止官方运营，但影响很大）。
+- [RoboCode](https://robocode.sourceforge.io) - 非常经典的“坦克 AI 编程游戏”。
+- [Battlecode](https://battlecode.org/) - MIT 非常有名的 AI 编程比赛。
+- https://agentank.ai/
