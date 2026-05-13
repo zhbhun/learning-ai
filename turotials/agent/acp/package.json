@@ -17,6 +17,7 @@
     "vitest": "^4.1.6"
   },
   "dependencies": {
+    "@agentclientprotocol/claude-agent-acp": "^0.33.1",
     "@agentclientprotocol/sdk": "^0.21.0"
   }
 }
