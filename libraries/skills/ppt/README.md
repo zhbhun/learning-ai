@@ -1,2 +1,0 @@
-- [体验开源PPT Skills - 歸藏 PPT Skill, 花叔 Huashu Design](https://www.bilibili.com/video/BV12HRLBREeV)
-- [frontend-slides](https://github.com/zarazhangrui/frontend-slides) - Create beautiful slides on the web using Claude's frontend skills
