@@ -1,0 +1,1 @@
+https://github.com/earendil-works/pi/tree/main/packages/coding-agent
