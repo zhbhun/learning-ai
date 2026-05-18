@@ -1,0 +1,47 @@
+{
+  "name": "opencode-plugin-tester",
+  "version": "0.1.0",
+  "description": "OpenCode plugin with extended tools, hooks, and auto-loaded skills",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "typecheck": "bunx tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "tools",
+    "file-operations",
+    "ai",
+    "coding-agent",
+    "skills"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/opencode-plugin-tester.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@opencode-ai/plugin": "^1",
+    "@opencode-ai/sdk": "^1",
+    "zod": "^4"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^6",
+    "@types/bun": "latest",
+    "@types/node": "^25.5.0",
+    "prettier": "^3",
+    "typescript": "^5"
+  }
+}
