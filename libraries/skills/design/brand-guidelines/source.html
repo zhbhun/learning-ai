@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acme Workspace</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f3f4f6;
+        color: #1f2937;
+      }
+
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        background: #ffffff;
+        border-bottom: 1px solid #d1d5db;
+      }
+
+      .brand {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2563eb;
+      }
+
+      .nav-links a {
+        margin-left: 16px;
+        color: #4b5563;
+        text-decoration: none;
+      }
+
+      .hero {
+        max-width: 960px;
+        margin: 40px auto 24px;
+        padding: 0 24px;
+      }
+
+      .hero h1 {
+        margin: 0 0 12px;
+        font-size: 40px;
+      }
+
+      .hero p {
+        margin: 0 0 20px;
+        color: #6b7280;
+        line-height: 1.6;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .button {
+        padding: 10px 16px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .button-primary {
+        background: #2563eb;
+        color: #ffffff;
+      }
+
+      .button-secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .section {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        padding: 20px;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      }
+
+      .card h3 {
+        margin-top: 0;
+        margin-bottom: 8px;
+      }
+
+      .card p {
+        margin: 0;
+        color: #6b7280;
+        line-height: 1.5;
+      }
+
+      .contact {
+        margin-top: 24px;
+        padding: 24px;
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+      }
+
+      .contact h2 {
+        margin-top: 0;
+      }
+
+      .form-row {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="navbar">
+      <div class="brand">Acme Workspace</div>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Build faster with one shared workspace</h1>
+        <p>
+          Manage projects, track tasks, and keep your team aligned with a single
+          collaboration platform.
+        </p>
+        <div class="actions">
+          <button class="button button-primary">Start free trial</button>
+          <button class="button button-secondary">View demo</button>
+        </div>
+      </section>
+
+      <section class="section" id="features">
+        <div class="grid">
+          <article class="card">
+            <h3>Project Tracking</h3>
+            <p>Follow milestones, owners, and deadlines in one simple dashboard.</p>
+          </article>
+          <article class="card">
+            <h3>Team Collaboration</h3>
+            <p>Share updates, assign work, and keep decisions visible to everyone.</p>
+          </article>
+          <article class="card">
+            <h3>Reporting</h3>
+            <p>Review progress with weekly summaries and real-time status reports.</p>
+          </article>
+        </div>
+
+        <div class="contact" id="contact">
+          <h2>Contact sales</h2>
+          <div class="form-row">
+            <label for="name">Name</label>
+            <input id="name" type="text" placeholder="Your name" />
+          </div>
+          <div class="form-row">
+            <label for="email">Email</label>
+            <input id="email" type="email" placeholder="name@company.com" />
+          </div>
+          <div class="form-row">
+            <label for="message">Message</label>
+            <textarea id="message" placeholder="Tell us about your team"></textarea>
+          </div>
+          <button class="button button-primary">Submit</button>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

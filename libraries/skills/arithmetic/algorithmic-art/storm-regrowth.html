@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<!--
+    THIS IS A TEMPLATE THAT SHOULD BE USED EVERY TIME AND MODIFIED.
+    WHAT TO KEEP:
+    ✓ Overall structure (header, sidebar, main content)
+    ✓ Anthropic branding (colors, fonts, layout)
+    ✓ Seed navigation section (always include this)
+    ✓ Self-contained artifact (everything inline)
+
+    WHAT TO CREATIVELY EDIT:
+    ✗ The p5.js algorithm (implement YOUR vision)
+    ✗ The parameters (define what YOUR art needs)
+    ✗ The UI controls (match YOUR parameters)
+
+    Let your philosophy guide the implementation.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storm Regrowth</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.45;
+        }
+
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .seed-jump {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .seed-jump .button {
+            width: auto;
+            min-width: 72px;
+        }
+
+        .seed-jump input {
+            margin-bottom: 0;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 64px;
+            text-align: right;
+        }
+
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        .hint {
+            font-size: 12px;
+            line-height: 1.45;
+            color: var(--anthropic-mid-gray);
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+            position: relative;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 720px;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .canvas-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>残涌生长</h1>
+            <div class="subtitle">After the storm, turbulence does not vanish. It slowly becomes the bias from which new order learns how to rise.</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <div class="seed-jump">
+                    <input type="number" id="seed-jump" class="seed-input" placeholder="Jump to seed">
+                    <button class="button secondary" onclick="jumpToSeed()">Go</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>Particle Density</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleDensity" min="900" max="4200" step="100" value="2400" oninput="updateParam('particleDensity', this.value)">
+                        <span class="value-display" id="particleDensity-value">2400</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Storm Echo</label>
+                    <div class="slider-container">
+                        <input type="range" id="stormEcho" min="0.4" max="2.2" step="0.05" value="1.25" oninput="updateParam('stormEcho', this.value)">
+                        <span class="value-display" id="stormEcho-value">1.25</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Growth Bias</label>
+                    <div class="slider-container">
+                        <input type="range" id="growthBias" min="0.5" max="2.4" step="0.05" value="1.35" oninput="updateParam('growthBias', this.value)">
+                        <span class="value-display" id="growthBias-value">1.35</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Recovery Rate</label>
+                    <div class="slider-container">
+                        <input type="range" id="recoveryRate" min="0.35" max="1.8" step="0.05" value="1.0" oninput="updateParam('recoveryRate', this.value)">
+                        <span class="value-display" id="recoveryRate-value">1.00</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Deposition</label>
+                    <div class="slider-container">
+                        <input type="range" id="deposition" min="0.45" max="2.0" step="0.05" value="1.1" oninput="updateParam('deposition', this.value)">
+                        <span class="value-display" id="deposition-value">1.10</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button secondary" onclick="regenerate()">Regenerate</button>
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+                <button class="button tertiary" onclick="downloadPNG()">Download PNG</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Notes</h3>
+                <div class="hint">The sketch evolves from shear and turbulence into partial alignment. The same seed always recreates the same recovery pattern.</div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing generative art...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 12345,
+            particleDensity: 2400,
+            stormEcho: 1.25,
+            growthBias: 1.35,
+            recoveryRate: 1.0,
+            deposition: 1.1
+        };
+
+        const defaultParams = { ...params };
+        const palette = {
+            background: '#f7f4ed',
+            baseInk: '#2e4035',
+            mineral: '#5d6f82',
+            warm: '#be8a6b',
+            glow: '#94aa7b'
+        };
+
+        let traceLayer;
+        let bloomLayer;
+        let atmosphereLayer;
+        let particles = [];
+        let restorationSpines = [];
+        let framePhase = 0;
+        let totalFrames = 360;
+        let ready = false;
+
+        function setup() {
+            const canvas = createCanvas(1200, 1200);
+            canvas.parent('canvas-container');
+            pixelDensity(2);
+            traceLayer = createGraphics(width, height);
+            bloomLayer = createGraphics(width, height);
+            atmosphereLayer = createGraphics(width, height);
+            traceLayer.pixelDensity(2);
+            bloomLayer.pixelDensity(2);
+            atmosphereLayer.pixelDensity(2);
+            initializeSystem();
+            const loading = document.querySelector('.loading');
+            if (loading) {
+                loading.style.display = 'none';
+            }
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+
+            framePhase = 0;
+            totalFrames = floor(260 + params.recoveryRate * 80 + params.stormEcho * 24);
+            particles = [];
+            restorationSpines = [];
+
+            configureLayers();
+            createRestorationSpines();
+            seedParticles();
+
+            ready = true;
+            loop();
+            redraw();
+        }
+
+        function configureLayers() {
+            [traceLayer, bloomLayer, atmosphereLayer].forEach(layer => {
+                layer.clear();
+                layer.noFill();
+            });
+
+            atmosphereLayer.push();
+            atmosphereLayer.background(palette.background);
+            for (let y = 0; y < height; y += 2) {
+                const t = y / height;
+                const c = lerpColor(color('#fbf8f2'), color('#ece6da'), pow(t, 1.25));
+                atmosphereLayer.stroke(c);
+                atmosphereLayer.line(0, y, width, y);
+            }
+            atmosphereLayer.pop();
+
+            atmosphereLayer.push();
+            atmosphereLayer.noStroke();
+            for (let i = 0; i < 140; i++) {
+                const x = random(width);
+                const y = random(height);
+                const w = random(80, 260);
+                const h = random(80, 260);
+                atmosphereLayer.fill(255, 255, 255, random(4, 10));
+                atmosphereLayer.ellipse(x, y, w, h);
+            }
+            atmosphereLayer.pop();
+        }
+
+        function createRestorationSpines() {
+            const spineCount = 4;
+            for (let i = 0; i < spineCount; i++) {
+                const spine = [];
+                const xBase = map(i, 0, spineCount - 1, width * 0.18, width * 0.82);
+                for (let j = 0; j <= 10; j++) {
+                    const ty = j / 10;
+                    const y = lerp(height * 0.92, height * 0.06, ty);
+                    const swayNoise = noise(i * 17 + 5, ty * 2.1 + params.seed * 0.0003);
+                    const sway = map(swayNoise, 0, 1, -150, 150) * (0.25 + ty * 0.9);
+                    const x = xBase + sway;
+                    spine.push(createVector(x, y));
+                }
+                restorationSpines.push(spine);
+            }
+        }
+
+        function seedParticles() {
+            for (let i = 0; i < params.particleDensity; i++) {
+                particles.push(new Particle(i));
+            }
+        }
+
+        function draw() {
+            if (!ready) {
+                return;
+            }
+
+            const progress = constrain(framePhase / totalFrames, 0, 1);
+            const settle = easeInOutCubic(pow(progress, 0.92 * params.recoveryRate + 0.2));
+
+            drawAtmosphericVeil(progress);
+
+            traceLayer.push();
+            traceLayer.blendMode(BLEND);
+            traceLayer.strokeCap(ROUND);
+            traceLayer.strokeJoin(ROUND);
+            traceLayer.pop();
+
+            bloomLayer.push();
+            bloomLayer.strokeCap(ROUND);
+            bloomLayer.strokeJoin(ROUND);
+            bloomLayer.pop();
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].step(progress, settle);
+                particles[i].display(progress, settle);
+            }
+
+            image(atmosphereLayer, 0, 0);
+            image(bloomLayer, 0, 0);
+            image(traceLayer, 0, 0);
+            overlayBreath(progress, settle);
+
+            framePhase += 1;
+            if (framePhase > totalFrames) {
+                noLoop();
+            }
+        }
+
+        function drawAtmosphericVeil(progress) {
+            const fade = lerp(20, 8, progress);
+            atmosphereLayer.push();
+            atmosphereLayer.noStroke();
+            atmosphereLayer.fill(247, 244, 237, fade);
+            atmosphereLayer.rect(0, 0, width, height);
+            atmosphereLayer.pop();
+        }
+
+        function overlayBreath(progress, settle) {
+            push();
+            noStroke();
+            const topGlow = lerpColor(color('#ffffff00'), color('#f7f2e8a0'), settle);
+            fill(topGlow);
+            rect(0, 0, width, height * 0.32);
+
+            const lowerTone = lerpColor(color('#00000000'), color('#dccfb930'), 1 - progress);
+            fill(lowerTone);
+            rect(0, height * 0.55, width, height * 0.45);
+            pop();
+        }
+
+        function getResidualVector(x, y, progress) {
+            const ns = 0.0015;
+            const angleA = noise(x * ns, y * ns, params.seed * 0.003) * TWO_PI * 4.0;
+            const angleB = noise(x * ns * 3.7 + 81, y * ns * 3.7 + 19, params.seed * 0.007) * TWO_PI * 2.0;
+            const residualAngle = lerp(angleA, angleB, 0.35);
+            const turbulence = p5.Vector.fromAngle(residualAngle);
+            const swirl = createVector(-(y - height * 0.52), x - width * 0.5).normalize();
+            const strength = params.stormEcho * lerp(1.35, 0.18, progress);
+            turbulence.mult(strength);
+            swirl.mult(params.stormEcho * lerp(0.55, 0.08, progress));
+            return turbulence.add(swirl);
+        }
+
+        function getRegrowthVector(particle, progress) {
+            const position = particle.pos;
+            const spine = restorationSpines[particle.spineIndex];
+            let nearest = spine[0];
+            let best = Number.POSITIVE_INFINITY;
+            for (let i = 0; i < spine.length; i++) {
+                const d = p5.Vector.dist(position, spine[i]);
+                if (d < best) {
+                    best = d;
+                    nearest = spine[i];
+                }
+            }
+
+            const towardSpine = p5.Vector.sub(nearest, position);
+            const distanceWeight = constrain(map(best, 0, width * 0.35, 1.1, 0.18), 0.18, 1.1);
+            towardSpine.setMag(distanceWeight * params.growthBias * lerp(0.22, 1.45, progress));
+
+            const uplift = createVector(
+                map(noise(position.x * 0.002, position.y * 0.002, 300 + params.seed * 0.0002), 0, 1, -0.2, 0.2),
+                -params.growthBias * lerp(0.18, 1.35, progress)
+            );
+
+            return towardSpine.add(uplift);
+        }
+
+        function getFieldNudge(position, progress) {
+            const ridgeNoise = noise(position.x * 0.004 + 200, position.y * 0.0015 + 90, params.seed * 0.0005);
+            const ridgeAngle = map(ridgeNoise, 0, 1, -PI * 0.18, PI * 0.18) - HALF_PI;
+            return p5.Vector.fromAngle(ridgeAngle).mult(lerp(0.12, 0.5, progress));
+        }
+
+        class Particle {
+            constructor(index) {
+                this.index = index;
+                this.reset(true);
+            }
+
+            reset(initial) {
+                const edgeChoice = random();
+                let x;
+                let y;
+                if (edgeChoice < 0.45) {
+                    x = random(width);
+                    y = random(height * 0.72, height * 0.98);
+                } else if (edgeChoice < 0.7) {
+                    x = random(width * 0.04, width * 0.18);
+                    y = random(height);
+                } else {
+                    x = random(width * 0.82, width * 0.96);
+                    y = random(height);
+                }
+
+                this.pos = createVector(x, y);
+                this.prev = this.pos.copy();
+                this.vel = p5.Vector.random2D().mult(random(0.2, 1.4));
+                this.life = 0;
+                this.maxLife = floor(random(90, 220));
+                this.spineIndex = floor(random(restorationSpines.length));
+                this.weight = random(0.45, 1.5) * params.deposition;
+                this.energy = random(0.7, 1.3);
+                this.phaseOffset = random(TWO_PI);
+
+                if (!initial) {
+                    this.prev = this.pos.copy();
+                }
+            }
+
+            step(progress, settle) {
+                this.prev = this.pos.copy();
+
+                const residual = getResidualVector(this.pos.x, this.pos.y, progress);
+                residual.rotate(sin(this.phaseOffset + framePhase * 0.01) * 0.06);
+
+                const regrowth = getRegrowthVector(this, progress);
+                const fieldNudge = getFieldNudge(this.pos, progress);
+
+                const mixed = createVector(0, 0);
+                mixed.add(residual.mult(lerp(0.95, 0.35, settle)));
+                mixed.add(regrowth.mult(lerp(0.3, 1.1, settle)));
+                mixed.add(fieldNudge);
+
+                this.vel.mult(lerp(0.94, 0.84, settle));
+                this.vel.add(mixed.mult(0.28 + this.energy * 0.03));
+                this.vel.limit(2.9 + params.stormEcho * 0.5);
+                this.pos.add(this.vel);
+
+                this.life += 1;
+
+                const outOfBounds = this.pos.x < -40 || this.pos.x > width + 40 || this.pos.y < -40 || this.pos.y > height + 40;
+                if (outOfBounds || this.life > this.maxLife) {
+                    this.reset(false);
+                }
+            }
+
+            display(progress, settle) {
+                const speed = this.vel.mag();
+                const alignment = constrain(map(abs(this.vel.y) - abs(this.vel.x) * 0.4, -2, 2, 0, 1), 0, 1);
+                const stormMix = constrain((1 - settle) * 0.9 + speed * 0.08, 0, 1);
+                const calmMix = constrain(settle * 0.9 + alignment * 0.25, 0, 1);
+
+                const stormColor = lerpColor(color(palette.mineral), color(palette.warm), stormMix * 0.45);
+                const regrowthColor = lerpColor(color(palette.baseInk), color(palette.glow), calmMix * 0.7);
+                const ink = lerpColor(stormColor, regrowthColor, settle);
+
+                const alpha = lerp(14, 42, settle) * params.deposition;
+                const bloomAlpha = lerp(2, 14, calmMix) * params.deposition;
+                const widthBias = this.weight * lerp(0.7, 1.25, alignment);
+
+                traceLayer.push();
+                traceLayer.stroke(red(ink), green(ink), blue(ink), alpha);
+                traceLayer.strokeWeight(widthBias);
+                traceLayer.line(this.prev.x, this.prev.y, this.pos.x, this.pos.y);
+                traceLayer.pop();
+
+                if (settle > 0.26) {
+                    bloomLayer.push();
+                    bloomLayer.stroke(148, 170, 123, bloomAlpha);
+                    bloomLayer.strokeWeight(widthBias * 1.9);
+                    bloomLayer.line(this.prev.x, this.prev.y, this.pos.x, this.pos.y);
+                    bloomLayer.pop();
+                }
+            }
+        }
+
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            const display = document.getElementById(paramName + '-value');
+            if (display) {
+                display.textContent = formatParam(paramName, params[paramName]);
+            }
+            initializeSystem();
+        }
+
+        function formatParam(paramName, value) {
+            if (paramName === 'particleDensity') {
+                return String(floor(value));
+            }
+            return Number(value).toFixed(2);
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+            document.getElementById('seed-jump').value = params.seed;
+        }
+
+        function updateSeed() {
+            const input = document.getElementById('seed-input');
+            const newSeed = parseInt(input.value, 10);
+            if (!Number.isNaN(newSeed) && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function jumpToSeed() {
+            const input = document.getElementById('seed-jump');
+            const newSeed = parseInt(input.value, 10);
+            if (!Number.isNaN(newSeed) && newSeed > 0) {
+                params.seed = newSeed;
+                updateSeedDisplay();
+                initializeSystem();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed += 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function regenerate() {
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = { ...defaultParams };
+            const ids = ['particleDensity', 'stormEcho', 'growthBias', 'recoveryRate', 'deposition'];
+            ids.forEach(id => {
+                const input = document.getElementById(id);
+                const display = document.getElementById(id + '-value');
+                input.value = params[id];
+                display.textContent = formatParam(id, params[id]);
+            });
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function downloadPNG() {
+            saveCanvas('storm-regrowth-' + params.seed, 'png');
+        }
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+            document.getElementById('seed-jump').value = params.seed;
+            ['particleDensity', 'stormEcho', 'growthBias', 'recoveryRate', 'deposition'].forEach(id => {
+                document.getElementById(id + '-value').textContent = formatParam(id, params[id]);
+            });
+        });
+    </script>
+</body>
+</html>

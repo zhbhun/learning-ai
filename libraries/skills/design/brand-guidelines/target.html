@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acme Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Poppins:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --anthropic-dark: #141413;
+        --anthropic-light: #faf9f5;
+        --anthropic-mid: #b0aea5;
+        --anthropic-light-gray: #e8e6dc;
+        --anthropic-orange: #d97757;
+        --anthropic-blue: #6a9bcc;
+        --anthropic-green: #788c5d;
+        --page-max-width: 1120px;
+        --radius-lg: 24px;
+        --radius-md: 16px;
+        --radius-sm: 999px;
+        --shadow-soft: 0 24px 60px rgba(20, 20, 19, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Lora", Georgia, serif;
+        background:
+          radial-gradient(circle at top left, rgba(106, 155, 204, 0.12), transparent 28%),
+          radial-gradient(circle at top right, rgba(217, 119, 87, 0.12), transparent 30%),
+          var(--anthropic-light);
+        color: var(--anthropic-dark);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .page {
+        max-width: var(--page-max-width);
+        margin: 0 auto;
+      }
+
+      .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+        padding: 18px 0 26px;
+      }
+
+      .brand {
+        font-family: "Poppins", Arial, sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+
+      .brand-mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-mark::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--anthropic-orange),
+          var(--anthropic-blue)
+        );
+        box-shadow: 18px 0 0 -2px rgba(120, 140, 93, 0.85);
+      }
+
+      .nav-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+      }
+
+      .nav-links a {
+        font-family: "Poppins", Arial, sans-serif;
+        font-size: 0.92rem;
+        text-decoration: none;
+        color: rgba(20, 20, 19, 0.72);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 72px;
+        background: rgba(255, 255, 255, 0.56);
+        border: 1px solid rgba(20, 20, 19, 0.08);
+        border-radius: 32px;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -120px -120px auto;
+        width: 280px;
+        height: 280px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(217, 119, 87, 0.16),
+          rgba(106, 155, 204, 0.06) 55%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        margin-bottom: 18px;
+        padding: 7px 14px;
+        border-radius: var(--radius-sm);
+        background: var(--anthropic-light-gray);
+        font-family: "Poppins", Arial, sans-serif;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(20, 20, 19, 0.7);
+      }
+
+      .hero h1,
+      .section-heading h2,
+      .card h3,
+      .contact h2 {
+        margin: 0;
+        font-family: "Poppins", Arial, sans-serif;
+        color: var(--anthropic-dark);
+      }
+
+      .hero h1 {
+        max-width: 760px;
+        margin-bottom: 20px;
+        font-size: clamp(2.8rem, 6vw, 4.8rem);
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+      }
+
+      .hero p {
+        max-width: 620px;
+        margin: 0 0 30px;
+        font-size: 1.12rem;
+        line-height: 1.8;
+        color: rgba(20, 20, 19, 0.75);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 22px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        font-family: "Poppins", Arial, sans-serif;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          box-shadow 140ms ease,
+          background-color 140ms ease;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button-primary {
+        background: var(--anthropic-dark);
+        color: var(--anthropic-light);
+        box-shadow: 0 14px 28px rgba(20, 20, 19, 0.18);
+      }
+
+      .button-secondary {
+        background: transparent;
+        color: var(--anthropic-dark);
+        border-color: rgba(20, 20, 19, 0.16);
+      }
+
+      .section {
+        padding: 88px 0 0;
+      }
+
+      .section-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+        gap: 24px;
+        align-items: end;
+        margin-bottom: 28px;
+      }
+
+      .section-heading h2 {
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+      }
+
+      .section-heading p {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.8;
+        color: rgba(20, 20, 19, 0.68);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .card {
+        min-height: 220px;
+        padding: 28px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(20, 20, 19, 0.08);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 18px 40px rgba(20, 20, 19, 0.05);
+      }
+
+      .card:nth-child(1) {
+        border-top: 4px solid var(--anthropic-orange);
+      }
+
+      .card:nth-child(2) {
+        border-top: 4px solid var(--anthropic-blue);
+      }
+
+      .card:nth-child(3) {
+        border-top: 4px solid var(--anthropic-green);
+      }
+
+      .card h3 {
+        margin-bottom: 14px;
+        font-size: 1.28rem;
+        line-height: 1.25;
+      }
+
+      .card p {
+        margin: 0;
+        line-height: 1.8;
+        color: rgba(20, 20, 19, 0.72);
+      }
+
+      .contact {
+        margin-top: 32px;
+        padding: 36px;
+        background: var(--anthropic-dark);
+        color: var(--anthropic-light);
+        border-radius: 32px;
+        box-shadow: 0 22px 50px rgba(20, 20, 19, 0.18);
+      }
+
+      .contact h2 {
+        margin-bottom: 10px;
+        color: var(--anthropic-light);
+        font-size: 2rem;
+        letter-spacing: -0.02em;
+      }
+
+      .contact-intro {
+        margin: 0 0 26px;
+        max-width: 640px;
+        color: rgba(250, 249, 245, 0.78);
+        line-height: 1.8;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px 18px;
+      }
+
+      .form-row {
+        margin: 0;
+      }
+
+      .form-row-full {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-family: "Poppins", Arial, sans-serif;
+        font-size: 0.88rem;
+        color: rgba(250, 249, 245, 0.84);
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid rgba(250, 249, 245, 0.16);
+        border-radius: var(--radius-md);
+        background: rgba(250, 249, 245, 0.08);
+        color: var(--anthropic-light);
+        font: inherit;
+      }
+
+      input::placeholder,
+      textarea::placeholder {
+        color: rgba(250, 249, 245, 0.45);
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+
+      .contact .button-primary {
+        background: var(--anthropic-light);
+        color: var(--anthropic-dark);
+        box-shadow: none;
+      }
+
+      @media (max-width: 900px) {
+        .hero {
+          padding: 48px 28px;
+        }
+
+        .section-heading,
+        .grid,
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          padding: 16px;
+        }
+
+        .navbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .hero h1 {
+          font-size: 2.5rem;
+        }
+
+        .contact {
+          padding: 28px 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="page">
+        <header class="navbar">
+          <div class="brand">
+            <span class="brand-mark">Acme Workspace</span>
+          </div>
+          <nav class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#contact">Contact</a>
+          </nav>
+        </header>
+
+        <main>
+          <section class="hero">
+            <div class="eyebrow">Shared workspace for modern teams</div>
+            <h1>Build faster with one shared workspace</h1>
+            <p>
+              Manage projects, track tasks, and keep your team aligned with a
+              single collaboration platform designed to reduce coordination
+              overhead and make progress easier to see.
+            </p>
+            <div class="actions">
+              <button class="button button-primary">Start free trial</button>
+              <button class="button button-secondary">View demo</button>
+            </div>
+          </section>
+
+          <section class="section" id="features">
+            <div class="section-heading">
+              <h2>Everything your team needs to stay coordinated.</h2>
+              <p>
+                A calmer interface for planning work, sharing context, and
+                keeping priorities visible across projects.
+              </p>
+            </div>
+
+            <div class="grid">
+              <article class="card">
+                <h3>Project Tracking</h3>
+                <p>
+                  Follow milestones, owners, and deadlines in one clear
+                  dashboard without losing the broader project context.
+                </p>
+              </article>
+              <article class="card">
+                <h3>Team Collaboration</h3>
+                <p>
+                  Share updates, assign work, and keep decisions visible so
+                  execution stays aligned as plans evolve.
+                </p>
+              </article>
+              <article class="card">
+                <h3>Reporting</h3>
+                <p>
+                  Review progress with weekly summaries and real-time status
+                  reports that make momentum and risk easier to understand.
+                </p>
+              </article>
+            </div>
+
+            <div class="contact" id="contact">
+              <h2>Contact sales</h2>
+              <p class="contact-intro">
+                Tell us about your team, your workflow, and what you want to
+                simplify. We'll help you figure out the right setup.
+              </p>
+              <div class="form-grid">
+                <div class="form-row">
+                  <label for="name">Name</label>
+                  <input id="name" type="text" placeholder="Your name" />
+                </div>
+                <div class="form-row">
+                  <label for="email">Email</label>
+                  <input id="email" type="email" placeholder="name@company.com" />
+                </div>
+                <div class="form-row form-row-full">
+                  <label for="message">Message</label>
+                  <textarea
+                    id="message"
+                    placeholder="Tell us about your team"
+                  ></textarea>
+                </div>
+                <div class="form-row form-row-full">
+                  <button class="button button-primary">Submit</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
