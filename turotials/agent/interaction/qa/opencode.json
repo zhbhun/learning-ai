@@ -1,0 +1,246 @@
+{
+  "info": {
+    "id": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+    "slug": "misty-planet",
+    "projectID": "37bbfddaf8b315725b6442bf884654842f739e76",
+    "directory": "/tmp",
+    "path": "",
+    "title": "互动问答游戏",
+    "agent": "build",
+    "model": {
+      "id": "xyz",
+      "providerID": "abc"
+    },
+    "version": "1.15.10",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 42161,
+      "output": 151,
+      "reasoning": 0,
+      "cache": {
+        "read": 192,
+        "write": 0
+      }
+    },
+    "time": {
+      "created": 1779714851315,
+      "updated": 1779715171103
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1779714851325
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "abc",
+          "modelID": "xyz"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_e5f4581f7001fXG75i2JqTemfJ",
+        "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "你随便问我个问题,然后给我几个选项进行答复",
+          "id": "prt_e5f4581f70021B7WfDFIdGJhzA",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f4581f7001fXG75i2JqTemfJ"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_e5f4581f7001fXG75i2JqTemfJ",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/tmp",
+          "root": "/tmp"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 21218,
+          "input": 20967,
+          "output": 123,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 128
+          }
+        },
+        "modelID": "xyz",
+        "providerID": "abc",
+        "time": {
+          "created": 1779714851330,
+          "completed": 1779715166435
+        },
+        "finish": "tool-calls",
+        "id": "msg_e5f458202001gR1mCcAITiv1YF",
+        "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J"
+      },
+      "parts": [
+        {
+          "snapshot": "0e908b82dcf927310cd72c5c076ff0e0122feae9",
+          "type": "step-start",
+          "id": "prt_e5f45ad11001wadn4rkncOmbV7",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f458202001gR1mCcAITiv1YF"
+        },
+        {
+          "type": "tool",
+          "tool": "question",
+          "callID": "call_33e3d41c48994c4eb44bb28b",
+          "state": {
+            "status": "completed",
+            "input": {
+              "questions": [
+                {
+                  "header": "周末偏好",
+                  "options": [
+                    {
+                      "description": "宅在家里刷剧、打游戏、看书",
+                      "label": "在家躺平"
+                    },
+                    {
+                      "description": "爬山、骑行、逛公园、露营",
+                      "label": "户外探索"
+                    },
+                    {
+                      "description": "约朋友吃饭、喝咖啡、聊天",
+                      "label": "社交聚会"
+                    },
+                    {
+                      "description": "写代码、学新技能、做副业项目",
+                      "label": "学习充电"
+                    }
+                  ],
+                  "question": "如果你这个周末可以完全自由安排，你最想做什么？"
+                }
+              ]
+            },
+            "output": "User has answered your questions: \"如果你这个周末可以完全自由安排，你最想做什么？\"=\"在家躺平\". You can now continue with the user's answers in mind.",
+            "metadata": {
+              "answers": [
+                [
+                  "在家躺平"
+                ]
+              ],
+              "truncated": false
+            },
+            "title": "Asked 1 question",
+            "time": {
+              "start": 1779714867682,
+              "end": 1779715166279
+            }
+          },
+          "id": "prt_e5f45ad13001v2I0Igt7ImUDFv",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f458202001gR1mCcAITiv1YF"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "0e908b82dcf927310cd72c5c076ff0e0122feae9",
+          "type": "step-finish",
+          "tokens": {
+            "total": 21218,
+            "input": 20967,
+            "output": 123,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 128
+            }
+          },
+          "cost": 0,
+          "id": "prt_e5f4a50ab0012BZzAkVHCCBsyA",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f458202001gR1mCcAITiv1YF"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_e5f4581f7001fXG75i2JqTemfJ",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/tmp",
+          "root": "/tmp"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 21286,
+          "input": 21194,
+          "output": 28,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 64
+          }
+        },
+        "modelID": "xyz",
+        "providerID": "abc",
+        "time": {
+          "created": 1779715166438,
+          "completed": 1779715171083
+        },
+        "finish": "stop",
+        "id": "msg_e5f4a50e60016JkQJIIq3U5X4R",
+        "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J"
+      },
+      "parts": [
+        {
+          "snapshot": "0e908b82dcf927310cd72c5c076ff0e0122feae9",
+          "type": "step-start",
+          "id": "prt_e5f4a5e6a001RQDMeXHuvmUF3e",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f4a50e60016JkQJIIq3U5X4R"
+        },
+        {
+          "type": "text",
+          "text": "哈哈，在家躺平才是真正的周末！舒服地窝在沙发上，刷剧、打游戏、发呆——简单但快乐。",
+          "time": {
+            "start": 1779715169901,
+            "end": 1779715170946
+          },
+          "id": "prt_e5f4a5e6d0018nmb2We3jpBY0h",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f4a50e60016JkQJIIq3U5X4R"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "0e908b82dcf927310cd72c5c076ff0e0122feae9",
+          "type": "step-finish",
+          "tokens": {
+            "total": 21286,
+            "input": 21194,
+            "output": 28,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 64
+            }
+          },
+          "cost": 0,
+          "id": "prt_e5f4a62ca001zkQt3XTXa4nE3A",
+          "sessionID": "ses_1a0ba7e0cffeGTEh3BBbN5tA7J",
+          "messageID": "msg_e5f4a50e60016JkQJIIq3U5X4R"
+        }
+      ]
+    }
+  ]
+}
