@@ -10,6 +10,7 @@
 - https://www.siliconflow.com/
 - https://4sapi.com/
 - https://sufy.com/zh-CN/services/ai-inference/models
+- [猫图 AI Studio](https://catsapi.com/)
 
 ## 开源
 
