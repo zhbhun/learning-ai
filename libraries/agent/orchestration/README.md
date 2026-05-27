@@ -1,2 +1,0 @@
-- https://cline.bot/kanban
-- https://github.com/paperclipai/paperclip
