@@ -1,1 +1,2 @@
 - https://www.designprompts.dev/
+- https://github.com/VoltAgent/awesome-design-md
