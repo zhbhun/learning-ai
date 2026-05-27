@@ -1,0 +1,1 @@
+- [open-slide](https://demo.open-slide.dev/) - A slide framework built for agents.
