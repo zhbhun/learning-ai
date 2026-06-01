@@ -1,2 +1,3 @@
 - https://www.designprompts.dev/
 - https://github.com/VoltAgent/awesome-design-md
+- [taste-skill](https://github.com/Leonxlnx/taste-skill)
