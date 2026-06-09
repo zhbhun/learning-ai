@@ -10,4 +10,4 @@
 
   给 Agent DOM、截图、点击、输入和状态观察，适合 AI 助手接管浏览器。
 
-
+- [agent-browser](https://github.com/vercel-labs/agent-browser) - Browser automation CLI for AI agents
