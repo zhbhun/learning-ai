@@ -2,3 +2,4 @@
 - https://github.com/VoltAgent/awesome-design-md
 - [taste-skill](https://github.com/Leonxlnx/taste-skill)
 - [frontend-design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)
+- https://www.shadcn.io/design/
