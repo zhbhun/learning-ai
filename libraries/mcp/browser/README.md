@@ -1,0 +1,14 @@
+- browser-harness
+- open-cli
+- browser-use
+- cloakbrowser
+- page-agent
+- stagehand
+- drission-page
+- agent-browser
+- playwright-cli
+- chrome-devtools-mcp
+- playwright-mcp
+- browser-mcp
+- ui-tars-desktop
+- midscene
