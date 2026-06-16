@@ -2,6 +2,7 @@
 - [claude-code-book](https://github.com/lintsinghua/claude-code-book)
 - https://github.com/sanbuphy/claude-code-source-code
 - https://github.com/shareAI-lab/learn-claude-code
+- https://github.com/luongnv89/claude-howto
 
 ## 教程
 
