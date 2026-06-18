@@ -8,3 +8,4 @@
 - [awesome-agent-skills](https://github.com/libukai/awesome-agent-skills)
 - [awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) - A curated list of awesome Claude Skills, resources, and tools for customizing Claude AI workflows
 - [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) - Installable GitHub library of 1,400+ agentic skills for Claude Code, Cursor, Codex CLI, Gemini CLI, Antigravity, and more. Includes installer CLI, bundles, workflows, and official/community skill collections.
+- https://github.com/github/awesome-copilot - Community-contributed instructions, agents, skills, and configurations to help you make the most of GitHub Copilot.
