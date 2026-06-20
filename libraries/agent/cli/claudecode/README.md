@@ -6,9 +6,16 @@
 
 ## 客户端
 
+- [opcode](https://github.com/winfunc/opcode) - A powerful GUI app and Toolkit for Claude Code - Create custom agents, manage interactive Claude Code sessions, run secure background agents, and more.
+
+  https://v2ex.com/t/1143259
+
 - [happy](https://github.com/slopus/happy) - Mobile and Web client for Codex and Claude Code, with realtime voice, encryption and fully featured
+- [nezha](https://github.com/hanshuaikang/nezha) - Code Editor for the AI Agents Era. Run multiple Claude Code and Codex agents across projects on your machine.
 - [alaye-app](https://github.com/kifile/alaye-app) - Alaye is a cross-platform desktop application that brings the power of Claude Code to your native environment. Manage projects, customize settings, and streamline your AI-assisted development workflow—all from a beautiful native interface.
 - [lumo](https://github.com/zhnd/lumo) - Local-first dashboard for observing Claude Code usage, cost, sessions, and time.
+
+  https://fast.v2ex.com/t/1198243
 
 ## 教程
 
