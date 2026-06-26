@@ -1,3 +1,5 @@
+- [openchamber](https://github.com/openchamber/openchamber) - Desktop and web interface for OpenCode AI agent
+- [superset](https://github.com/superset-sh/superset) - Code Editor for the AI Agents Era - Run an army of Claude Code, Codex, etc. on your machine
 - [happy](https://github.com/slopus/happy) - 20k ★ - Mobile and Web client for Codex and Claude Code, with realtime voice, encryption and fully featured
 - [paseo](https://github.com/getpaseo/paseo) - 5.4k ★ - Orchestrate coding agents remotely from your phone, desktop and CLI.
 
@@ -14,3 +16,6 @@
 
 - [vscode-acp](https://github.com/formulahendry/vscode-acp) - Agent Client Protocol client for VS Code — connect to any ACP-compatible AI coding agent (Claude, Codex, Copilot, Qwen, Gemini, OpenCode, Kiro, OpenClaw, Hermes and more)
 - [acp-ui](https://github.com/formulahendry/acp-ui) - A modern, cross-platform client for the Agent Client Protocol (ACP) on desktop, mobile, and the web — connect to any ACP-compatible AI agent (Claude, Codex, Copilot, Qwen, Gemini, OpenCode, OpenClaw and more)
+- [orca](https://github.com/stablyai/orca)
+- https://github.com/workany-ai/workany
+- [UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) - The Open-Source Multimodal AI Agent Stack: Connecting Cutting-Edge AI Models and Agent Infra
