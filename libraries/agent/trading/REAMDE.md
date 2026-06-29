@@ -11,3 +11,5 @@
 - [a-stock-data](https://github.com/simonlin1212/a-stock-data) - A股全栈数据工具包 · 7层架构 · 28端点 · 13数据源 · 行情/研报(个股+行业)/资金面/筹码/公告全覆盖 | China A-Share full-stack data toolkit (28 endpoints)
 
   https://www.v2ex.com/t/1222186#reply182
+
+- [ai-berkshire](https://github.com/xbtlin/ai-berkshire) - AI 时代的伯克希尔：基于 Claude Code 的价值投资研究框架。巴菲特·芒格·段永平·李录四大师方法论 + 多Agent并行研究。
