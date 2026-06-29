@@ -8,3 +8,6 @@
 - [Kronos](https://github.com/shiyu-coder/Kronos) - Kronos: A Foundation Model for the Language of Financial Markets
 - [dexter](https://github.com/virattt/dexter)  - An autonomous agent for deep financial research
 - [tradingagent_a](https://github.com/michaelyuancb/tradingagent_a) - TradingAgents-A Share Edition` is a derivative open-source
+- [a-stock-data](https://github.com/simonlin1212/a-stock-data) - A股全栈数据工具包 · 7层架构 · 28端点 · 13数据源 · 行情/研报(个股+行业)/资金面/筹码/公告全覆盖 | China A-Share full-stack data toolkit (28 endpoints)
+
+  https://www.v2ex.com/t/1222186#reply182
