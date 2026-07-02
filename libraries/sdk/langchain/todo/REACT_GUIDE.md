@@ -44,7 +44,7 @@ ReAct 是一种让 AI 能够：
 项目已经配置好依赖，如果需要重新安装：
 
 ```bash
-cd /Users/zhanghuabin/Project/learning/ai/libraries/sdk/langchain/tester
+cd /Users/<user>/Project/learning/ai/libraries/sdk/langchain/tester
 npm install
 # 或
 pnpm install

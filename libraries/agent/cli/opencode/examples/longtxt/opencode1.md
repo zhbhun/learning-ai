@@ -37,7 +37,7 @@ _Thinking:_
 
 ...86767 bytes truncated...
 
-The tool call succeeded but the output was truncated. Full output saved to: /Users/zhanghuabin/.local/share/opencode/tool-output/tool_dc03120a4001eOZrnVqilJyasu
+The tool call succeeded but the output was truncated. Full output saved to: /Users/<user>/.local/share/opencode/tool-output/tool_dc03120a4001eOZrnVqilJyasu
 Use the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.
 ```
 
@@ -54,13 +54,13 @@ _Thinking:_
 **Input:**
 ```json
 {
-  "filePath": "/Users/zhanghuabin/.local/share/opencode/tool-output/tool_dc03120a4001eOZrnVqilJyasu"
+  "filePath": "/Users/<user>/.local/share/opencode/tool-output/tool_dc03120a4001eOZrnVqilJyasu"
 }
 ```
 
 **Output:**
 ```
-<path>/Users/zhanghuabin/.local/share/opencode/tool-output/tool_dc03120a4001eOZrnVqilJyasu</path>
+<path>/Users/<user>/.local/share/opencode/tool-output/tool_dc03120a4001eOZrnVqilJyasu</path>
 <type>file</type>
 <content>
 1: "<content>\n1: # AGENTS.md\n2: \n3: 所有项目是一个基于 [Slidev](https://sli.dev/) 编写的演示文稿，主题为\"**ArtfloCLI：让 Agent 像设计师一样操作画布**\"。\n4: \n5: ## Guidelines\n6: \n7: Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.\n8: \n9: **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.\n10: \n11: ### 1. Think Before Coding\n12: \n13: **Don't assume. Don't hide confusion. Surface tradeoffs.**\n14: \n15: Before implementing:\n16: - State your assumptions explicitly. If uncertain, ask.\n17: - If multiple interpretations exist, present them - don't pick silently.\n18: - If a simpler approach exists, say so. Push back when warranted.\n19: - If something is unclear, stop. Name what's confusing. Ask.\n20: \n21: ### 2. Simplicity First\n22: \n23: **Minimum code that solves the problem. Nothing speculative.**\n24: \n25: - No features beyond what was asked.\n26: - No abstractions for single-use code.\n27: - No \"flexibility\" or \"configurability\" that wasn't requested.\n28: - No error handling for impossible scenarios.\n29: - If you write 200 lines and it could be 50, rewrite it.\n30: \n31: Ask yourself: \"Would a senior engineer say this is overcomplicated?\" If yes, simplify.\n32: \n33: ### 3. Surgical Changes\n34: \n35: **Touch only what you must. Clean up only your own mess.**\n36: \n37: When editing existing code:\n38: - Don't \"improve\" adjacent code, comments, or formatting.\n39: - Don't refactor things that aren't broken.\n40: - Match existing style, even if you'd do it differently.\n41: - If you notice unrelated dead code, mention it - don't delete it.\n42: \n43: When your changes create orphans:\n44: - Remove imports/variables/functions that YOUR changes made unused.\n45: - Don't remove pre-existing dead code unless asked.\n46: \n47: The test: Every changed line should trace directly to the user's request.\n48: \n49: ### 4. Goal-Driven Execution\n50: \n51: **Define success criteri... (line truncated to 2000 chars)
@@ -150,7 +150,7 @@ _Thinking:_
 
 ...86767 bytes truncated...
 
-The tool call succeeded but the output was truncated. Full output saved to: /Users/zhanghuabin/.local/share/opencode/tool-output/tool_dc03170bf001w7qD9c1lmZVRss
+The tool call succeeded but the output was truncated. Full output saved to: /Users/<user>/.local/share/opencode/tool-output/tool_dc03170bf001w7qD9c1lmZVRss
 Use the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.
 ```
 
@@ -171,7 +171,7 @@ Use the Task tool to have explore agent process this file with Grep and Read (wi
 
 ...88069 bytes truncated...
 
-The tool call succeeded but the output was truncated. Full output saved to: /Users/zhanghuabin/.local/share/opencode/tool-output/tool_dc0317484001HKaf8wUvSZOhGW
+The tool call succeeded but the output was truncated. Full output saved to: /Users/<user>/.local/share/opencode/tool-output/tool_dc0317484001HKaf8wUvSZOhGW
 Use the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.
 ```
 

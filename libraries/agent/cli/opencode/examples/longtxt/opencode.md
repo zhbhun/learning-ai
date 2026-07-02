@@ -29,7 +29,7 @@ _Thinking:_
 
 **Output:**
 ```
-/Users/zhanghuabin/Projects/learning/ai/libraries/coding/opencode/examples/long.txt
+/Users/<user>/Projects/learning/ai/libraries/coding/opencode/examples/long.txt
 ```
 
 ---
@@ -45,13 +45,13 @@ _Thinking:_
 **Input:**
 ```json
 {
-  "filePath": "/Users/zhanghuabin/Projects/learning/ai/libraries/coding/opencode/examples/long.txt"
+  "filePath": "/Users/<user>/Projects/learning/ai/libraries/coding/opencode/examples/long.txt"
 }
 ```
 
 **Output:**
 ```
-<path>/Users/zhanghuabin/Projects/learning/ai/libraries/coding/opencode/examples/long.txt</path>
+<path>/Users/<user>/Projects/learning/ai/libraries/coding/opencode/examples/long.txt</path>
 <type>file</type>
 <content>
 1: After moor limitation constant, the empty condition pause.

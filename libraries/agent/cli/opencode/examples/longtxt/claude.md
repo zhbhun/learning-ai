@@ -4,7 +4,7 @@ Input
 
 ```json
 {
-  "file_path": "/Users/zhanghuabin/Projects/learning/ai/libraries/coding/opencode/examples/longtxt/long.txt"
+  "file_path": "/Users/<user>/Projects/learning/ai/libraries/coding/opencode/examples/longtxt/long.txt"
 }
 ```
 
@@ -20,7 +20,7 @@ Input
 
 ```json
 {
-  "file_path": "/Users/zhanghuabin/Projects/learning/ai/libraries/coding/opencode/examples/longtxt/long.txt",
+  "file_path": "/Users/<user>/Projects/learning/ai/libraries/coding/opencode/examples/longtxt/long.txt",
   "limit": 500,
   "offset": 1
 }
