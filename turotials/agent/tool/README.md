@@ -1,57 +1,44 @@
-## Claude Code
+# Claude Code Agent 工具
 
-- 文件
-  - Read — 读文件(支持图片、PDF、Jupyter notebook)
-  - Write — 创建/覆写文件
-  - Edit — 精确字符串替换(需先 read)
-  - NotebookEdit — 编辑 .ipynb 单元格
+agent 在一次会话中可随时调用的工具集合,按类别分目录存放。每个子目录的 README.md 给出该工具的详细描述与参数,目录内还配有实际使用的截图与会话日志。
 
-- 命令
-  - Bash — 执行 shell 命令(支持后台运行)
+## 分类索引
 
-- 网络
-  - WebFetch - 获取网页内容
-  - WebSearch — 网络搜索
+### 文件与命令
 
-- MCP
-  - ListMcpResourcesTool - 列出 MCP 资源
-  - ReadMcpResourceTool - 读取 MCP 资源
-  - ReadMcpResourceDirTool - 读取 MCP 资源目录
+- [file/](file/README.md) — Read / Write / Edit / NotebookEdit:本地文件的读取、写入与编辑
+- [bash/](bash/README.md) — Bash:执行 shell 命令
+- [web/](web/README.md) — WebSearch / WebFetch:联网搜索与网页获取
 
-- 技能
-  - Skill — 调用已安装的 skill
+### 任务与监控
 
-- 任务
-  - TaskCreate — 创建任务
-  - TaskUpdate — 更新任务
-  - TaskList — 任务列表
-  - TaskGet — 任务详情
-  - TaskOutput — 读取后台任务输出
-  - TaskStop — 停止后台任务
-  - Monitor - 后台流式监控日志/事件
+- [task/](task/README.md) — TaskCreate / TaskUpdate / TaskList / TaskGet / TaskOutput / TaskStop:结构化任务列表
+- [todo/](todo/README.md) — TodoWrite:轻量级会话任务清单
+- [monitor/](monitor/README.md) — Monitor:后台监听脚本输出,逐行推送事件
 
-- 计划
-  - EnterPlanMode — 进入计划模式
-  - ExitPlanMode — 退出计划模式
+### 计划与编排
 
-- 子代理
-  - Agent — 派发子代理(Explore / Plan / general-purpose 等)
-  - SendMessage — 与运行中的代理通信
-  - Workflow — 多代理确定性编排脚本
+- [plan/](plan/README.md) — EnterPlanMode / ExitPlanMode:计划模式的进入与退出
+- [agent/](agent/README.md) — Agent / SendMessage:子代理派发与协作通信
+- [workflow/](workflow/README.md) — Workflow:用脚本确定性编排多个子代理
 
-- 交互
-  - AskUserQuestion — 结构化提问(选项)
-  - PushNotification — 桌面/手机推送
+### 交互与技能
 
-- 调度
-  - CronCreate — 创建定时任务
-  - CronDelete — 删除定时任务
-  - CronList — 定时任务列表
-  - ScheduleWakeup — /loop 模式下的自定步调唤醒
+- [clarify/](clarify/README.md) — AskUserQuestion:在决策点向用户结构化提问
+- [notify/](notify/README.md) — PushNotification:主动发送桌面或手机通知
+- [skill/](skill/README.md) — Skill:在主对话中调用专业技能
 
-- Git
-  - EnterWorktree — 进入 git worktree
-  - ExitWorktree — 退出 git worktree
+### 调度与 Git
 
-- 其他
-  - DesignSync — 与 claude.ai design-system 项目同步组件库
+- [cron/](cron/README.md) — CronCreate / CronDelete / CronList / ScheduleWakeup:定时任务与 /loop 唤醒
+- [worktree/](worktree/README.md) — EnterWorktree / ExitWorktree:git 工作树的进入与退出
+
+### 扩展与报告
+
+- [mcp/](mcp/README.md) — ListMcpResourcesTool / ReadMcpResourceTool / ReadMcpResourceDirTool:MCP 资源读取,及 MCP 工具集索引
+- [design/](design/README.md) — DesignSync:与 Claude Design 项目同步组件库
+- [report/](report/README.md) — ReportFindings:上报代码审查发现
+
+## 示例
+
+待补充
