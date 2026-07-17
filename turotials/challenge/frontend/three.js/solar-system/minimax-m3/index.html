@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>太阳系 · Three.js</title>
+  <link rel="stylesheet" href="./style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <aside id="info-panel" aria-hidden="true">
+    <header>
+      <h2 id="info-name"></h2>
+      <button id="info-close" type="button" aria-label="关闭">&times;</button>
+    </header>
+    <dl id="info-stats"></dl>
+    <p id="info-desc"></p>
+  </aside>
+
+  <div id="hud">
+    <span class="hint">左键拖动 · 旋转</span>
+    <span class="hint">滚轮 · 缩放</span>
+    <span class="hint">右键拖动 · 平移</span>
+    <span class="hint">点击行星 · 查看数据</span>
+    <button id="reset-view" type="button">重置视角</button>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=ZCOOL+KuaiLe&display=swap');
+
+:root {
+  color-scheme: dark;
+  font-family: "Press Start 2P", "ZCOOL KuaiLe", monospace;
+  background: #0b0b0b;
+  color: #f1eadb;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 189, 46, .08), transparent 28rem),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    #090909;
+  background-size: auto, 24px 24px, 24px 24px, auto;
+}
+
+button { font: inherit; }
+
+.app-shell {
+  width: min(1050px, 100%);
+  padding: 18px 22px 12px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 12px;
+  font-size: 12px;
+  letter-spacing: .08em;
+}
+
+.brand-mark, .footer-accent { color: #f7b733; }
+.edition { margin-left: 10px; color: #858585; font-size: 8px; }
+.top-actions { display: flex; gap: 8px; }
+
+.icon-btn {
+  width: 36px;
+  height: 32px;
+  border: 2px solid #383838;
+  color: #b9b9b9;
+  background: #171717;
+  cursor: pointer;
+  box-shadow: inset -2px -2px #050505, inset 2px 2px #2a2a2a;
+}
+
+.icon-btn:hover, .icon-btn.active { border-color: #f7b733; color: #f7b733; }
+
+.game-frame {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, calc((100dvh - 140px) * 1.26923077));
+  aspect-ratio: 792 / 624;
+  max-height: calc(100dvh - 140px);
+  margin-inline: auto;
+  border: 5px solid #252525;
+  background: #050505;
+  box-shadow:
+    0 0 0 2px #050505,
+    0 0 0 7px #151515,
+    0 20px 70px rgba(0,0,0,.7),
+    inset 0 0 30px #000;
+  image-rendering: pixelated;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+}
+
+.overlay, .message-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .18s ease;
+}
+
+.overlay {
+  background: radial-gradient(circle at 50% 38%, rgba(51,35,10,.7), rgba(0,0,0,.9) 62%);
+}
+
+.overlay.show, .message-overlay.show { opacity: 1; visibility: visible; }
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(7px 7px 0 #50120a);
+  transform: rotate(-1deg);
+}
+
+.logo-small { margin-bottom: 10px; color: #b5a27c; font-size: clamp(6px, 1vw, 9px); letter-spacing: .16em; filter: none; }
+.logo-main {
+  color: #f3a91b;
+  font-size: clamp(37px, 8vw, 76px);
+  line-height: .9;
+  letter-spacing: -.08em;
+  -webkit-text-stroke: clamp(1px, .45vw, 4px) #e94a19;
+  text-shadow: inset 0 0 0 #fff, 4px 4px 0 #7c1509;
+}
+.logo-city { color: #e86a16; }
+.logo-cn { margin-top: 17px; color: #f5e5be; font-family: "ZCOOL KuaiLe", monospace; font-size: clamp(17px, 3.2vw, 28px); letter-spacing: .35em; filter: none; }
+
+.pixel-button {
+  position: relative;
+  margin-top: clamp(30px, 7vh, 62px);
+  padding: 14px 24px 12px;
+  border: 0;
+  color: #101010;
+  background: #f7b733;
+  cursor: pointer;
+  box-shadow: 0 5px 0 #9d5710, 0 0 0 3px #111, 0 0 0 5px #f7b733;
+  animation: button-pulse 1.25s steps(2) infinite;
+}
+
+.pixel-button::before { content: "▶"; margin-right: 13px; color: #d83b17; }
+.pixel-button:hover { transform: translateY(2px); box-shadow: 0 3px 0 #9d5710, 0 0 0 3px #111, 0 0 0 5px #fff0c7; background: #ffd260; }
+
+.quick-help {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 28px;
+  margin-top: 34px;
+  color: #8a8a8a;
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 12px;
+  filter: none;
+}
+
+kbd { padding: 2px 5px; border: 1px solid #4a4a4a; border-bottom-width: 2px; color: #c8c8c8; background: #171717; }
+
+.message-overlay {
+  inset: 34% 21%;
+  z-index: 4;
+  gap: 14px;
+  border: 4px solid #dad2bd;
+  background: rgba(7,7,7,.92);
+  box-shadow: 8px 8px 0 rgba(0,0,0,.6);
+  pointer-events: none;
+}
+
+.message-overlay strong { color: #f7b733; font-size: clamp(18px, 4vw, 35px); text-shadow: 3px 3px #7f2110; }
+.message-overlay span { color: #aaa; font-family: monospace; font-size: clamp(10px, 1.6vw, 14px); }
+
+.mobile-controls { display: none; align-items: center; justify-content: space-around; padding: 22px 18px 4px; user-select: none; }
+.dpad { display: grid; grid-template: repeat(3, 42px) / repeat(3, 42px); }
+.dpad button, .dpad-center, .fire-button { border: 0; color: #777; background: #252525; box-shadow: inset 3px 3px #343434, inset -3px -3px #0d0d0d; touch-action: none; }
+.dpad button:active, .dpad button.pressed { color: #f7b733; background: #333; }
+.dpad-up { grid-area: 1 / 2; } .dpad-left { grid-area: 2 / 1; } .dpad-center { grid-area: 2 / 2; } .dpad-right { grid-area: 2 / 3; } .dpad-down { grid-area: 3 / 2; }
+.fire-button { width: 86px; height: 86px; border-radius: 50%; color: #e9ad97; background: #7e251c; box-shadow: inset 5px 5px #a93627, inset -5px -5px #43100c, 0 0 0 8px #202020; }
+.fire-button:active, .fire-button.pressed { transform: translateY(3px); color: white; }
+.fire-button span { font-size: 10px; }
+
+footer { display: flex; justify-content: space-between; padding: 15px 2px 0; color: #616161; font-family: monospace; font-size: 12px; }
+
+@keyframes button-pulse { 50% { color: #6c210f; } }
+
+@media (max-width: 720px), (max-height: 720px) and (pointer: coarse) {
+  body { place-items: start center; }
+  .app-shell { padding: 10px 10px 18px; }
+  .topbar { padding-bottom: 9px; }
+  .brand { font-size: 9px; }
+  .edition { display: none; }
+  .game-frame { max-height: none; border-width: 3px; }
+  .mobile-controls { display: flex; }
+  footer { display: none; }
+  .quick-help { display: none; }
+}
+
+@media (max-width: 430px) {
+  .logo-main { font-size: 34px; }
+  .logo-cn { font-size: 16px; }
+  .pixel-button { margin-top: 26px; font-size: 10px; padding: 11px 15px; }
+  .message-overlay { inset: 31% 14%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-button { animation: none; }
+  .overlay, .message-overlay { transition: none; }
+}

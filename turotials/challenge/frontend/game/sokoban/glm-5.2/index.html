@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>仓库番 Sokoban · 推箱子</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="title">仓库番 <span>Sokoban</span></div>
+      <div class="level-select">
+        <button id="prevLevel" class="btn-icon" title="上一关">◀</button>
+        <select id="levelSelect"></select>
+        <button id="nextLevel" class="btn-icon" title="下一关">▶</button>
+      </div>
+    </header>
+
+    <section class="stage">
+      <div class="info">
+        <div id="levelName" class="level-name">—</div>
+        <div id="levelHint" class="level-hint">—</div>
+      </div>
+      <div class="board-wrap">
+        <canvas id="board" width="640" height="640"></canvas>
+        <div id="winOverlay" class="win-overlay hidden">
+          <div class="win-card">
+            <div class="win-title">🎉 过关！</div>
+            <div id="winStats" class="win-stats"></div>
+            <button id="winNext" class="btn primary">下一关</button>
+            <button id="winReplay" class="btn">再玩一次</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="stats">
+        <div class="stat"><span class="stat-label">步数</span><span id="moveCount" class="stat-val">0</span></div>
+        <div class="stat"><span class="stat-label">推动</span><span id="pushCount" class="stat-val">0</span></div>
+        <div class="stat"><span class="stat-label">关卡</span><span id="levelNo" class="stat-val">1/10</span></div>
+      </div>
+
+      <div class="controls">
+        <button id="undoBtn" class="btn">↶ 撤销</button>
+        <button id="resetBtn" class="btn">↻ 重置</button>
+      </div>
+
+      <div class="dpad" aria-label="方向控制">
+        <button class="dpad-btn up" data-dir="U">▲</button>
+        <button class="dpad-btn left" data-dir="L">◀</button>
+        <button class="dpad-btn down" data-dir="D">▼</button>
+        <button class="dpad-btn right" data-dir="R">▶</button>
+      </div>
+
+      <div class="solver">
+        <button id="answerBtn" class="btn primary">💡 显示答案</button>
+        <div id="solverBar" class="solver-bar hidden">
+          <div class="solver-progress">
+            <span id="solStep">0 / 0</span>
+            <div class="progress"><div id="progressFill" class="progress-fill"></div></div>
+          </div>
+          <div class="solver-controls">
+            <button id="solPrev" class="btn-icon" title="上一步">⏮</button>
+            <button id="solAuto" class="btn-icon" title="自动播放">▶</button>
+            <button id="solNext" class="btn-icon primary" title="下一步 (一步步解题)">⏭</button>
+            <button id="solExit" class="btn" title="退出">退出</button>
+          </div>
+          <div class="solver-tip">点击 ⏭ 一步步查看解题过程</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="help">
+      方向键 / WASD 移动 · 推动所有箱子到亮点上即可过关 · 点击「显示答案」可逐步查看解法
+    </footer>
+  </div>
+
+  <script src="js/solver.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/solutions.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

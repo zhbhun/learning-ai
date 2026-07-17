@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>坦克大战 Battle City</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="stage-wrap">
+      <canvas id="game" width="416" height="416"></canvas>
+      <div id="overlay" class="hidden"></div>
+    </div>
+
+    <aside id="sidebar">
+      <div class="panel">
+        <h1 class="logo">
+          <span class="logo-1">坦克</span><span class="logo-2">大战</span>
+        </h1>
+        <p class="subtitle">BATTLE CITY</p>
+      </div>
+
+      <div class="panel hud">
+        <div class="hud-row">
+          <span class="hud-label">关卡</span>
+          <span class="hud-val" id="hud-stage">01</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">得分</span>
+          <span class="hud-val" id="hud-score">0</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">最高</span>
+          <span class="hud-val" id="hud-high">0</span>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="hud-row">
+          <span class="hud-label">P1 生命</span>
+          <span class="hud-val" id="hud-lives">3</span>
+        </div>
+        <div class="hud-row">
+          <span class="hud-label">等级</span>
+          <span class="hud-val" id="hud-level">★</span>
+        </div>
+        <div class="hud-divider"></div>
+        <div class="hud-row enemies">
+          <span class="hud-label">敌军剩余</span>
+          <span class="hud-val" id="hud-enemies">20</span>
+        </div>
+        <div id="enemy-icons" class="enemy-icons"></div>
+      </div>
+
+      <div class="panel controls">
+        <h3>操作</h3>
+        <ul>
+          <li><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> / <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</li>
+          <li><kbd>Space</kbd> / <kbd>J</kbd> 开火</li>
+          <li><kbd>Enter</kbd> 开始 / 继续</li>
+          <li><kbd>P</kbd> 暂停</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 移动端虚拟按键 -->
+  <div id="touch" class="touch hidden">
+    <div class="touch-dpad">
+      <button data-dir="up" class="t-btn t-up">▲</button>
+      <button data-dir="left" class="t-btn t-left">◀</button>
+      <button data-dir="down" class="t-btn t-down">▼</button>
+      <button data-dir="right" class="t-btn t-right">▶</button>
+    </div>
+    <button id="t-fire" class="t-btn t-fire">FIRE</button>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

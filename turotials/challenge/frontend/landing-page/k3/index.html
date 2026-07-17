@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nimbus — Ship product analytics in minutes</title>
+<meta name="description" content="Nimbus is the modern analytics platform for product teams. Real-time insights, funnels, and cohorts — without writing SQL." />
+<style>
+  :root {
+    --bg: #0a0b10;
+    --bg-soft: #10121a;
+    --surface: #14161f;
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #f4f5f7;
+    --text-dim: #9aa0ae;
+    --brand: #6c5ce7;
+    --brand-2: #00d4ff;
+    --accent: #ffb86b;
+    --radius: 14px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+  .container { width: min(1120px, 92%); margin: 0 auto; }
+
+  /* ---------- Background decorations ---------- */
+  .glow {
+    position: absolute; border-radius: 50%;
+    filter: blur(120px); opacity: 0.5; pointer-events: none; z-index: 0;
+  }
+  .glow-1 { width: 560px; height: 560px; background: #6c5ce755; top: -180px; left: -120px; }
+  .glow-2 { width: 480px; height: 480px; background: #00d4ff33; top: 120px; right: -160px; }
+
+  /* ---------- Nav ---------- */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(14px);
+    background: rgba(10, 11, 16, 0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 68px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em;
+  }
+  .logo-mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    display: grid; place-items: center;
+    font-size: 15px; color: #fff;
+    box-shadow: 0 4px 18px rgba(108, 92, 231, 0.5);
+  }
+  .nav-links { display: flex; gap: 34px; font-size: 0.94rem; color: var(--text-dim); }
+  .nav-links a { transition: color 0.2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-actions { display: flex; gap: 12px; align-items: center; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px 22px; border-radius: 10px;
+    font-weight: 600; font-size: 0.95rem; cursor: pointer;
+    border: 1px solid transparent;
+    transition: transform 0.15s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--brand), #8e7bff);
+    color: #fff;
+    box-shadow: 0 6px 24px rgba(108, 92, 231, 0.45);
+  }
+  .btn-primary:hover { box-shadow: 0 10px 32px rgba(108, 92, 231, 0.6); }
+  .btn-ghost {
+    background: transparent; color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.22); background: rgba(255,255,255,0.04); }
+  .btn-lg { padding: 15px 32px; font-size: 1.02rem; border-radius: 12px; }
+
+  .hamburger { display: none; background: none; border: 0; color: var(--text); font-size: 1.5rem; cursor: pointer; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative; padding: 96px 0 72px; text-align: center; overflow: hidden;
+  }
+  .hero .container { position: relative; z-index: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 16px; border-radius: 999px;
+    background: rgba(108, 92, 231, 0.12);
+    border: 1px solid rgba(108, 92, 231, 0.35);
+    color: #b9aeff; font-size: 0.83rem; font-weight: 500;
+    margin-bottom: 26px;
+  }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: #59ffa0; box-shadow: 0 0 8px #59ffa0; }
+  .hero h1 {
+    font-size: clamp(2.4rem, 6vw, 4.3rem);
+    line-height: 1.08; letter-spacing: -0.035em; font-weight: 800;
+    max-width: 820px; margin: 0 auto 22px;
+  }
+  .gradient-text {
+    background: linear-gradient(92deg, #8e7bff 10%, #00d4ff 90%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.lede {
+    font-size: clamp(1.02rem, 2vw, 1.22rem);
+    color: var(--text-dim); max-width: 620px; margin: 0 auto 38px;
+  }
+  .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+  .hero-note { font-size: 0.85rem; color: var(--text-dim); }
+
+  /* ---------- Dashboard mockup ---------- */
+  .mockup-wrap {
+    position: relative; margin-top: 64px;
+    perspective: 1200px;
+  }
+  .mockup {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    overflow: hidden;
+    transform: rotateX(6deg);
+    transition: transform 0.6s ease;
+  }
+  .mockup:hover { transform: rotateX(0deg); }
+  .mockup-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 13px 18px; border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .mockup-bar span { width: 11px; height: 11px; border-radius: 50%; }
+  .mockup-bar span:nth-child(1) { background: #ff5f57; }
+  .mockup-bar span:nth-child(2) { background: #febc2e; }
+  .mockup-bar span:nth-child(3) { background: #28c840; }
+  .mockup-bar .url {
+    margin-left: 14px; flex: 1; max-width: 320px;
+    background: rgba(255,255,255,0.05); border-radius: 7px;
+    font-size: 0.75rem; color: var(--text-dim); padding: 5px 12px; text-align: left;
+  }
+  .mockup-body { padding: 26px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; text-align: left; }
+  .stat-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .stat-card .label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 6px; }
+  .stat-card .value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .stat-card .delta { font-size: 0.78rem; font-weight: 600; }
+  .delta.up { color: #59ffa0; }
+  .delta.down { color: #ff7b72; }
+  .chart-card { grid-column: 1 / -1; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .chart-card .label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 12px; }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
+  .chart .bar {
+    flex: 1; border-radius: 5px 5px 2px 2px;
+    background: linear-gradient(180deg, #8e7bff, #6c5ce744);
+    animation: grow 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: bottom;
+  }
+  .chart .bar:nth-child(3n) { background: linear-gradient(180deg, #00d4ff, #00d4ff33); }
+  @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+  /* ---------- Logos ---------- */
+  .logos { padding: 72px 0 12px; text-align: center; }
+  .logos p { font-size: 0.83rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 30px; }
+  .logo-row {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+    gap: 22px 54px; opacity: 0.65;
+  }
+  .logo-row span {
+    font-weight: 700; font-size: 1.12rem; color: var(--text);
+    filter: grayscale(1); transition: filter 0.25s, opacity 0.25s;
+  }
+  .logo-row span:hover { filter: none; opacity: 1; }
+
+  /* ---------- Sections ---------- */
+  section { padding: 96px 0; position: relative; }
+  .section-head { text-align: center; max-width: 640px; margin: 0 auto 60px; }
+  .eyebrow {
+    display: inline-block; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: #8e7bff; margin-bottom: 14px;
+  }
+  .section-head h2 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    letter-spacing: -0.03em; line-height: 1.15; margin-bottom: 16px;
+  }
+  .section-head p { color: var(--text-dim); font-size: 1.05rem; }
+
+  /* ---------- Features ---------- */
+  .features-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+  }
+  .feature {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 30px 28px;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+  }
+  .feature:hover {
+    transform: translateY(-4px);
+    border-color: rgba(108, 92, 231, 0.45);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.4);
+  }
+  .feature .icon {
+    width: 46px; height: 46px; border-radius: 12px;
+    display: grid; place-items: center; font-size: 21px;
+    background: rgba(108, 92, 231, 0.14);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    margin-bottom: 20px;
+  }
+  .feature h3 { font-size: 1.12rem; margin-bottom: 9px; letter-spacing: -0.01em; }
+  .feature p { color: var(--text-dim); font-size: 0.94rem; }
+
+  /* ---------- Split ---------- */
+  .split {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+  }
+  .split h2 { font-size: clamp(1.7rem, 3.4vw, 2.3rem); letter-spacing: -0.03em; line-height: 1.18; margin-bottom: 18px; }
+  .split p { color: var(--text-dim); margin-bottom: 26px; }
+  .check-list { list-style: none; display: grid; gap: 14px; margin-bottom: 32px; }
+  .check-list li { display: flex; gap: 12px; align-items: flex-start; color: var(--text); font-size: 0.97rem; }
+  .check {
+    flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(89, 255, 160, 0.12); border: 1px solid rgba(89, 255, 160, 0.4);
+    color: #59ffa0; font-size: 12px; display: grid; place-items: center; margin-top: 2px;
+  }
+  .code-block {
+    background: #0d0f16; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.86rem; line-height: 1.75; overflow-x: auto;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  }
+  .code-block .c-k { color: #c792ea; }
+  .code-block .c-s { color: #c3e88d; }
+  .code-block .c-f { color: #82aaff; }
+  .code-block .c-c { color: #5b6070; }
+  .code-block .c-n { color: #f78c6c; }
+
+  /* ---------- Testimonials ---------- */
+  .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .testi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .stars { color: var(--accent); letter-spacing: 3px; font-size: 0.9rem; }
+  .testi blockquote { font-size: 0.97rem; color: var(--text); flex: 1; }
+  .testi .who { display: flex; align-items: center; gap: 13px; }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: 0.9rem; color: #fff;
+  }
+  .av-1 { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+  .av-2 { background: linear-gradient(135deg, #00b894, #00d4ff); }
+  .av-3 { background: linear-gradient(135deg, #e17055, #ffb86b); }
+  .who .name { font-weight: 600; font-size: 0.94rem; }
+  .who .role { font-size: 0.82rem; color: var(--text-dim); }
+
+  /* ---------- Pricing ---------- */
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch; }
+  .plan {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 34px 30px;
+    display: flex; flex-direction: column;
+    transition: transform 0.25s, border-color 0.25s;
+  }
+  .plan:hover { transform: translateY(-4px); }
+  .plan.featured {
+    border-color: rgba(108, 92, 231, 0.6);
+    background: linear-gradient(180deg, rgba(108, 92, 231, 0.12), var(--surface) 55%);
+    position: relative;
+    box-shadow: 0 24px 60px rgba(108, 92, 231, 0.22);
+  }
+  .badge {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--brand), #8e7bff);
+    color: #fff; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.06em;
+    padding: 5px 14px; border-radius: 999px; text-transform: uppercase;
+  }
+  .plan h3 { font-size: 1.06rem; margin-bottom: 8px; }
+  .plan .desc { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 22px; }
+  .price { display: flex; align-items: baseline; gap: 6px; margin-bottom: 26px; }
+  .price .amount { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.03em; }
+  .price .per { color: var(--text-dim); font-size: 0.9rem; }
+  .plan ul { list-style: none; display: grid; gap: 12px; margin-bottom: 30px; flex: 1; }
+  .plan li { display: flex; gap: 10px; font-size: 0.92rem; color: var(--text); }
+  .plan li::before { content: "✓"; color: #59ffa0; font-weight: 700; }
+  .plan .btn { width: 100%; }
+
+  /* ---------- FAQ ---------- */
+  .faq { max-width: 720px; margin: 0 auto; }
+  details {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 14px;
+  }
+  details[open] { border-color: rgba(108, 92, 231, 0.4); }
+  summary {
+    cursor: pointer; font-weight: 600; font-size: 1rem;
+    list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font-size: 1.3rem; color: #8e7bff; transition: transform 0.2s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { color: var(--text-dim); font-size: 0.94rem; margin-top: 14px; }
+
+  /* ---------- CTA ---------- */
+  .cta-box {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #6c5ce7, #4a3fb5 55%, #0a0b10);
+    border: 1px solid rgba(108, 92, 231, 0.5);
+    border-radius: 24px; padding: 72px 40px; text-align: center;
+  }
+  .cta-box::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(600px 240px at 50% -10%, rgba(255,255,255,0.18), transparent);
+    pointer-events: none;
+  }
+  .cta-box h2 { font-size: clamp(1.9rem, 4vw, 2.7rem); letter-spacing: -0.03em; margin-bottom: 14px; }
+  .cta-box p { color: rgba(255, 255, 255, 0.82); max-width: 520px; margin: 0 auto 34px; }
+
+  /* ---------- Footer ---------- */
+  footer { border-top: 1px solid var(--border); padding: 64px 0 36px; }
+  .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 44px; margin-bottom: 48px; }
+  .footer-grid .brand p { color: var(--text-dim); font-size: 0.9rem; margin-top: 14px; max-width: 260px; }
+  .footer-grid h4 { font-size: 0.86rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
+  .footer-grid ul { list-style: none; display: grid; gap: 11px; font-size: 0.93rem; }
+  .footer-grid ul a { color: var(--text); opacity: 0.8; transition: opacity 0.2s; }
+  .footer-grid ul a:hover { opacity: 1; }
+  .footer-bottom {
+    border-top: 1px solid var(--border); padding-top: 26px;
+    display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;
+    color: var(--text-dim); font-size: 0.85rem;
+  }
+
+  /* ---------- Reveal animation ---------- */
+  .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .features-grid, .testi-grid, .pricing-grid { grid-template-columns: 1fr 1fr; }
+    .split { grid-template-columns: 1fr; gap: 40px; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 640px) {
+    .nav-links, .nav-actions .btn-ghost { display: none; }
+    .hamburger { display: block; }
+    .features-grid, .testi-grid, .pricing-grid, .footer-grid, .mockup-body { grid-template-columns: 1fr; }
+    section { padding: 68px 0; }
+    .mobile-menu {
+      position: absolute; top: 68px; left: 0; right: 0;
+      background: var(--bg-soft); border-bottom: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 4px; padding: 14px 5%;
+    }
+    .mobile-menu a { padding: 12px 8px; border-radius: 8px; color: var(--text); }
+    .mobile-menu a:hover { background: rgba(255,255,255,0.05); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container nav">
+    <a href="#" class="logo"><span class="logo-mark">◆</span> Nimbus</a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#developers">Developers</a>
+      <a href="#testimonials">Customers</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="#" class="btn btn-ghost">Sign in</a>
+      <a href="#pricing" class="btn btn-primary">Get started</a>
+      <button class="hamburger" id="hamburger" aria-label="Menu">☰</button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu" hidden>
+    <a href="#features">Features</a>
+    <a href="#developers">Developers</a>
+    <a href="#testimonials">Customers</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+    <div class="container">
+      <div class="pill"><span class="dot"></span> Nimbus 2.0 is live — real-time cohorts are here</div>
+      <h1>Product analytics that <span class="gradient-text">thinks ahead</span> of your roadmap</h1>
+      <p class="lede">Nimbus turns raw events into answers. Track, segment, and understand every user journey — no SQL, no spreadsheets, no waiting on the data team.</p>
+      <div class="hero-cta">
+        <a href="#pricing" class="btn btn-primary btn-lg">Start free trial</a>
+        <a href="#developers" class="btn btn-ghost btn-lg">▶&nbsp; Watch demo</a>
+      </div>
+      <p class="hero-note">Free 14-day trial · No credit card required · 5-minute setup</p>
+
+      <div class="mockup-wrap">
+        <div class="mockup">
+          <div class="mockup-bar">
+            <span></span><span></span><span></span>
+            <div class="url">app.nimbus.io/overview</div>
+          </div>
+          <div class="mockup-body">
+            <div class="stat-card">
+              <div class="label">Active users</div>
+              <div class="value">48,213</div>
+              <div class="delta up">▲ 12.4% vs last week</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Conversion rate</div>
+              <div class="value">6.8%</div>
+              <div class="delta up">▲ 0.9 pts</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Churn</div>
+              <div class="value">1.9%</div>
+              <div class="delta down">▼ 0.4 pts</div>
+            </div>
+            <div class="chart-card">
+              <div class="label">Weekly signups by channel</div>
+              <div class="chart" id="chart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGOS -->
+  <div class="logos container reveal">
+    <p>Trusted by product teams at</p>
+    <div class="logo-row">
+      <span>⬢ Vertex</span><span>◮ Loomly</span><span>✦ Paperplane</span>
+      <span>◈ Driftwell</span><span>▲ Northbeam</span><span>● Kaskade</span>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Features</span>
+        <h2>Everything you need to understand your users</h2>
+        <p>From first visit to power user — Nimbus gives every team a shared source of truth.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature reveal">
+          <div class="icon">⚡</div>
+          <h3>Real-time events</h3>
+          <p>Stream millions of events per day with sub-second latency. Watch launches unfold live, not in tomorrow's report.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon">🧭</div>
+          <h3>Funnels &amp; journeys</h3>
+          <p>Build multi-step funnels in seconds. Spot exactly where users drop off and replay the sessions behind the numbers.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon">👥</div>
+          <h3>Cohorts &amp; retention</h3>
+          <p>Group users by behavior, plan, or acquisition date and see which cohorts stick around — and why.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon">🤖</div>
+          <h3>AI insights</h3>
+          <p>Nimbus surfaces anomalies, trends, and segment shifts automatically, with plain-language explanations.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon">🔌</div>
+          <h3>60+ integrations</h3>
+          <p>Pipe data to Slack, Segment, Snowflake, HubSpot, and your warehouse with one click — no ETL required.</p>
+        </div>
+        <div class="feature reveal">
+          <div class="icon">🔒</div>
+          <h3>Privacy by default</h3>
+          <p>Cookieless tracking, EU data residency, and SOC 2 Type II. GDPR and CCPA compliant out of the box.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEVELOPERS -->
+  <section id="developers" style="background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+    <div class="container split">
+      <div class="reveal">
+        <span class="eyebrow">For developers</span>
+        <h2>Instrument once. Answer forever.</h2>
+        <p>A typed SDK for every platform, with autocapture so you're collecting useful data from minute one.</p>
+        <ul class="check-list">
+          <li><span class="check">✓</span> SDKs for JS, iOS, Android, React Native, and backend languages</li>
+          <li><span class="check">✓</span> Full TypeScript types generated from your event schema</li>
+          <li><span class="check">✓</span> Debug view with live event stream and validation errors</li>
+        </ul>
+        <a href="#" class="btn btn-ghost">Read the docs →</a>
+      </div>
+      <div class="code-block reveal">
+<pre><span class="c-c">// Install: npm i @nimbus/sdk</span>
+<span class="c-k">import</span> { Nimbus } <span class="c-k">from</span> <span class="c-s">"@nimbus/sdk"</span>;
+
+<span class="c-k">const</span> nimbus = <span class="c-k">new</span> <span class="c-f">Nimbus</span>(<span class="c-s">"pk_live_…"</span>);
+
+nimbus.<span class="c-f">identify</span>(<span class="c-s">"user_123"</span>, {
+  plan: <span class="c-s">"growth"</span>,
+});
+
+nimbus.<span class="c-f">track</span>(<span class="c-s">"checkout_completed"</span>, {
+  total: <span class="c-n">129.0</span>,
+  currency: <span class="c-s">"USD"</span>,
+});</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="testimonials">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Customers</span>
+        <h2>Loved by teams that live in their data</h2>
+        <p>Over 4,000 companies use Nimbus to make better product decisions every day.</p>
+      </div>
+      <div class="testi-grid">
+        <div class="testi reveal">
+          <div class="stars">★★★★★</div>
+          <blockquote>"We replaced three tools with Nimbus. Our PMs answer their own questions now instead of filing tickets with data. It's changed how fast we ship."</blockquote>
+          <div class="who">
+            <div class="avatar av-1">MK</div>
+            <div><div class="name">Maya Kessler</div><div class="role">VP Product, Driftwell</div></div>
+          </div>
+        </div>
+        <div class="testi reveal">
+          <div class="stars">★★★★★</div>
+          <blockquote>"Setup genuinely took an afternoon. By the next morning we found a funnel bug that had been costing us 8% of signups for months."</blockquote>
+          <div class="who">
+            <div class="avatar av-2">JT</div>
+            <div><div class="name">Jonas Tran</div><div class="role">Head of Growth, Paperplane</div></div>
+          </div>
+        </div>
+        <div class="testi reveal">
+          <div class="stars">★★★★★</div>
+          <blockquote>"The AI insights are scary good. It flagged a retention drop in one cohort two weeks before we would have noticed it ourselves."</blockquote>
+          <div class="who">
+            <div class="avatar av-3">AR</div>
+            <div><div class="name">Amara Reyes</div><div class="role">CEO, Kaskade</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing" style="background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Pricing</span>
+        <h2>Simple pricing that scales with you</h2>
+        <p>Start free. Upgrade when you grow. Cancel anytime.</p>
+      </div>
+      <div class="pricing-grid">
+        <div class="plan reveal">
+          <h3>Starter</h3>
+          <p class="desc">For side projects and early prototypes.</p>
+          <div class="price"><span class="amount">$0</span><span class="per">/ month</span></div>
+          <ul>
+            <li>10k events / month</li>
+            <li>1 project, 3 seats</li>
+            <li>Core dashboards &amp; funnels</li>
+            <li>30-day data retention</li>
+          </ul>
+          <a href="#" class="btn btn-ghost">Start for free</a>
+        </div>
+        <div class="plan featured reveal">
+          <span class="badge">Most popular</span>
+          <h3>Growth</h3>
+          <p class="desc">For teams shipping and iterating fast.</p>
+          <div class="price"><span class="amount">$49</span><span class="per">/ month</span></div>
+          <ul>
+            <li>1M events / month</li>
+            <li>Unlimited projects &amp; seats</li>
+            <li>Cohorts, retention &amp; AI insights</li>
+            <li>All integrations + Slack alerts</li>
+            <li>12-month data retention</li>
+          </ul>
+          <a href="#" class="btn btn-primary">Start 14-day trial</a>
+        </div>
+        <div class="plan reveal">
+          <h3>Enterprise</h3>
+          <p class="desc">For organizations with serious scale.</p>
+          <div class="price"><span class="amount">Custom</span></div>
+          <ul>
+            <li>Unlimited events</li>
+            <li>SSO / SAML &amp; role-based access</li>
+            <li>EU residency &amp; custom DPA</li>
+            <li>Dedicated success manager</li>
+            <li>99.99% uptime SLA</li>
+          </ul>
+          <a href="#" class="btn btn-ghost">Talk to sales</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">FAQ</span>
+        <h2>Questions, answered</h2>
+      </div>
+      <div class="faq reveal">
+        <details open>
+          <summary>How long does it take to set up Nimbus?</summary>
+          <p>Most teams are seeing live data within 5 minutes. Drop in our JS snippet or install an SDK, and autocapture starts collecting page views and clicks immediately.</p>
+        </details>
+        <details>
+          <summary>Do you offer a free plan?</summary>
+          <p>Yes — the Starter plan is free forever, with 10k events per month and core dashboards. No credit card required to sign up.</p>
+        </details>
+        <details>
+          <summary>How is Nimbus different from Google Analytics?</summary>
+          <p>Nimbus is built for product teams, not marketing attribution. You get user-level journeys, funnels, cohorts, and retention — with real-time data and no sampling.</p>
+        </details>
+        <details>
+          <summary>Is my data private and compliant?</summary>
+          <p>Nimbus is SOC 2 Type II certified, GDPR and CCPA compliant, and offers EU data residency on Growth and Enterprise plans. We never sell or share your data.</p>
+        </details>
+        <details>
+          <summary>Can I migrate historical data from another tool?</summary>
+          <p>Yes. Our importers support Amplitude, Mixpanel, and CSV/warehouse backfills, so your retention charts keep their full history.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section>
+    <div class="container">
+      <div class="cta-box reveal">
+        <h2>Start understanding your users today</h2>
+        <p>Join 4,000+ product teams making decisions with Nimbus. Your first insight is minutes away.</p>
+        <a href="#" class="btn btn-primary btn-lg" style="background:#fff;color:#1a1730;box-shadow:0 10px 30px rgba(0,0,0,0.35);">Get started — it's free</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="brand">
+        <a href="#" class="logo"><span class="logo-mark">◆</span> Nimbus</a>
+        <p>Product analytics for teams that ship. Built in Berlin &amp; San Francisco.</p>
+      </div>
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#">Integrations</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="#">Documentation</a></li>
+          <li><a href="#">API reference</a></li>
+          <li><a href="#">Status</a></li>
+          <li><a href="#">Privacy</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Nimbus Analytics, Inc. All rights reserved.</span>
+      <span>Twitter · GitHub · LinkedIn</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Chart bars
+  const heights = [38, 55, 42, 70, 58, 82, 64, 90, 76, 62, 88, 97, 74, 84, 100, 69, 92, 78, 60, 85, 95, 72, 80, 66];
+  const chart = document.getElementById('chart');
+  heights.forEach((h, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = h + '%';
+    bar.style.animationDelay = (i * 30) + 'ms';
+    chart.appendChild(bar);
+  });
+
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Mobile menu
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => { mobileMenu.hidden = !mobileMenu.hidden; });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { mobileMenu.hidden = true; }));
+</script>
+</body>
+</html>

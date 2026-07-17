@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>推箱子 Sokoban</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>推箱子 <span>SOKOBAN · 倉庫番</span></h1>
+    <div class="levels" id="levelButtons"></div>
+  </header>
+
+  <div class="status">
+    <span id="levelName"></span>
+    <span>步数 <b id="moves">0</b></span>
+    <span>推箱 <b id="pushes">0</b></span>
+    <span>最佳 <b id="best">-</b></span>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <div id="board"></div>
+    <div class="win-overlay hidden" id="winOverlay">
+      <div class="win-card">
+        <h2>🎉 过关！</h2>
+        <p id="winStats"></p>
+        <div class="win-btns">
+          <button id="btnReplay">重玩本关</button>
+          <button id="btnNext" class="primary">下一关 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnUndo" title="快捷键 U / Z">↩ 撤销</button>
+    <button id="btnRestart" title="快捷键 R">⟳ 重开</button>
+    <button id="btnAnswer" class="primary" title="查看答案，可一步步演示">💡 答案</button>
+  </div>
+
+  <div class="demo-bar hidden" id="demoBar">
+    <span id="demoText">答案演示</span>
+    <button id="btnDemoStep" class="primary">下一步 →</button>
+    <button id="btnDemoAuto">▶ 自动播放</button>
+    <button id="btnDemoExit">✕ 退出演示</button>
+  </div>
+
+  <div class="dpad">
+    <button data-d="U">↑</button>
+    <div>
+      <button data-d="L">←</button>
+      <button data-d="D">↓</button>
+      <button data-d="R">→</button>
+    </div>
+  </div>
+
+  <p class="hint">方向键 / WASD 移动 · U 撤销 · R 重开 · 点击「答案」进入演示模式，点「下一步」一步步解题</p>
+</div>
+<script src="levels.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

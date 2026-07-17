@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowWave — 让团队协作像呼吸一样自然</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --accent: #06b6d4;
+    --bg: #fafbff;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --radius: 16px;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.08);
+    --shadow-lg: 0 20px 50px rgba(99,102,241,.12);
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ---- NAV ---- */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    padding: 1rem 2rem;
+    transition: all .3s;
+  }
+  .nav.scrolled {
+    background: rgba(255,255,255,.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow);
+  }
+  .nav-inner {
+    max-width: 1280px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    font-size: 1.45rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -.02em;
+  }
+  .nav-links {
+    display: flex; align-items: center; gap: 2rem;
+    list-style: none;
+  }
+  .nav-links a {
+    text-decoration: none; color: var(--text-muted);
+    font-weight: 500; font-size: .92rem; transition: color .2s;
+  }
+  .nav-links a:hover { color: var(--primary); }
+  .btn {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .7rem 1.6rem; border-radius: 999px;
+    font-weight: 600; font-size: .9rem; text-decoration: none;
+    cursor: pointer; border: none; transition: all .25s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary), #818cf8);
+    color: #fff; box-shadow: 0 4px 14px rgba(99,102,241,.35);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,.45); }
+  .btn-ghost {
+    background: transparent; color: var(--text);
+    border: 1.5px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-accent {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 4px 14px rgba(6,182,212,.35);
+  }
+  .btn-accent:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(6,182,212,.45); }
+  .btn-lg { padding: .95rem 2.2rem; font-size: 1rem; }
+  .menu-toggle {
+    display: none; background: none; border: none;
+    font-size: 1.5rem; cursor: pointer; color: var(--text);
+  }
+
+  /* ---- HERO ---- */
+  .hero {
+    min-height: 100vh; display: flex; align-items: center;
+    padding: 8rem 2rem 5rem;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -20%; left: -10%;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 70%);
+    border-radius: 50%; pointer-events: none;
+  }
+  .hero::after {
+    content: ''; position: absolute; bottom: -10%; right: -8%;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(6,182,212,.1) 0%, transparent 70%);
+    border-radius: 50%; pointer-events: none;
+  }
+  .hero-inner {
+    max-width: 1280px; margin: 0 auto; width: 100%;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+    align-items: center; position: relative; z-index: 1;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: rgba(99,102,241,.08); color: var(--primary);
+    padding: .4rem 1rem; border-radius: 999px;
+    font-size: .82rem; font-weight: 600; margin-bottom: 1.5rem;
+  }
+  .hero-badge .dot {
+    width: 8px; height: 8px; background: var(--primary);
+    border-radius: 50%; animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .5; transform: scale(1.5); }
+  }
+  .hero h1 {
+    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    font-weight: 900; line-height: 1.12; letter-spacing: -.03em;
+    margin-bottom: 1.25rem;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    font-size: 1.15rem; color: var(--text-muted);
+    max-width: 460px; margin-bottom: 2rem; line-height: 1.7;
+  }
+  .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .hero-image {
+    position: relative;
+  }
+  .hero-mockup {
+    width: 100%; max-width: 540px;
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); padding: 1.5rem;
+    position: relative; z-index: 1;
+  }
+  .mockup-bar {
+    display: flex; gap: 6px; margin-bottom: 1rem;
+  }
+  .mockup-bar span {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .mockup-bar span:nth-child(1) { background: #ef4444; }
+  .mockup-bar span:nth-child(2) { background: #f59e0b; }
+  .mockup-bar span:nth-child(3) { background: #22c55e; }
+  .mockup-content {
+    display: flex; flex-direction: column; gap: .8rem;
+  }
+  .mockup-row {
+    display: flex; gap: .8rem; align-items: center;
+    padding: .7rem 1rem; background: #f8fafc; border-radius: 10px;
+    font-size: .85rem;
+  }
+  .mockup-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .mockup-avatar.g1 { background: linear-gradient(135deg, #6366f1, #818cf8); }
+  .mockup-avatar.g2 { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+  .mockup-avatar.g3 { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+  .mockup-row strong { display: block; font-size: .8rem; }
+  .mockup-row small { color: var(--text-muted); font-size: .72rem; }
+  .mockup-chart {
+    display: flex; gap: .4rem; align-items: flex-end;
+    height: 60px; padding: 0 .5rem;
+  }
+  .mockup-chart .bar {
+    flex: 1; border-radius: 6px 6px 0 0;
+    background: linear-gradient(180deg, var(--primary), var(--accent));
+    opacity: .85; animation: growBar 1.2s ease-out forwards;
+    transform-origin: bottom;
+  }
+  @keyframes growBar {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+  .floating-card {
+    position: absolute; background: var(--card); border-radius: 12px;
+    padding: 1rem 1.2rem; box-shadow: var(--shadow);
+    font-size: .82rem; font-weight: 600;
+    display: flex; align-items: center; gap: .5rem;
+    z-index: 2;
+  }
+  .floating-card.top-right { top: -10px; right: -30px; animation: float 5s ease-in-out infinite; }
+  .floating-card.bottom-left { bottom: -10px; left: -30px; animation: float 5s ease-in-out 2s infinite; }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .check-icon {
+    width: 24px; height: 24px; background: rgba(34,197,94,.15);
+    color: #22c55e; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem;
+  }
+
+  /* ---- SECTION ---- */
+  section { padding: 6rem 2rem; }
+  .section-header {
+    text-align: center; max-width: 650px; margin: 0 auto 4rem;
+  }
+  .section-label {
+    display: inline-block; font-size: .82rem; font-weight: 700;
+    color: var(--primary); text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: .75rem;
+  }
+  .section-header h2 {
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    font-weight: 800; letter-spacing: -.02em; margin-bottom: 1rem;
+  }
+  .section-header p { color: var(--text-muted); font-size: 1.05rem; }
+
+  /* ---- LOGOS ---- */
+  .logos {
+    padding: 3rem 2rem; text-align: center;
+  }
+  .logo-grid {
+    display: flex; justify-content: center; align-items: center;
+    flex-wrap: wrap; gap: 3rem; max-width: 1000px;
+    margin: 0 auto; opacity: .45;
+  }
+  .logo-grid .l {
+    font-size: 1.35rem; font-weight: 700; color: var(--text-muted);
+    letter-spacing: -.01em;
+  }
+
+  /* ---- FEATURES ---- */
+  .features-grid {
+    max-width: 1120px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.75rem;
+  }
+  .feature-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 2rem;
+    transition: all .3s; position: relative; overflow: hidden;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg); border-color: transparent;
+  }
+  .feature-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; margin-bottom: 1.25rem;
+  }
+  .feature-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; }
+  .feature-card p { font-size: .9rem; color: var(--text-muted); line-height: 1.65; }
+
+  /* ---- STATS ---- */
+  .stats { background: linear-gradient(135deg, var(--primary), #4338ca); color: #fff; }
+  .stats-grid {
+    max-width: 900px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3rem;
+    text-align: center;
+  }
+  .stat-number { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+  .stat-label { font-size: .95rem; opacity: .8; margin-top: .4rem; }
+
+  /* ---- TESTIMONIALS ---- */
+  .testimonials-grid {
+    max-width: 1120px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.75rem;
+  }
+  .testimonial-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 2rem;
+  }
+  .testimonial-card .stars { color: #f59e0b; font-size: .95rem; margin-bottom: 1rem; letter-spacing: .05em; }
+  .testimonial-card blockquote {
+    font-size: .95rem; color: var(--text-muted); line-height: 1.7;
+    font-style: italic; margin-bottom: 1.25rem;
+  }
+  .testimonial-author {
+    display: flex; align-items: center; gap: .75rem;
+  }
+  .testimonial-author .av {
+    width: 40px; height: 40px; border-radius: 50%;
+  }
+  .testimonial-author strong { font-size: .88rem; display: block; }
+  .testimonial-author span { font-size: .78rem; color: var(--text-muted); }
+
+  /* ---- PRICING ---- */
+  .pricing-grid {
+    max-width: 960px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.75rem;
+  }
+  .pricing-card {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 2rem; text-align: center;
+    transition: all .3s; position: relative;
+  }
+  .pricing-card.popular {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 6px rgba(99,102,241,.08);
+    transform: scale(1.04);
+  }
+  .pricing-card.popular .badge {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--primary), #818cf8);
+    color: #fff; font-size: .75rem; font-weight: 700;
+    padding: .3rem 1rem; border-radius: 999px; white-space: nowrap;
+  }
+  .pricing-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: .5rem; }
+  .pricing-card .price {
+    font-size: 2.6rem; font-weight: 900; margin-bottom: 1.25rem;
+  }
+  .pricing-card .price sub { font-size: .9rem; font-weight: 500; color: var(--text-muted); }
+  .pricing-card ul {
+    list-style: none; text-align: left; margin-bottom: 1.75rem;
+  }
+  .pricing-card ul li {
+    padding: .45rem 0; font-size: .88rem; color: var(--text-muted);
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .pricing-card ul li::before { content: '✓'; color: #22c55e; font-weight: 700; }
+
+  /* ---- CTA ---- */
+  .cta {
+    text-align: center; max-width: 650px; margin: 0 auto;
+    padding: 6rem 2rem;
+  }
+  .cta h2 {
+    font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+    font-weight: 800; margin-bottom: 1rem; letter-spacing: -.02em;
+  }
+  .cta p { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 2rem; }
+  .cta-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+  /* ---- FOOTER ---- */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 3rem 2rem;
+  }
+  .footer-inner {
+    max-width: 1280px; margin: 0 auto;
+    display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 3rem;
+  }
+  .footer-brand p { color: var(--text-muted); font-size: .9rem; margin-top: .75rem; max-width: 280px; }
+  .footer-col h4 {
+    font-size: .85rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; margin-bottom: 1rem; color: var(--text);
+  }
+  .footer-col ul { list-style: none; }
+  .footer-col ul li { margin-bottom: .5rem; }
+  .footer-col ul li a {
+    text-decoration: none; color: var(--text-muted);
+    font-size: .88rem; transition: color .2s;
+  }
+  .footer-col ul li a:hover { color: var(--primary); }
+  .footer-bottom {
+    max-width: 1280px; margin: 2rem auto 0; padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between;
+    font-size: .82rem; color: var(--text-muted);
+  }
+
+  /* ---- MOBILE ---- */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .menu-toggle { display: block; }
+    .hero-inner { grid-template-columns: 1fr; text-align: center; }
+    .hero p { margin: 0 auto 2rem; }
+    .hero-actions { justify-content: center; }
+    .hero-image { display: none; }
+    .features-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .testimonials-grid { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .pricing-card.popular { transform: none; }
+    .footer-inner { grid-template-columns: 1fr 1fr; }
+    .footer-bottom { flex-direction: column; gap: .5rem; text-align: center; }
+    .floating-card { display: none; }
+  }
+
+  /* ---- REVEAL ---- */
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: all .7s cubic-bezier(.22,1,.36,1);
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <div class="logo">FlowWave</div>
+    <ul class="nav-links">
+      <li><a href="#features">功能</a></li>
+      <li><a href="#testimonials">客户评价</a></li>
+      <li><a href="#pricing">价格</a></li>
+      <li><a href="#cta" class="btn btn-primary">免费试用</a></li>
+    </ul>
+    <button class="menu-toggle" aria-label="Menu" onclick="document.getElementById('mobileMenu').style.display='flex'">☰</button>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div id="mobileMenu" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,.98);z-index:2000;flex-direction:column;align-items:center;justify-content:center;gap:2rem;font-size:1.2rem;">
+  <button style="position:absolute;top:2rem;right:2rem;background:none;border:none;font-size:2rem;cursor:pointer;" onclick="document.getElementById('mobileMenu').style.display='none'">✕</button>
+  <a href="#features" onclick="document.getElementById('mobileMenu').style.display='none'" style="text-decoration:none;color:var(--text);font-weight:600;">功能</a>
+  <a href="#testimonials" onclick="document.getElementById('mobileMenu').style.display='none'" style="text-decoration:none;color:var(--text);font-weight:600;">客户评价</a>
+  <a href="#pricing" onclick="document.getElementById('mobileMenu').style.display='none'" style="text-decoration:none;color:var(--text);font-weight:600;">价格</a>
+  <a href="#cta" class="btn btn-primary btn-lg" onclick="document.getElementById('mobileMenu').style.display='none'">免费试用</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-badge"><span class="dot"></span> 全新 3.0 版本已发布</div>
+      <h1>让团队协作<br>像<span>呼吸</span>一样自然</h1>
+      <p>FlowWave 将项目管理、即时通讯与文档协作融为一体，帮助团队把想法变成现实的速度提升 3 倍。</p>
+      <div class="hero-actions">
+        <a href="#cta" class="btn btn-primary btn-lg">免费开始使用 →</a>
+        <a href="#" class="btn btn-ghost btn-lg">▶ 观看演示</a>
+      </div>
+    </div>
+    <div class="hero-image">
+      <div class="hero-mockup">
+        <div class="mockup-bar"><span></span><span></span><span></span></div>
+        <div class="mockup-content">
+          <div class="mockup-row">
+            <div class="mockup-avatar g1"></div>
+            <div><strong>产品发布倒计时</strong><small>截止日期: 7月28日</small></div>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar g2"></div>
+            <div><strong>设计评审会议</strong><small>今天 14:00 · 6人参加</small></div>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-avatar g3"></div>
+            <div><strong>Q3 增长策略文档</strong><small>最后修改: 10分钟前</small></div>
+          </div>
+          <div class="mockup-chart">
+            <div class="bar" style="animation-delay:.1s;height:40%"></div>
+            <div class="bar" style="animation-delay:.2s;height:65%"></div>
+            <div class="bar" style="animation-delay:.3s;height:50%"></div>
+            <div class="bar" style="animation-delay:.4s;height:80%"></div>
+            <div class="bar" style="animation-delay:.5s;height:55%"></div>
+            <div class="bar" style="animation-delay:.6s;height:90%"></div>
+            <div class="bar" style="animation-delay:.7s;height:70%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="floating-card top-right">
+        <span class="check-icon">✓</span> 任务已完成
+      </div>
+      <div class="floating-card bottom-left">
+        🔥 团队效率 +42%
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOGOS -->
+<div class="logos reveal">
+  <div class="logo-grid">
+    <span class="l">Acme Corp</span>
+    <span class="l">TechVault</span>
+    <span class="l">BrightPath</span>
+    <span class="l">NexGen</span>
+    <span class="l">CloudNine</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-header reveal">
+    <span class="section-label">核心功能</span>
+    <h2>为现代团队打造的协作利器</h2>
+    <p>从计划到执行，一站式工具箱让你的团队始终保持同步。</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(99,102,241,.1);">📋</div>
+      <h3>灵活的项目看板</h3>
+      <p>通过可拖拽的看板、甘特图和日历视图，直观地管理和追踪任何规模的项目。</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(6,182,212,.1);">💬</div>
+      <h3>即时团队沟通</h3>
+      <p>内置聊天、语音和视频会议，告别工具切换带来的上下文损耗。</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(245,158,11,.1);">📄</div>
+      <h3>实时协作文档</h3>
+      <p>多人实时编辑文档、表格和演示文稿，自动存储版本历史。</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(34,197,94,.1);">🤖</div>
+      <h3>AI 智能助手</h3>
+      <p>自动生成周报摘要、智能排期和任务优先级建议，释放重复性劳动。</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(239,68,68,.1);">📊</div>
+      <h3>数据驱动洞察</h3>
+      <p>实时仪表盘展示团队产出、瓶颈和效率趋势，让决策有据可依。</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon" style="background:rgba(168,85,247,.1);">🔌</div>
+      <h3>100+ 集成平台</h3>
+      <p>无缝连接 Slack、GitHub、Figma、Notion 等你的团队已经依赖的工具。</p>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="stats-grid reveal">
+    <div>
+      <div class="stat-number" data-target="98">0</div>
+      <div class="stat-label">客户满意度 (%)</div>
+    </div>
+    <div>
+      <div class="stat-number" data-target="50">0</div>
+      <div class="stat-label">活跃团队量 (万+)</div>
+    </div>
+    <div>
+      <div class="stat-number" data-target="40">0</div>
+      <div class="stat-label">平均效率提升 (%)</div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials">
+  <div class="section-header reveal">
+    <span class="section-label">客户心声</span>
+    <h2>深受全球领先团队信赖</h2>
+    <p>来自各行业团队的真实使用体验。</p>
+  </div>
+  <div class="testimonials-grid">
+    <div class="testimonial-card reveal">
+      <div class="stars">★★★★★</div>
+      <blockquote>"FlowWave 让我们跨时区的协作变得前所未有的顺畅。从 0 到产品发布，只用了 3 周。"</blockquote>
+      <div class="testimonial-author">
+        <div class="av" style="background:linear-gradient(135deg,#6366f1,#818cf8);"></div>
+        <div><strong>张明</strong><span>CTO, TechVault</span></div>
+      </div>
+    </div>
+    <div class="testimonial-card reveal">
+      <div class="stars">★★★★★</div>
+      <blockquote>"AI 周报功能是我们的救命稻草。再也不用花 2 小时写周报了，现在只需要 2 分钟。"</blockquote>
+      <div class="testimonial-author">
+        <div class="av" style="background:linear-gradient(135deg,#06b6d4,#22d3ee);"></div>
+        <div><strong>李婷</strong><span>产品总监, BrightPath</span></div>
+      </div>
+    </div>
+    <div class="testimonial-card reveal">
+      <div class="stars">★★★★★</div>
+      <blockquote>"我们评估了 12 款工具，FlowWave 是唯一一个真正把「项目管理 + 沟通」做好的产品。"</blockquote>
+      <div class="testimonial-author">
+        <div class="av" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);"></div>
+        <div><strong>王晨</strong><span>CEO, NexGen</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="section-header reveal">
+    <span class="section-label">简单定价</span>
+    <h2>选择适合你的方案</h2>
+    <p>无隐藏费用，随时升级或降级。</p>
+  </div>
+  <div class="pricing-grid">
+    <div class="pricing-card reveal">
+      <h3>入门版</h3>
+      <div class="price">¥0<sub>/月</sub></div>
+      <ul>
+        <li>最多 5 名成员</li>
+        <li>基础看板视图</li>
+        <li>1GB 存储空间</li>
+        <li>社区支持</li>
+      </ul>
+      <a href="#" class="btn btn-ghost" style="width:100%;justify-content:center;">免费开始</a>
+    </div>
+    <div class="pricing-card popular reveal">
+      <div class="badge">最受欢迎</div>
+      <h3>专业版</h3>
+      <div class="price">¥99<sub>/人/月</sub></div>
+      <ul>
+        <li>不限成员数量</li>
+        <li>全部项目视图</li>
+        <li>100GB 存储空间</li>
+        <li>AI 智能助手</li>
+        <li>优先技术支持</li>
+        <li>高级数据分析</li>
+      </ul>
+      <a href="#" class="btn btn-primary" style="width:100%;justify-content:center;">开始试用</a>
+    </div>
+    <div class="pricing-card reveal">
+      <h3>企业版</h3>
+      <div class="price">¥249<sub>/人/月</sub></div>
+      <ul>
+        <li>专业版全部功能</li>
+        <li>无限存储空间</li>
+        <li>SSO & SAML 单点登录</li>
+        <li>专属客户经理</li>
+        <li>99.99% SLA 保障</li>
+        <li>私有化部署选项</li>
+      </ul>
+      <a href="#" class="btn btn-ghost" style="width:100%;justify-content:center;">联系销售</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta reveal" id="cta">
+  <h2>准备好让团队起飞了吗？</h2>
+  <p>加入超过 50,000 个正在使用 FlowWave 改变工作方式的团队。</p>
+  <div class="cta-actions">
+    <a href="#" class="btn btn-primary btn-lg">免费开始使用</a>
+    <a href="#" class="btn btn-accent btn-lg">预约演示</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="logo">FlowWave</div>
+      <p>让团队协作像呼吸一样自然。为现代团队打造的下一代协作平台。</p>
+    </div>
+    <div class="footer-col">
+      <h4>产品</h4>
+      <ul>
+        <li><a href="#">功能总览</a></li>
+        <li><a href="#">更新日志</a></li>
+        <li><a href="#">集成</a></li>
+        <li><a href="#">API 文档</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>公司</h4>
+      <ul>
+        <li><a href="#">关于我们</a></li>
+        <li><a href="#">联系我们</a></li>
+        <li><a href="#">加入我们</a></li>
+        <li><a href="#">品牌资源</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>法律</h4>
+      <ul>
+        <li><a href="#">隐私政策</a></li>
+        <li><a href="#">服务条款</a></li>
+        <li><a href="#">安全合规</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 FlowWave. 保留所有权利。</span>
+    <span>Crafted with ❤️ in Shanghai</span>
+  </div>
+</footer>
+
+<script>
+(function() {
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function() {
+    nav.classList.toggle('scrolled', window.scrollY > 10);
+  });
+
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(function(el) {
+    observer.observe(el);
+  });
+
+  var statObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      var el = entry.target;
+      var target = parseInt(el.getAttribute('data-target'), 10);
+      var current = 0;
+      var step = Math.ceil(target / 60);
+      var timer = setInterval(function() {
+        current += step;
+        if (current >= target) { current = target; clearInterval(timer); }
+        el.textContent = current;
+      }, 30);
+      statObserver.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('[data-target]').forEach(function(el) {
+    statObserver.observe(el);
+  });
+})();
+</script>
+
+</body>
+</html>

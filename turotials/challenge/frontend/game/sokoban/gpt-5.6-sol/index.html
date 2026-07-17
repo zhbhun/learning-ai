@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#171b2c" />
+    <meta
+      name="description"
+      content="向 1982 年经典益智游戏《仓库番》致敬的十关浏览器推箱子游戏。"
+    />
+    <title>仓库番 · 夜班挑战</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="仓库番首页">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>
+          <strong>仓库番</strong>
+          <small>SOKOBAN · 1982</small>
+        </span>
+      </a>
+      <div class="header-note">夜班仓管员考核</div>
+      <button class="icon-button" id="soundButton" type="button" aria-label="关闭音效" title="音效">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 9v6h4l5 4V5L8 9H4Z"></path>
+          <path class="sound-wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="app-shell">
+      <section class="game-column" aria-labelledby="gameTitle">
+        <div class="level-heading">
+          <div>
+            <p class="eyebrow" id="levelEyebrow">第 01 号仓库</p>
+            <h1 id="gameTitle">三箱调度</h1>
+          </div>
+          <div class="difficulty" id="difficultyBadge"><span></span>困难</div>
+        </div>
+
+        <div class="stats-bar" aria-label="本关数据">
+          <div class="stat">
+            <span>移动</span>
+            <strong id="moveCount">000</strong>
+          </div>
+          <div class="stat">
+            <span>推动</span>
+            <strong id="pushCount">000</strong>
+          </div>
+          <div class="stat">
+            <span>用时</span>
+            <strong id="timeCount">00:00</strong>
+          </div>
+          <div class="stat stat-progress">
+            <span>归位</span>
+            <strong id="goalCount">0 / 3</strong>
+            <div class="mini-progress"><i id="goalProgress"></i></div>
+          </div>
+        </div>
+
+        <div class="board-wrap">
+          <div class="board-frame">
+            <div id="board" class="board" role="grid" aria-label="仓库番游戏棋盘"></div>
+            <div class="complete-card" id="completeCard" aria-hidden="true">
+              <div class="complete-stamp">CLEAR</div>
+              <p>仓库清点完成</p>
+              <h2 id="completeTitle">漂亮的调度！</h2>
+              <div class="complete-stats" id="completeStats"></div>
+              <div class="complete-actions">
+                <button class="button button-ghost" id="replayButton" type="button">再玩一次</button>
+                <button class="button button-primary" id="nextLevelButton" type="button">下一仓库</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <div class="history-actions">
+            <button class="button button-ghost" id="undoButton" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8 4 12l5 4M5 12h8a6 6 0 1 1 0 12"></path></svg>
+              撤销
+              <kbd>Z</kbd>
+            </button>
+            <button class="button button-ghost" id="restartButton" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M19 12a7 7 0 1 0-1 5"></path></svg>
+              重开
+              <kbd>R</kbd>
+            </button>
+          </div>
+          <button class="button button-answer" id="answerButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4M8 14a6 6 0 1 1 8 0c-1.2 1-1.5 1.8-1.5 2h-5c0-.2-.3-1-1.5-2Z"></path></svg>
+            查看答案
+          </button>
+        </div>
+
+        <div class="answer-panel" id="answerPanel" aria-hidden="true">
+          <div class="answer-copy">
+            <span class="answer-kicker">分步解题</span>
+            <strong id="answerDirection">准备开始</strong>
+            <p id="answerProgressText">每次点击只执行一步，你可以慢慢观察。</p>
+          </div>
+          <div class="answer-next" id="answerArrow" aria-hidden="true">→</div>
+          <button class="button button-primary answer-step" id="answerStepButton" type="button">执行下一步</button>
+          <button class="answer-close" id="answerCloseButton" type="button" aria-label="关闭答案">×</button>
+          <div class="answer-progress"><i id="answerProgress"></i></div>
+        </div>
+
+        <div class="mobile-controls" aria-label="移动控制">
+          <button data-dir="U" type="button" aria-label="向上">↑</button>
+          <button data-dir="L" type="button" aria-label="向左">←</button>
+          <span aria-hidden="true"></span>
+          <button data-dir="R" type="button" aria-label="向右">→</button>
+          <button data-dir="D" type="button" aria-label="向下">↓</button>
+        </div>
+
+        <p class="keyboard-tip">
+          <span class="key-cluster" aria-hidden="true"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
+          使用方向键或 WASD 移动。箱子只能推，不能拉；把所有箱子推到发光标记上即可过关。
+        </p>
+      </section>
+
+      <aside class="levels-panel" aria-labelledby="levelsTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">挑战路线</p>
+            <h2 id="levelsTitle">十座仓库</h2>
+          </div>
+          <span id="clearCount">0 / 10</span>
+        </div>
+        <div class="campaign-progress"><i id="campaignProgress"></i></div>
+        <div class="level-list" id="levelList"></div>
+        <div class="legend">
+          <span><i class="legend-goal"></i>目标点</span>
+          <span><i class="legend-box"></i>货箱</span>
+          <span><i class="legend-done"></i>已归位</span>
+        </div>
+        <blockquote>
+          “先想清楚箱子最后一推的位置，<br />再决定第一步往哪里走。”
+          <cite>— 夜班守则 01</cite>
+        </blockquote>
+      </aside>
+    </main>
+
+    <footer>
+      <span>致敬 今林宏行 于 1982 年创作的《倉庫番》</span>
+      <span>无尽的仓库，有限的空间。</span>
+    </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./game.js"></script>
+  </body>
+</html>

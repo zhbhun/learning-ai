@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#111111" />
+    <title>Battle City · 坦克大战</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">★</span> BATTLE CITY <span class="edition">WEB EDITION</span></div>
+        <div class="top-actions">
+          <button id="pauseBtn" class="icon-btn" aria-label="暂停游戏" title="暂停 / 继续 (P)">Ⅱ</button>
+          <button id="soundBtn" class="icon-btn" aria-label="切换声音" title="声音">♪</button>
+        </div>
+      </header>
+
+      <section class="game-frame" aria-label="坦克大战游戏区">
+        <canvas id="game" width="792" height="624">你的浏览器不支持 Canvas。</canvas>
+
+        <div id="startOverlay" class="overlay show">
+          <div class="logo" aria-label="Battle City">
+            <span class="logo-small">NAMCO 1985 · FAN TRIBUTE</span>
+            <span class="logo-main">BATTLE</span>
+            <span class="logo-main logo-city">CITY</span>
+            <span class="logo-cn">坦 克 大 战</span>
+          </div>
+          <button id="startBtn" class="pixel-button">1 PLAYER</button>
+          <div class="quick-help">
+            <span><kbd>WASD</kbd> / <kbd>方向键</kbd> 移动</span>
+            <span><kbd>SPACE</kbd> 射击</span>
+            <span><kbd>P</kbd> 暂停</span>
+          </div>
+        </div>
+
+        <div id="messageOverlay" class="message-overlay" aria-live="polite">
+          <strong id="messageTitle">PAUSE</strong>
+          <span id="messageSubtitle">按 P 继续</span>
+        </div>
+      </section>
+
+      <section class="mobile-controls" aria-label="触屏控制">
+        <div class="dpad">
+          <button data-key="ArrowUp" class="dpad-up" aria-label="向上">▲</button>
+          <button data-key="ArrowLeft" class="dpad-left" aria-label="向左">◀</button>
+          <span class="dpad-center"></span>
+          <button data-key="ArrowRight" class="dpad-right" aria-label="向右">▶</button>
+          <button data-key="ArrowDown" class="dpad-down" aria-label="向下">▼</button>
+        </div>
+        <button data-key="Space" class="fire-button" aria-label="射击"><span>FIRE</span></button>
+      </section>
+
+      <footer>
+        <span>消灭全部敌军，守住你的基地。</span>
+        <span class="footer-accent">READY, TANKER?</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050812" />
+    <meta
+      name="description"
+      content="使用 Three.js 构建的可交互太阳系模型"
+    />
+    <title>Solaris · 交互式太阳系</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="space" aria-label="可交互的三维太阳系"></canvas>
+
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Solaris 首页">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>
+            <strong>SOLARIS</strong>
+            <small>INTERACTIVE ATLAS</small>
+          </span>
+        </a>
+
+        <div class="status" aria-label="系统状态">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>实时模拟</span>
+          <span class="status-separator"></span>
+          <span>5 颗行星</span>
+        </div>
+      </header>
+
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow"><span>01</span> 内太阳系观测站</p>
+        <h1 id="page-title">穿行于<br /><em>行星之间</em></h1>
+        <p class="intro">
+          拖动视角，滚轮缩放，点击任意天体<br />探索它的轨道与运行数据。
+        </p>
+      </section>
+
+      <aside class="info-panel" id="info-panel" aria-live="polite" aria-hidden="true">
+        <button class="close-button" id="close-info" aria-label="关闭天体信息">×</button>
+        <div class="panel-index" id="panel-index">03</div>
+        <div class="planet-orbit-icon" aria-hidden="true">
+          <span id="planet-icon"></span>
+        </div>
+        <p class="panel-kicker">CELESTIAL OBJECT</p>
+        <h2 id="planet-name">地球</h2>
+        <p class="panel-en-name" id="planet-en-name">EARTH</p>
+        <p class="panel-description" id="planet-description"></p>
+        <dl class="data-grid">
+          <div>
+            <dt>相对半径</dt>
+            <dd id="planet-radius">1.00×</dd>
+          </div>
+          <div>
+            <dt>平均距离</dt>
+            <dd id="planet-distance">1.00 AU</dd>
+          </div>
+          <div>
+            <dt>公转周期</dt>
+            <dd id="planet-orbit-period">365.25 天</dd>
+          </div>
+          <div>
+            <dt>自转周期</dt>
+            <dd id="planet-rotation-period">23.93 小时</dd>
+          </div>
+        </dl>
+      </aside>
+
+      <section class="controls-panel" aria-label="模拟控制">
+        <div class="speed-control">
+          <label for="speed">
+            <span>模拟速度</span>
+            <output id="speed-value">18 天/秒</output>
+          </label>
+          <input id="speed" type="range" min="2" max="80" step="2" value="18" />
+        </div>
+        <div class="button-row">
+          <button id="toggle-animation" class="control-button" type="button">
+            <span class="pause-icon" aria-hidden="true"></span>
+            <span id="toggle-label">暂停</span>
+          </button>
+          <button id="reset-view" class="control-button" type="button">
+            <span class="reset-icon" aria-hidden="true">↗</span>
+            重置视角
+          </button>
+        </div>
+      </section>
+
+      <footer class="hint-bar">
+        <span><i class="mouse-icon" aria-hidden="true"></i>拖动旋转</span>
+        <span><i class="scroll-icon" aria-hidden="true"></i>滚轮缩放</span>
+        <span><i class="click-icon" aria-hidden="true"></i>点击查看数据</span>
+      </footer>
+
+      <div class="loading" id="loading">
+        <div class="loader-orbit"><span></span></div>
+        <p>正在校准星图</p>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

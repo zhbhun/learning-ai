@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Nexus — The AI platform that runs your business. Automate workflows, ship faster, and scale without limits." />
+    <title>Nexus — AI Workflows that run your business</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c3aed'/%3E%3Cstop offset='1' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M10 22V10h4l4 8 4-8h4v12h-3v-7l-3 6h-4l-3-6v7z' fill='white'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <!-- ============ NAV ============ -->
+    <header class="nav-wrap" id="nav">
+      <nav class="nav container" aria-label="Primary">
+        <a href="#" class="brand" aria-label="Nexus home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="28" height="28"><defs><linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#bg1)"/><path d="M10 22V10h4l4 8 4-8h4v12h-3v-7l-3 6h-4l-3-6v7z" fill="white"/></svg>
+          </span>
+          <span class="brand-name">Nexus</span>
+        </a>
+        <ul class="nav-links" role="list">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+        <div class="nav-cta">
+          <a href="#" class="btn btn-ghost">Sign in</a>
+          <a href="#cta" class="btn btn-primary">Start free
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <button class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true">
+        <div class="orb orb-a"></div>
+        <div class="orb orb-b"></div>
+        <div class="orb orb-c"></div>
+        <div class="grid-bg"></div>
+      </div>
+
+      <div class="container hero-inner">
+        <a href="#" class="pill reveal">
+          <span class="dot"></span>
+          <span><strong>New</strong> &nbsp;Agentic workflows are live</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+
+        <h1 class="hero-title reveal">
+          The AI platform that
+          <span class="serif italic">actually</span>
+          <br />runs your business.
+        </h1>
+
+        <p class="hero-sub reveal">
+          Nexus turns your messy tools, docs, and data into one autonomous workflow.
+          Ship 10× faster, cut ops costs in half, and never touch a spreadsheet again.
+        </p>
+
+        <div class="hero-actions reveal">
+          <a href="#cta" class="btn btn-primary btn-lg">
+            Start free trial
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="#how" class="btn btn-secondary btn-lg">
+            <span class="play" aria-hidden="true">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </span>
+            Watch the 90-sec demo
+          </a>
+        </div>
+
+        <p class="hero-meta reveal">Free 14-day trial · No credit card · SOC 2 Type II</p>
+
+        <!-- HERO MOCKUP -->
+        <div class="mockup reveal" role="img" aria-label="Nexus product preview">
+          <div class="mockup-chrome">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <div class="mockup-url">app.nexus.ai / workflows</div>
+          </div>
+          <div class="mockup-body">
+            <aside class="mockup-side">
+              <div class="side-item active"><span class="ico">◆</span> Workflows</div>
+              <div class="side-item"><span class="ico">◇</span> Agents</div>
+              <div class="side-item"><span class="ico">◷</span> Schedules</div>
+              <div class="side-item"><span class="ico">◌</span> Integrations</div>
+              <div class="side-item"><span class="ico">⊞</span> Knowledge</div>
+              <div class="side-item"><span class="ico">⌬</span> Models</div>
+            </aside>
+            <main class="mockup-main">
+              <div class="mockup-head">
+                <div>
+                  <div class="mockup-eyebrow">Active workflow</div>
+                  <div class="mockup-title">Inbound lead → Enrich → CRM</div>
+                </div>
+                <div class="mockup-status"><span class="pulse"></span> Running</div>
+              </div>
+
+              <div class="flow">
+                <div class="node">
+                  <div class="node-icon">📨</div>
+                  <div class="node-label">New email</div>
+                  <div class="node-sub">Gmail · 0.2s</div>
+                </div>
+                <div class="link"><span></span></div>
+                <div class="node accent">
+                  <div class="node-icon">⚡</div>
+                  <div class="node-label">Enrich with AI</div>
+                  <div class="node-sub">GPT-Nexus · 1.4s</div>
+                </div>
+                <div class="link"><span></span></div>
+                <div class="node">
+                  <div class="node-icon">⚙️</div>
+                  <div class="node-label">Route to CRM</div>
+                  <div class="node-sub">HubSpot · 0.6s</div>
+                </div>
+                <div class="link"><span></span></div>
+                <div class="node success">
+                  <div class="node-icon">✓</div>
+                  <div class="node-label">Notify Slack</div>
+                  <div class="node-sub">#sales · 0.3s</div>
+                </div>
+              </div>
+
+              <div class="log">
+                <div class="log-row"><span class="t">10:42:01</span><span class="b ok">·</span> Workflow triggered by <code>lead@acme.co</code></div>
+                <div class="log-row"><span class="t">10:42:01</span><span class="b ok">·</span> Extracted 7 fields with 99.1% confidence</div>
+                <div class="log-row"><span class="t">10:42:03</span><span class="b ok">·</span> Created HubSpot deal <code>#1284</code> · $24,800</div>
+                <div class="log-row"><span class="t">10:42:03</span><span class="b ok">·</span> Posted summary to <code>#sales</code></div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRUST BAR -->
+      <div class="trust">
+        <div class="container">
+          <p class="trust-label">Trusted by 4,000+ teams shipping faster every day</p>
+          <div class="logos" aria-hidden="true">
+            <span class="logo">▲ Northwind</span>
+            <span class="logo">◇ Helio</span>
+            <span class="logo">◯ Linear</span>
+            <span class="logo">▣ Stripe&nbsp;Atlas</span>
+            <span class="logo">✦ Vercel</span>
+            <span class="logo">⬢ Acme Co</span>
+            <span class="logo">⌬ Mosaic</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FEATURES (BENTO) ============ -->
+    <section class="features" id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Features</span>
+          <h2 class="section-title">Everything you need.<br/><span class="serif italic">Nothing you don't.</span></h2>
+          <p class="section-sub">A complete toolkit for building, deploying, and observing AI workflows — without the engineering tax.</p>
+        </div>
+
+        <div class="bento">
+          <article class="bento-card bento-lg reveal">
+            <div class="bento-bg bento-bg-1" aria-hidden="true"></div>
+            <div class="bento-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            </div>
+            <h3>Agentic workflows</h3>
+            <p>Compose multi-step agents that plan, call tools, and recover from failure. Visual canvas + version control baked in.</p>
+            <div class="bento-visual">
+              <div class="agent-graph">
+                <div class="ag-node">Plan</div>
+                <div class="ag-edge"></div>
+                <div class="ag-node">Tool</div>
+                <div class="ag-edge"></div>
+                <div class="ag-node accent">Verify</div>
+                <div class="ag-edge"></div>
+                <div class="ag-node">Reply</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="bento-card reveal">
+            <div class="bento-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </div>
+            <h3>200+ integrations</h3>
+            <p>Slack, Salesforce, Notion, Snowflake, Stripe — plug into your stack in minutes, not weeks.</p>
+          </article>
+
+          <article class="bento-card reveal">
+            <div class="bento-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </div>
+            <h3>Cron + events</h3>
+            <p>Run on a schedule, a webhook, or a custom trigger. Pause, replay, and backfill with one click.</p>
+          </article>
+
+          <article class="bento-card bento-md reveal">
+            <div class="bento-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+            </div>
+            <h3>Bring your own model</h3>
+            <p>OpenAI, Anthropic, Gemini, Mistral, or your self-hosted. Switch per-step, no rewrites needed.</p>
+            <div class="bento-visual">
+              <div class="models">
+                <span>o3</span><span>Claude</span><span>Gemini</span><span>Llama</span><span>Mistral</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="bento-card bento-md reveal">
+            <div class="bento-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-12V5l-8-3-8 3v5c0 8 8 12 8 12z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <h3>Enterprise-grade security</h3>
+            <p>SOC 2 Type II, HIPAA, GDPR, ISO 27001. SSO, audit logs, BYOK encryption, regional residency.</p>
+          </article>
+
+          <article class="bento-card reveal">
+            <div class="bento-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+            </div>
+            <h3>Live observability</h3>
+            <p>Trace every token, tool call, and decision. Catch drift before your customers do.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STATS ============ -->
+    <section class="stats">
+      <div class="container stats-inner">
+        <div class="stat reveal">
+          <div class="stat-num" data-count="10000000" data-suffix="+">10M+</div>
+          <div class="stat-label">Workflows run weekly</div>
+        </div>
+        <div class="stat reveal">
+          <div class="stat-num" data-count="99.99" data-suffix="%" data-decimals="2">99.99%</div>
+          <div class="stat-label">Uptime across regions</div>
+        </div>
+        <div class="stat reveal">
+          <div class="stat-num" data-count="12" data-suffix="×">12×</div>
+          <div class="stat-label">Faster than scripts</div>
+        </div>
+        <div class="stat reveal">
+          <div class="stat-num" data-count="4000" data-suffix="+">4,000+</div>
+          <div class="stat-label">Teams building with Nexus</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section class="how" id="how">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">How it works</span>
+          <h2 class="section-title">From idea to production<br/><span class="serif italic">in three steps.</span></h2>
+        </div>
+
+        <ol class="steps" role="list">
+          <li class="step reveal">
+            <div class="step-num">01</div>
+            <h3>Describe the workflow</h3>
+            <p>Type what you want in plain English. Nexus proposes the agents, tools, and triggers — you keep what works.</p>
+            <div class="step-art" aria-hidden="true">
+              <div class="chat">
+                <div class="bubble user">Enrich inbound leads and push to HubSpot</div>
+                <div class="bubble bot">Drafted a 4-step workflow · 3 integrations · 1 human review ✓</div>
+              </div>
+            </div>
+          </li>
+          <li class="step reveal">
+            <div class="step-num">02</div>
+            <h3>Test on real data</h3>
+            <p>Replay last week's events through the workflow before it ever touches production. Confidence without the cliff.</p>
+            <div class="step-art" aria-hidden="true">
+              <div class="replay">
+                <div class="r-row"><span>lead@stripe.com</span><span class="ok">passed</span></div>
+                <div class="r-row"><span>foo@bar.io</span><span class="ok">passed</span></div>
+                <div class="r-row"><span>ceo@acme.co</span><span class="warn">needs review</span></div>
+                <div class="r-row"><span>team@figma.com</span><span class="ok">passed</span></div>
+              </div>
+            </div>
+          </li>
+          <li class="step reveal">
+            <div class="step-num">03</div>
+            <h3>Ship and observe</h3>
+            <p>One-click deploy with canaries, rollbacks, and per-step cost ceilings. Watch every run in real time.</p>
+            <div class="step-art" aria-hidden="true">
+              <div class="deploy">
+                <div class="deploy-bar"><span style="width:78%"></span></div>
+                <div class="deploy-meta"><span>Rolling out · 78%</span><span>$0.014 / run</span></div>
+              </div>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ TESTIMONIALS ============ -->
+    <section class="testimonials">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Loved by builders</span>
+          <h2 class="section-title">What customers say</h2>
+        </div>
+
+        <div class="t-grid">
+          <figure class="t-card reveal">
+            <blockquote>“We replaced six Zapier flows, a custom Python service, and a contractor with one Nexus workflow. Saves us roughly <strong>$14k/mo</strong>.”</blockquote>
+            <figcaption>
+              <span class="avatar" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">JM</span>
+              <div><strong>Jamie Marin</strong><br/><span class="muted">Head of Ops · Helio</span></div>
+            </figcaption>
+          </figure>
+          <figure class="t-card reveal">
+            <blockquote>“The replay feature alone is worth it. We caught a silent prompt regression before it hit a single customer.”</blockquote>
+            <figcaption>
+              <span class="avatar" style="background:linear-gradient(135deg,#10b981,#06b6d4)">SP</span>
+              <div><strong>Sana Patel</strong><br/><span class="muted">Staff Eng · Northwind</span></div>
+            </figcaption>
+          </figure>
+          <figure class="t-card reveal">
+            <blockquote>“From demo to first workflow in production in 22 minutes. It feels like cheating.”</blockquote>
+            <figcaption>
+              <span class="avatar" style="background:linear-gradient(135deg,#8b5cf6,#ec4899)">DK</span>
+              <div><strong>Diego Kowalski</strong><br/><span class="muted">CTO · Mosaic AI</span></div>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PRICING ============ -->
+    <section class="pricing" id="pricing">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Pricing</span>
+          <h2 class="section-title">Simple, fair pricing.<br/><span class="serif italic">Cancel anytime.</span></h2>
+          <p class="section-sub">Start free. Upgrade when you outgrow it. Annual saves 20%.</p>
+          <div class="toggle" role="tablist" aria-label="Billing period">
+            <button class="toggle-opt active" data-period="monthly" role="tab" aria-selected="true">Monthly</button>
+            <button class="toggle-opt" data-period="yearly" role="tab" aria-selected="false">Yearly <span class="save">−20%</span></button>
+            <span class="toggle-pill" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <div class="p-grid">
+          <article class="p-card reveal">
+            <header>
+              <h3>Starter</h3>
+              <p class="p-tag">For solo builders</p>
+            </header>
+            <div class="p-price"><span class="cur">$</span><span class="amt" data-monthly="0" data-yearly="0">0</span><span class="per">/forever</span></div>
+            <a href="#" class="btn btn-secondary btn-block">Start free</a>
+            <ul class="p-feats" role="list">
+              <li>1,000 runs / month</li>
+              <li>3 active workflows</li>
+              <li>Community support</li>
+              <li>All integrations</li>
+            </ul>
+          </article>
+
+          <article class="p-card p-card-popular reveal">
+            <span class="popular">Most popular</span>
+            <header>
+              <h3>Pro</h3>
+              <p class="p-tag">For growing teams</p>
+            </header>
+            <div class="p-price"><span class="cur">$</span><span class="amt" data-monthly="49" data-yearly="39">49</span><span class="per">/seat / mo</span></div>
+            <a href="#" class="btn btn-primary btn-block">Start 14-day trial</a>
+            <ul class="p-feats" role="list">
+              <li>Unlimited runs</li>
+              <li>Unlimited workflows</li>
+              <li>Replay &amp; backfill</li>
+              <li>Priority support · 4h SLA</li>
+              <li>SSO &amp; audit logs</li>
+            </ul>
+          </article>
+
+          <article class="p-card reveal">
+            <header>
+              <h3>Enterprise</h3>
+              <p class="p-tag">For regulated orgs</p>
+            </header>
+            <div class="p-price"><span class="amt">Custom</span></div>
+            <a href="#" class="btn btn-secondary btn-block">Talk to sales</a>
+            <ul class="p-feats" role="list">
+              <li>Everything in Pro</li>
+              <li>BYOK encryption + residency</li>
+              <li>Dedicated VPC deploy</li>
+              <li>Custom SLAs · 99.99%</li>
+              <li>Solutions architect</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="faq" id="faq">
+      <div class="container faq-inner">
+        <div class="faq-head reveal">
+          <span class="eyebrow">FAQ</span>
+          <h2 class="section-title">Questions, answered.</h2>
+          <p class="section-sub">Can't find what you're looking for? <a href="#" class="link">Chat with us</a>.</p>
+        </div>
+        <ul class="faq-list" role="list">
+          <li class="faq-item reveal">
+            <button class="faq-q" aria-expanded="false">
+              <span>How is Nexus different from Zapier or n8n?</span>
+              <span class="faq-ic" aria-hidden="true"></span>
+            </button>
+            <div class="faq-a"><p>Zapier is great for simple triggers. Nexus is built for <strong>agentic, multi-step AI workflows</strong> with planning, tool use, replay, and granular cost control — closer to a platform than a connector.</p></div>
+          </li>
+          <li class="faq-item reveal">
+            <button class="faq-q" aria-expanded="false">
+              <span>Do you train on my data?</span>
+              <span class="faq-ic" aria-hidden="true"></span>
+            </button>
+            <div class="faq-a"><p>Never. Your data stays in your tenant, encrypted at rest with your keys (BYOK available on Enterprise). We only log the metadata needed to operate the service.</p></div>
+          </li>
+          <li class="faq-item reveal">
+            <button class="faq-q" aria-expanded="false">
+              <span>Can I bring my own model?</span>
+              <span class="faq-ic" aria-hidden="true"></span>
+            </button>
+            <div class="faq-a"><p>Yes. Use OpenAI, Anthropic, Google, Mistral, or self-hosted Llama. Mix and match per step, fall back automatically if a provider is unavailable.</p></div>
+          </li>
+          <li class="faq-item reveal">
+            <button class="faq-q" aria-expanded="false">
+              <span>What happens when a workflow fails?</span>
+              <span class="faq-ic" aria-hidden="true"></span>
+            </button>
+            <div class="faq-a"><p>Every failure is captured with the full trace, retried with exponential backoff, and surfaced to your alerting channels. You can replay any run from any step.</p></div>
+          </li>
+          <li class="faq-item reveal">
+            <button class="faq-q" aria-expanded="false">
+              <span>Is there a free plan?</span>
+              <span class="faq-ic" aria-hidden="true"></span>
+            </button>
+            <div class="faq-a"><p>Yes — the Starter plan is free forever for up to 1,000 runs per month. No credit card required.</p></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="cta" id="cta">
+      <div class="container">
+        <div class="cta-card reveal">
+          <div class="cta-bg" aria-hidden="true"></div>
+          <h2 class="cta-title">Stop wiring tools.<br/><span class="serif italic">Start shipping outcomes.</span></h2>
+          <p class="cta-sub">Join 4,000+ teams running their business on Nexus. Free for 14 days, no credit card.</p>
+          <form class="cta-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='✓ Check your inbox';">
+            <input type="email" required placeholder="you@company.com" aria-label="Work email" />
+            <button type="submit" class="btn btn-primary">Get started
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+          <p class="cta-meta">SOC 2 · GDPR · HIPAA · ISO 27001</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <a href="#" class="brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 32 32" width="24" height="24"><defs><linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#bg2)"/><path d="M10 22V10h4l4 8 4-8h4v12h-3v-7l-3 6h-4l-3-6v7z" fill="white"/></svg>
+            </span>
+            <span class="brand-name">Nexus</span>
+          </a>
+          <p class="footer-tag">The AI platform that runs your business.</p>
+          <div class="socials" aria-label="Social links">
+            <a href="#" aria-label="X / Twitter"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 3h3l-7 8 8 10h-6l-5-7-6 7H2l8-9L2 3h6l4 6z"/></svg></a>
+            <a href="#" aria-label="GitHub"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.6.5.5 5.6.5 12c0 5 3.3 9.3 7.9 10.8.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.6-1.3-1.6-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2.9-.3 1.9-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.1 0 4.5-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.8C23.5 5.6 18.4.5 12 .5z"/></svg></a>
+            <a href="#" aria-label="LinkedIn"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 11.02 5 2.5 2.5 0 01-.02-5zM3 9h4v12H3V9zm7 0h3.8v1.7h.1c.5-1 1.9-2 3.9-2 4.2 0 5 2.7 5 6.3V21h-4v-5.3c0-1.3 0-3-1.8-3s-2.1 1.4-2.1 2.9V21h-4V9z"/></svg></a>
+            <a href="#" aria-label="YouTube"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23 7s-.2-1.5-.9-2.2c-.8-.9-1.7-.9-2.1-1C16.9 3.5 12 3.5 12 3.5s-4.9 0-8 .3c-.4 0-1.3 0-2.1 1C1.2 5.5 1 7 1 7S.8 8.7.8 10.4v1.5c0 1.7.2 3.4.2 3.4s.2 1.5.9 2.2c.8.9 1.9.9 2.4 1 1.7.2 7.7.3 7.7.3s4.9 0 8-.3c.4 0 1.3 0 2.1-1 .7-.7.9-2.2.9-2.2s.2-1.7.2-3.4v-1.5C23.2 8.7 23 7 23 7zM9.7 14.6V7.9l6.4 3.4-6.4 3.3z"/></svg></a>
+          </div>
+        </div>
+
+        <div class="footer-cols">
+          <div class="footer-col">
+            <h4>Product</h4>
+            <ul role="list">
+              <li><a href="#features">Features</a></li>
+              <li><a href="#pricing">Pricing</a></li>
+              <li><a href="#">Changelog</a></li>
+              <li><a href="#">Integrations</a></li>
+              <li><a href="#">Status</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <ul role="list">
+              <li><a href="#">Docs</a></li>
+              <li><a href="#">Templates</a></li>
+              <li><a href="#">Blog</a></li>
+              <li><a href="#">Customer stories</a></li>
+              <li><a href="#">API reference</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Company</h4>
+            <ul role="list">
+              <li><a href="#">About</a></li>
+              <li><a href="#">Careers</a></li>
+              <li><a href="#">Press</a></li>
+              <li><a href="#">Contact</a></li>
+              <li><a href="#">Partners</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Legal</h4>
+            <ul role="list">
+              <li><a href="#">Privacy</a></li>
+              <li><a href="#">Terms</a></li>
+              <li><a href="#">Security</a></li>
+              <li><a href="#">DPA</a></li>
+              <li><a href="#">Cookies</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom container">
+        <span>© 2026 Nexus Labs, Inc.</span>
+        <span>Made with care in San Francisco · Berlin · Singapore</span>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

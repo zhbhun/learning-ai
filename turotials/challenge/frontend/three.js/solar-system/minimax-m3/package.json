@@ -1,0 +1,10 @@
+{
+  "name": "solar-system",
+  "version": "1.0.0",
+  "description": "Interactive Three.js solar system (Sun + Mercury, Venus, Earth, Mars, Jupiter) with orbiting Moon.",
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes serve@14 -p 5173 .",
+    "start": "npx --yes serve@14 -p 5173 ."
+  }
+}

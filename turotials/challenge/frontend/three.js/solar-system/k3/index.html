@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Three.js 交互太阳系</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #050810; }
+  canvas { display: block; }
+  #info {
+    position: fixed; top: 16px; left: 16px; min-width: 220px;
+    padding: 14px 18px; border-radius: 10px;
+    background: rgba(10, 16, 32, 0.78); border: 1px solid rgba(120, 160, 255, 0.25);
+    color: #dce6ff; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    opacity: 0; transform: translateY(-6px); transition: opacity .2s, transform .2s;
+    pointer-events: none; backdrop-filter: blur(6px);
+  }
+  #info.visible { opacity: 1; transform: translateY(0); }
+  #info h2 { margin: 0 0 8px; font-size: 18px; }
+  #info h2 span { font-size: 12px; color: #8fa8d8; font-weight: normal; margin-left: 6px; }
+  #info table { border-collapse: collapse; font-size: 13px; }
+  #info td { padding: 3px 10px 3px 0; }
+  #info td:first-child { color: #8fa8d8; white-space: nowrap; }
+  #hint {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    color: #9fb2dd; font-size: 13px; font-family: -apple-system, "PingFang SC", sans-serif;
+    background: rgba(10, 16, 32, 0.6); padding: 6px 14px; border-radius: 999px;
+    pointer-events: none; white-space: nowrap;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="info"></div>
+<div id="hint">左键拖拽旋转 · 滚轮缩放 · 右键平移 · 点击天体查看数据</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- 统一数据表 ----------
+const TIME = { SECONDS_PER_YEAR: 12, SECONDS_PER_DAY: 0.5 };
+
+const SUN = {
+  name: '太阳', en: 'Sun', radius: 5, rotationPeriod: 27, color: 0xffc832
+};
+
+const PLANETS = [
+  { name: '水星', en: 'Mercury', radius: 0.4, orbitRadius: 9,  orbitPeriod: 0.24,  rotationPeriod: 58.6, color: 0x9c8e84 },
+  { name: '金星', en: 'Venus',   radius: 0.9, orbitRadius: 13, orbitPeriod: 0.62,  rotationPeriod: -243, color: 0xd9a05b },
+  { name: '地球', en: 'Earth',   radius: 1.0, orbitRadius: 17, orbitPeriod: 1.0,   rotationPeriod: 1.0,  color: 0x3a7bd5,
+    moon: { name: '月球', en: 'Moon', radius: 0.27, orbitRadius: 2.0, orbitPeriod: 27.3, color: 0xbfbfbf, isMoon: true } },
+  { name: '火星', en: 'Mars',    radius: 0.5, orbitRadius: 21, orbitPeriod: 1.88,  rotationPeriod: 1.03, color: 0xc1562f },
+  { name: '木星', en: 'Jupiter', radius: 2.6, orbitRadius: 29, orbitPeriod: 11.86, rotationPeriod: 0.41, color: 0xd8b078 },
+];
+
+// ---------- 场景基础 ----------
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 2000);
+camera.position.set(0, 34, 62);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0x8899bb, 0.5));
+const sunLight = new THREE.PointLight(0xffffff, 2.5, 0, 0);
+scene.add(sunLight);
+
+// 星空背景
+{
+  const n = 2000, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 400 + Math.random() * 400;
+    const t = Math.random() * Math.PI * 2, p = Math.acos(Math.random() * 2 - 1);
+    pos[i * 3]     = r * Math.sin(p) * Math.cos(t);
+    pos[i * 3 + 1] = r * Math.cos(p);
+    pos[i * 3 + 2] = r * Math.sin(p) * Math.sin(t);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 0.9, sizeAttenuation: true })));
+}
+
+// ---------- 统一构建逻辑 ----------
+const orbiters = [];  // { pivot, periodSeconds } 公转
+const spinners = [];  // { mesh, periodSeconds }  自转
+const clickables = [];
+
+function makeBody(data, emissive = false) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(data.radius, 32, 32),
+    emissive
+      ? new THREE.MeshBasicMaterial({ color: data.color })
+      : new THREE.MeshStandardMaterial({ color: data.color, roughness: 0.85, metalness: 0.1 })
+  );
+  mesh.userData = data;
+  clickables.push(mesh);
+  return mesh;
+}
+
+function makeOrbitRing(radius) {
+  const pts = [];
+  for (let i = 0; i < 128; i++) {
+    const a = (i / 128) * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * radius, 0, Math.sin(a) * radius));
+  }
+  return new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0x3a4a6a, transparent: true, opacity: 0.6 })
+  );
+}
+
+// 太阳
+const sun = makeBody(SUN, true);
+scene.add(sun);
+spinners.push({ mesh: sun, periodSeconds: SUN.rotationPeriod * TIME.SECONDS_PER_DAY });
+
+// 行星（同一套逻辑遍历数据表）
+for (const p of PLANETS) {
+  const orbitPivot = new THREE.Group();          // 公转轴心（太阳中心）
+  scene.add(orbitPivot);
+
+  const system = new THREE.Group();              // 行星系统（局部坐标系原点）
+  system.position.x = p.orbitRadius;
+  orbitPivot.add(system);
+
+  const mesh = makeBody(p);
+  system.add(mesh);
+
+  orbiters.push({ pivot: orbitPivot, periodSeconds: p.orbitPeriod * TIME.SECONDS_PER_YEAR });
+  spinners.push({ mesh, periodSeconds: p.rotationPeriod * TIME.SECONDS_PER_DAY });
+
+  scene.add(makeOrbitRing(p.orbitRadius));
+
+  if (p.moon) {                                   // 月球：地球局部坐标系内运行
+    const moonPivot = new THREE.Group();
+    system.add(moonPivot);
+    const moonMesh = makeBody(p.moon);
+    moonMesh.position.x = p.moon.orbitRadius;
+    moonPivot.add(moonMesh);
+    orbiters.push({ pivot: moonPivot, periodSeconds: p.moon.orbitPeriod * TIME.SECONDS_PER_DAY });
+  }
+}
+
+// ---------- 统一动画循环 ----------
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  for (const o of orbiters) o.pivot.rotation.y += dt * Math.PI * 2 / o.periodSeconds;
+  for (const s of spinners) s.mesh.rotation.y += dt * Math.PI * 2 / s.periodSeconds;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ---------- 点击查询 ----------
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let downXY = null;
+
+renderer.domElement.addEventListener('pointerdown', e => { downXY = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downXY) return;
+  const moved = Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]);
+  downXY = null;
+  if (moved > 5) return; // 拖拽视角时不触发选择
+  pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects(clickables, false)[0];
+  showInfo(hit ? hit.object.userData : null);
+});
+
+function showInfo(d) {
+  const el = document.getElementById('info');
+  if (!d) { el.classList.remove('visible'); return; }
+  const rows = [];
+  if (d.radius != null)         rows.push(['相对半径', `${d.radius}（地球 = 1）`]);
+  if (d.orbitRadius != null)    rows.push(['轨道半径', `${d.orbitRadius}（相对单位）`]);
+  if (d.orbitPeriod != null)    rows.push(['公转周期', d.isMoon ? `${d.orbitPeriod} 天` : `${d.orbitPeriod} 地球年`]);
+  if (d.rotationPeriod != null) rows.push(['自转周期', `${Math.abs(d.rotationPeriod)} 天${d.rotationPeriod < 0 ? '（逆行）' : ''}`]);
+  el.innerHTML =
+    `<h2>${d.name}<span>${d.en}</span></h2>` +
+    `<table>${rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>`;
+  el.classList.add('visible');
+}
+
+// ---------- 窗口自适应 ----------
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
