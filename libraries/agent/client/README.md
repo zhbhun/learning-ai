@@ -19,3 +19,4 @@
 - [orca](https://github.com/stablyai/orca)
 - https://github.com/workany-ai/workany
 - [UI-TARS-desktop](https://github.com/bytedance/UI-TARS-desktop) - The Open-Source Multimodal AI Agent Stack: Connecting Cutting-Edge AI Models and Agent Infra
+- [vibeyard](https://github.com/elirantutia/vibeyard) - The IDE built for AI coding agents.
