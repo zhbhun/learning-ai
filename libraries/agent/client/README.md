@@ -1,3 +1,4 @@
+- [AionUi](https://github.com/iOfficeAI/AionUi) - Free, local, open-source 24/7 Cowork app for OpenClaw, Hermes Agent, Claude Code, Codex, OpenCode, Gemini CLI and 20+ more CLI | Customize your assistants | Star if you like it!
 - [openchamber](https://github.com/openchamber/openchamber) - Desktop and web interface for OpenCode AI agent
 - [superset](https://github.com/superset-sh/superset) - Code Editor for the AI Agents Era - Run an army of Claude Code, Codex, etc. on your machine
 - [happy](https://github.com/slopus/happy) - 20k ★ - Mobile and Web client for Codex and Claude Code, with realtime voice, encryption and fully featured
