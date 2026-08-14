@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>交互式太阳系 · Three.js</title>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <!-- 左上：操作提示 -->
+    <div id="hint" class="hint">
+      <div class="hint-title">交互式太阳系</div>
+      <ul>
+        <li><b>左键拖拽</b>：旋转视角</li>
+        <li><b>右键拖拽</b>：平移</li>
+        <li><b>滚轮</b>：缩放</li>
+        <li><b>点击天体</b>：查看名称与数据</li>
+      </ul>
+    </div>
+
+    <!-- 点击天体后弹出的信息面板 -->
+    <div id="info-panel" class="info-panel hidden">
+      <button id="info-close" class="info-close" title="关闭">×</button>
+      <h2 id="info-name">—</h2>
+      <div id="info-name-en" class="info-name-en">—</div>
+      <table id="info-data" class="info-data"></table>
+      <p id="info-desc" class="info-desc"></p>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

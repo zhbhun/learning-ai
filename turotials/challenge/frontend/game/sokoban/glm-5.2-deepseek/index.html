@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>仓库番 · Sokoban 推箱子</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <h1>📦 仓库番 <span class="sub">Sokoban · 推箱子</span></h1>
+        <div class="level-nav">
+          <button id="prevLevel" title="上一关">◀</button>
+          <select id="levelSelect"></select>
+          <button id="nextLevel" title="下一关">▶</button>
+        </div>
+      </header>
+
+      <main class="stage">
+        <div class="hud">
+          <div class="hud-item"><span class="k">关卡</span><span id="hudLevel" class="v">1</span></div>
+          <div class="hud-item"><span class="k">步数</span><span id="hudMoves" class="v">0</span></div>
+          <div class="hud-item"><span class="k">推动</span><span id="hudPushes" class="v">0</span></div>
+          <div class="hud-item"><span class="k">箱数</span><span id="hudBoxes" class="v">0/0</span></div>
+        </div>
+
+        <div id="board" class="board" tabindex="0"></div>
+
+        <div id="banner" class="banner hidden">🎉 恭喜过关！<button id="nextOnWin">下一关 ▶</button></div>
+
+        <div class="dpad">
+          <button class="dp up" data-dir="U">▲</button>
+          <button class="dp left" data-dir="L">◀</button>
+          <button class="dp down" data-dir="D">▼</button>
+          <button class="dp right" data-dir="R">▶</button>
+        </div>
+
+        <div class="controls">
+          <button id="resetBtn" class="ctl">↺ 重置</button>
+          <button id="undoBtn" class="ctl">⤺ 撤销</button>
+          <button id="solveBtn" class="ctl primary">💡 答案（逐步解题）</button>
+        </div>
+
+        <div id="solverPanel" class="solver hidden">
+          <div class="solver-head">
+            <span id="solverInfo">解题中…</span>
+            <span id="solverStep" class="step">0 / 0</span>
+          </div>
+          <div class="solver-controls">
+            <button id="solvePrev" class="ctl">⏮ 上一步</button>
+            <button id="solvePlay" class="ctl">▶ 自动播放</button>
+            <button id="solveNext" class="ctl primary">下一步 ⏭</button>
+          </div>
+          <input id="solverSpeed" type="range" min="80" max="600" value="280" step="20" />
+          <div class="speed-label">播放速度</div>
+        </div>
+
+        <p class="hint">
+          方向键 / WASD 移动，或点击方向按钮。把所有 <b>箱子</b> 推到 <b>目标点</b> 上即可过关。
+          卡住了？点 <b>答案</b> 可逐步演示最优解。
+        </p>
+      </main>
+    </div>
+
+    <script src="sokoban.js"></script>
+    <script src="levels.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
