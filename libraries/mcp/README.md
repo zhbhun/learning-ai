@@ -1,5 +1,7 @@
 # [MCP](https://modelcontextprotocol.io/introduction)
 
+- [mcpb](https://github.com/modelcontextprotocol/mcpb) - Desktop Extensions: One-click local MCP server installation in desktop apps
+
 ## 教程
 
 - [6000字+6个案例：写给普通人的MCP入门指南](https://mp.weixin.qq.com/s/BjsoBsUxCzeqXZq46_nrog)
