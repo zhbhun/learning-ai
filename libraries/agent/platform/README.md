@@ -10,7 +10,6 @@
 - [Aperant](https://github.com/AndyMik90/Aperant) - Autonomous multi-session AI coding
 - [claudecodeui](https://github.com/siteboon/claudecodeui) - Use Claude Code, Cursor CLI or Codex on mobile and web with CloudCLI (aka Claude Code UI). CloudCLI is a free open source webui/GUI that helps you manage your Claude Code session and projects remotely
 - [hapi](https://github.com/tiann/hapi) - App for Claude Code / Codex / Gemini / OpenCode, vibe coding anytime, anywhere
-- [OpenChamber](https://github.com/openchamber/openchamber) - Desktop and web interface for OpenCode AI agent
 - [Superset](https://docs.superset.sh) - Superset is a desktop app for managing multiple codebases with git worktrees. Work on several branches simultaneously, each in its own isolated workspace.
 - [Maestro](https://github.com/RunMaestro/Maestro) - Agent Orchestration Command Center
 - [openclaw-mission-control](https://github.com/abhi1693/openclaw-mission-control) - AI Agent Orchestration Dashboard - Manage AI agents, assign tasks, and coordinate multi-agent collaboration via OpenClaw Gateway.
