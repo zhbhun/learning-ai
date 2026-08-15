@@ -161,3 +161,7 @@
 - 缺点：在纯算法问题上限制明显，需要多次调用 LLM 来构造计划，纯算法问题无法套用逻辑
 - 场景：数学证明、复杂数据分析、战略规划
 - 原理：Self-Discover 的核心是让大模型在更小粒度上对 task 本身进行反思，比如前文中的 Plan & Solve 是反思 task 是不是需要补充，而 Self-Discover 是对 task 本身进行反思。
+
+## 参考文献
+
+- [agentic-ai](https://github.com/datawhalechina/agentic-ai)
