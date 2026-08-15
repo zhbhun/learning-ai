@@ -4,6 +4,7 @@
 
 | 技术\特性 | 语音识别（ASR） | 语种识别（LID） | 语音情感识别（SER） | 声学事件识别（AED） | 总结 |
 | --- | --- | --- | --- | --- | --- |
+| [CrisperWhisper](https://github.com/nyrahealth/CrisperWhisper) |✔ | | | |
 | [Whisper](https://github.com/openai/whisper) | | | | | 高质量通用语音转文字 |
 | [FunASR](https://github.com/modelscope/FunASR) | ✔ | | | | 支持中文识别极佳 |
 | [Coqui STT](https://github.com/coqui-ai/STT) / [DeepSpeech](https://github.com/mozilla/DeepSpeech) | ✔ | | | | 可 fine-tune 适配领域词汇，但比 Vosk 更重，需要较大内存 |
