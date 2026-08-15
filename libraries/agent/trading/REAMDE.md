@@ -3,6 +3,7 @@
 
   [使用 Docker Compose 部署TradingAgents-CN v1.0.0-preview（完全版）](https://mp.weixin.qq.com/s/JkA0cOu8xJnoY_3LC5oXNw)
 
+- [Vibe-Trading](https://github.com/HKUDS/Vibe-Trading) - https://github.com/HKUDS/Vibe-Trading
 - [daily_stock_analysis](https://github.com/ZhuLinsen/daily_stock_analysis) - LLM 驱动的多市场股票智能分析系统：多源行情、实时新闻、决策看板与自动推送，支持零成本定时运行。
 - [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) - An AI Hedge Fund Team
 - [AI-Trader](https://github.com/HKUDS/AI-Trader) - "AI-Trader: 100% Fully-Automated Agent-Native Trading"
@@ -21,3 +22,4 @@
 ## 数据
 
 - [a-stock-data](https://github.com/simonlin1212/a-stock-data) - A 股全栈数据工具包
+- [美股编年史](https://historyofmarket.com/)
