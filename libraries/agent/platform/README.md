@@ -1,6 +1,7 @@
 - https://cline.bot/kanban
 - https://github.com/paperclipai/paperclip
 - [multica](https://github.com/multica-ai/multica) - The open-source managed agents platform. Turn coding agents into real teammates — assign tasks, track progress, compound skills.
+- [buzz](https://github.com/block/buzz) - A hive mind communication platform
 
 ---
 
