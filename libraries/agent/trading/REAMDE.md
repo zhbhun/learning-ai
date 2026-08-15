@@ -13,3 +13,6 @@
   https://www.v2ex.com/t/1222186#reply182
 
 - [ai-berkshire](https://github.com/xbtlin/ai-berkshire) - AI 时代的伯克希尔：基于 Claude Code 的价值投资研究框架。巴菲特·芒格·段永平·李录四大师方法论 + 多Agent并行研究。
+- [evidenceloom](https://github.com/simonguo/evidenceloom)
+
+  https://www.v2ex.com/t/1229623#reply4
