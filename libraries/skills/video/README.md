@@ -1,1 +1,2 @@
 - [Remotion Agent Skills](https://www.remotion.dev/docs/ai/skills)
+- [OpenMontage](https://github.com/calesthio/OpenMontage) - World's first open-source, agentic video production system. 12 production pipelines, 100+ tools, 700+ agent skill and production-knowledge files. Turn your AI coding assistant into a full video production studio.
