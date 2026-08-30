@@ -1,3 +1,4 @@
+- [chatnio](https://github.com/zmh-program/chatnio) - Next Generation AI One-Stop Internationalization Solution. 
 - [openrouter](https://openrouter.ai/)
 - [requesty](https://www.requesty.ai/)
 - https://jiekou.ai/
