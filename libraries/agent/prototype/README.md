@@ -1,0 +1,2 @@
+- [Open Deisgn](https://github.com/nexu-io/open-design) - Best DeepSeek Harness Design Plugin. The open-source Claude Design alternative. 
+- [agent-native]()

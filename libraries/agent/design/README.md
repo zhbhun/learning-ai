@@ -1,5 +1,7 @@
+- [Figma Make](https://www.figma.com/make)
 - [calude design](https://www.anthropic.com/news/claude-design-anthropic-labs)
 - [Open Design](https://github.com/nexu-io/open-design) 
+- [HTML Anything](https://github.com/nexu-io/html-anything)
 - [open-codesign](https://github.com/OpenCoworkAI/open-codesign)
 - https://www.pencil.dev/
 - https://impeccable.style/
