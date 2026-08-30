@@ -1,12 +1,18 @@
-- https://cline.bot/kanban
-- https://github.com/paperclipai/paperclip
-- [multica](https://github.com/multica-ai/multica) - The open-source managed agents platform. Turn coding agents into real teammates — assign tasks, track progress, compound skills.
+- [nimbalyst](https://github.com/Nimbalyst/nimbalyst) - The open-source visual workspace for Claude Code, Codex, and OpenCode. Run multiple coding agents in parallel, edit their work visually in markdown, mockups, and diagrams, and track tasks. Free, MIT-licensed desktop app for macOS, Windows, Linux, with mobile companion for iOS and Android.
+
+## Task
+
 - [buzz](https://github.com/block/buzz) - A hive mind communication platform
+- [multica](https://github.com/multica-ai/multica) - The open-source managed agents platform. Turn coding agents into real teammates — assign tasks, track progress, compound skills.
+- https://cline.bot/kanban
+- [vibe-kanban](https://github.com/BloopAI/vibe-kanban) - Get 10X more out of Claude Code, Codex or any coding agent
+
+## Company
+
+- https://github.com/paperclipai/paperclip
 
 ---
 
-- [cline](https://cline.bot/kanban) - https://cline.bot/kanban
-- [vibe-kanban](https://github.com/BloopAI/vibe-kanban) - Get 10X more out of Claude Code, Codex or any coding agent
 - [Aperant](https://github.com/AndyMik90/Aperant) - Autonomous multi-session AI coding
 - [claudecodeui](https://github.com/siteboon/claudecodeui) - Use Claude Code, Cursor CLI or Codex on mobile and web with CloudCLI (aka Claude Code UI). CloudCLI is a free open source webui/GUI that helps you manage your Claude Code session and projects remotely
 - [hapi](https://github.com/tiann/hapi) - App for Claude Code / Codex / Gemini / OpenCode, vibe coding anytime, anywhere

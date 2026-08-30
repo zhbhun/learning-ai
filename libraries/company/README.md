@@ -1,1 +1,0 @@
-- [爱诗科技](https://aishiai.com)
