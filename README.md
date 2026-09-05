@@ -7,7 +7,7 @@
 
 ## 订阅
 
-- [ai weekly](https://aiweekly.co/issues/)
+- [AI Weekly](https://aiweekly.co/) - Discover what AI experts are reading and sharing right now. [Archive](https://aiweekly.co/issues/)
 
 ## 导航
 
