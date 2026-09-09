@@ -1,4 +1,5 @@
 - [nimbalyst](https://github.com/Nimbalyst/nimbalyst) - The open-source visual workspace for Claude Code, Codex, and OpenCode. Run multiple coding agents in parallel, edit their work visually in markdown, mockups, and diagrams, and track tasks. Free, MIT-licensed desktop app for macOS, Windows, Linux, with mobile companion for iOS and Android.
+- [Team Brain](https://team-brain.com/) - Team Brain is the AI-native workspace for your whole organization: docs, databases, files, and AI agents in one fast place.
 
 ## Task
 
