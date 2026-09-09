@@ -11,6 +11,7 @@
 
   https://www.v2ex.com/t/1209559
 
+- [traycer](https://github.com/traycerai/traycer) - Bring your existing provider subscriptions and run multiple agents in parallel without losing context, using shared memory across all models and providers.
 - [VibeAround](https://github.com/jazzenchen/VibeAround) - Keep your AI coding agents around. Launch Claude Code, Codex CLI, Gemini CLI, Pi Agent, and more from one place — side by side, connected, reachable, and ready to work across web, mobile, and messaging.
 
   https://global.v2ex.com/t/1220332
