@@ -1,5 +1,5 @@
 - [Agentic Design Patterns](https://adp.xindoo.xyz/)
-- [深入理解 AI Agent](https://bojieli.github.io/ai-agent-book/)
+- [深入理解 AI Agent](https://bojieli.github.io/ai-agent-book/) / https://github.com/bojieli/ai-agent-book
 
 ## 模式
 
