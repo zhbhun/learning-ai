@@ -1,1 +1,2 @@
 - [eli5](https://github.com/cloudflare/cloudflare-docs/tree/production/.agents/skills/eli5) - An agent skill that simplifies dense, jargon-heavy technical documentation into accessible explanations. It analyzes content for clarity issues, adds inline definitions, and produces before/after comparisons — all while maintaining technical accuracy.
+- [DreambigOu/ELI5](https://github.com/DreambigOu/ELI5) - ELI5 — A Claude Code skill that explains anything to anyone: kids, managers, engineers, parents. Adapts tone, vocabulary, and analogies to match the audience.
