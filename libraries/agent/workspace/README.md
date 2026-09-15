@@ -2,6 +2,7 @@
 - [Team Brain](https://team-brain.com/) - Team Brain is the AI-native workspace for your whole organization: docs, databases, files, and AI agents in one fast place.
 - [Fractal](https://tryfractal.co/) - A workspace for humans01 and agents02, shaped around your work03.
 - [runcabinet](https://runcabinet.com/) - 
+- [Lody]( https://github.com/LodyAI/Lody) - Share coding agents with your team on phone and desktop
 
 ## Task
 
