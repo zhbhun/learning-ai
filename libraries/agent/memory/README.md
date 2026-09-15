@@ -1,3 +1,6 @@
+- [OpenViking](https://github.com/volcengine/OpenViking) - Self-evolving Context Database for AI Agents. Unify Agent Memory, Knowledge RAG and Skills.
+
+
 - [claude-mem](https://github.com/thedotmack/claude-mem) - Persistent Context Across Sessions for Every Agent – Captures everything your agent does during sessions, compresses it with AI, and injects relevant context back into future sessions. Works with Claude Code, OpenClaw, Codex, Gemini, Hermes, Copilot, OpenCode + More
 - [TencentDB Agent Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory)
 - [gbrain](https://github.com/garrytan/gbrain) - Garry's Opinionated OpenClaw/Hermes Agent Brain
