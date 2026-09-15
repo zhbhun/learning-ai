@@ -1,3 +1,4 @@
+- [openwiki](https://github.com/langchain-ai/openwiki)
 - https://deepwiki.com/
 - https://codewiki.google/
 - https://codemap.app/
