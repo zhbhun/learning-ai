@@ -1,4 +1,5 @@
 - https://www.designprompts.dev/
+- https://www.ui-skills.com/
 - https://github.com/VoltAgent/awesome-design-md
 - [emilkowalski/skills](https://github.com/emilkowalski/skills) - Skills for Designers and Engineers.
 - [taste-skill](https://github.com/Leonxlnx/taste-skill)
