@@ -1,0 +1,4 @@
+- [humanizer](https://github.com/blader/humanizer) - Agent skill that removes signs of AI-generated writing from text
+- [Humanizer-zh](https://github.com/op7418/Humanizer-zh) - Humanizer 的汉化版本
+- [stop-slop](https://github.com/hardikpandya/stop-slop) - A skill file for removing AI tells from prose
+- [shuorenhua](https://github.com/MrGeDiao/shuorenhua) - 说人话｜中文优先的去 AI 味改写 skill：保事实、分场景、改完可直接发。
