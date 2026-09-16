@@ -1,1 +1,2 @@
+- [affine](https://app.affine.pro/) - 
 - [cobloc](https://cobloc.app/) - A workspace as fluid as your thinking, capture ideas, track work, and build with AI, on one canvas.
