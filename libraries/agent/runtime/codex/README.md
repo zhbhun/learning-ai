@@ -1,0 +1,2 @@
+- https://github.com/duolahypercho/codex-router
+- https://github.com/BigPizzaV3/CodexPlusPlus
