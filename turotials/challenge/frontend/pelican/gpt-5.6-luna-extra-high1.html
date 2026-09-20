@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>鹈鹕骑自行车 · SVG 2D 动画</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #102237;
+      --cream: #fff6df;
+      --gold: #ffc857;
+      --blue: #0e7490;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 50% -20%, #264d68 0, #142b43 42%, #071523 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .poster {
+      width: min(100%, 1080px);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 30px;
+      background: #112b42;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .38);
+    }
+
+    .intro {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 26px 30px 20px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #8ed6d5;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--cream);
+      font-size: clamp(28px, 5vw, 52px);
+      line-height: .98;
+      letter-spacing: -.05em;
+    }
+
+    .intro p {
+      max-width: 330px;
+      margin: 0;
+      color: #b6cddd;
+      font-size: 14px;
+      line-height: 1.55;
+      text-align: right;
+    }
+
+    .stage-wrap {
+      position: relative;
+      margin: 0 14px 14px;
+      overflow: hidden;
+      border-radius: 22px;
+      background: #f7c86f;
+      isolation: isolate;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .controls {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      border: 1px solid rgba(255, 255, 255, .36);
+      border-radius: 999px;
+      background: rgba(13, 34, 51, .64);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+      backdrop-filter: blur(10px);
+    }
+
+    button {
+      min-width: 42px;
+      height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 999px;
+      color: #fff9e7;
+      background: rgba(255, 255, 255, .12);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 750;
+      transition: transform .18s ease, background .18s ease;
+    }
+
+    button:hover { background: rgba(255, 255, 255, .24); transform: translateY(-1px); }
+    button:focus-visible { outline: 3px solid #8ed6d5; outline-offset: 2px; }
+
+    .status {
+      min-width: 58px;
+      padding: 0 5px;
+      color: #d6e7ee;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .caption {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 30px 26px;
+      color: #91adbf;
+      font-size: 12px;
+    }
+
+    .caption span:last-child { color: #d9bd72; }
+
+    /* Motion is deliberately grouped under .animation so one button can pause the whole scene. */
+    .animation { transform-box: fill-box; }
+
+    .motion-float { animation: float 3.8s ease-in-out infinite; transform-origin: center; }
+    .road-motion { animation: roadDrift 12s linear infinite; }
+    .cloud-motion { animation: cloudDrift 24s linear infinite; }
+    .wheel-motion { animation: wheelSpin 1.05s linear infinite; transform-origin: center; }
+    .crank-motion { animation: wheelSpin 1.05s linear infinite reverse; transform-box: view-box; transform-origin: 496px 384px; }
+    .leg-front { animation: legPedal 1.05s ease-in-out infinite; transform-box: view-box; transform-origin: 496px 364px; }
+    .leg-back { animation: legPedalBack 1.05s ease-in-out infinite; transform-box: view-box; transform-origin: 496px 364px; }
+    .wing-motion { animation: wingFlap 1.05s ease-in-out infinite; transform-origin: 363px 289px; }
+    .feather-motion { animation: featherNod 1.9s ease-in-out infinite; transform-origin: 302px 264px; }
+
+    .paused .motion-float,
+    .paused .road-motion,
+    .paused .cloud-motion,
+    .paused .wheel-motion,
+    .paused .crank-motion,
+    .paused .leg-front,
+    .paused .leg-back,
+    .paused .wing-motion,
+    .paused .feather-motion { animation-play-state: paused; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px); }
+    }
+
+    @keyframes roadDrift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-180px); }
+    }
+
+    @keyframes cloudDrift {
+      from { transform: translateX(-80px); }
+      to { transform: translateX(300px); }
+    }
+
+    @keyframes wheelSpin { to { transform: rotate(360deg); } }
+
+    @keyframes legPedal {
+      0%, 100% { transform: rotate(-25deg); }
+      50% { transform: rotate(32deg); }
+    }
+
+    @keyframes legPedalBack {
+      0%, 100% { transform: rotate(28deg); }
+      50% { transform: rotate(-30deg); }
+    }
+
+    @keyframes wingFlap {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(-8deg); }
+    }
+
+    @keyframes featherNod {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(3deg); }
+    }
+
+    @media (max-width: 700px) {
+      body { padding: 10px; }
+      .poster { border-radius: 22px; }
+      .intro { display: block; padding: 22px 20px 16px; }
+      .intro p { margin-top: 14px; text-align: left; }
+      .caption { display: block; padding: 0 20px 20px; line-height: 1.6; }
+      .caption span { display: block; }
+      .caption span:last-child { margin-top: 4px; }
+      .controls { right: 12px; bottom: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .motion-float,
+      .road-motion,
+      .cloud-motion,
+      .wheel-motion,
+      .crank-motion,
+      .leg-front,
+      .leg-back,
+      .wing-motion,
+      .feather-motion { animation-play-state: paused; }
+    }
+  </style>
+</head>
+<body>
+  <main class="poster">
+    <header class="intro">
+      <div>
+        <p class="eyebrow">SVG motion study · 01</p>
+        <h1>Pelican on<br />the move</h1>
+      </div>
+      <p>一只不太符合空气动力学的鹈鹕，决定用自行车赶上黄昏。</p>
+    </header>
+
+    <section class="stage-wrap" aria-label="鹈鹕骑自行车的 SVG 动画场景">
+      <svg id="pelicanScene" viewBox="0 0 960 600" role="img" aria-labelledby="sceneTitle sceneDesc">
+        <title id="sceneTitle">鹈鹕骑自行车穿过夕阳公路</title>
+        <desc id="sceneDesc">夕阳、云朵、山丘和一只踩着自行车的鹈鹕，车轮和双腿持续运动。</desc>
+
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#4b9ab0" />
+            <stop offset=".58" stop-color="#f2bd6b" />
+            <stop offset="1" stop-color="#ef8c5f" />
+          </linearGradient>
+          <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#315a67" />
+            <stop offset="1" stop-color="#102d43" />
+          </linearGradient>
+          <linearGradient id="birdBody" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#fff7df" />
+            <stop offset=".72" stop-color="#e8e3d0" />
+            <stop offset="1" stop-color="#c8c5ba" />
+          </linearGradient>
+          <linearGradient id="beak" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f7b953" />
+            <stop offset="1" stop-color="#e77b42" />
+          </linearGradient>
+          <filter id="softShadow" x="-30%" y="-30%" width="160%" height="170%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="blur" />
+            <feOffset dy="14" result="offset" />
+            <feComponentTransfer><feFuncA type="linear" slope=".22" /></feComponentTransfer>
+            <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <filter id="sunGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="22" result="glow" />
+            <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <pattern id="roadGrain" width="50" height="36" patternUnits="userSpaceOnUse">
+            <path d="M4 8h9M28 26h6M43 13h2" stroke="#8ea4a4" stroke-opacity=".13" stroke-width="2" stroke-linecap="round" />
+          </pattern>
+        </defs>
+
+        <!-- Landscape -->
+        <rect width="960" height="600" fill="url(#sky)" />
+        <circle cx="720" cy="172" r="90" fill="#ffd98a" opacity=".34" filter="url(#sunGlow)" />
+        <circle cx="720" cy="172" r="48" fill="#ffe5a3" opacity=".95" />
+
+        <g class="cloud-motion" opacity=".62" fill="#fff6dc">
+          <path d="M-90 132c29-39 76-43 105-8 24-48 96-47 113 9 48-12 76 11 82 38H-90Z" />
+          <path d="M640 96c19-28 53-27 69 1 28-32 78-20 87 17 34-9 56 8 59 31H630Z" opacity=".7" />
+        </g>
+
+        <path d="M0 346 150 237l98 81 130-124 142 112 128-92 142 110 130-96v210H0Z" fill="#568187" opacity=".74" />
+        <path d="M0 385 138 298l115 66 128-83 102 72 142-91 132 78 104-60 99 78v178H0Z" fill="#28596a" opacity=".94" />
+        <path d="M0 420c160-30 266-25 390-4 142 24 260-12 365-21 91-8 149 12 205 30v175H0Z" fill="#1e4d5b" />
+
+        <!-- Long road and drifting lane markers -->
+        <path d="M0 418c205-28 355-17 481 0 192 27 326 9 479-12v194H0Z" fill="url(#road)" />
+        <path d="M0 418c205-28 355-17 481 0 192 27 326 9 479-12v194H0Z" fill="url(#roadGrain)" />
+        <g class="road-motion" fill="#f9da92" opacity=".88">
+          <path d="M-40 500h96l-12 12h-99Z" />
+          <path d="M145 492h87l-8 11h-91Z" />
+          <path d="M315 485h82l-3 11h-88Z" />
+          <path d="M486 478h78l3 11h-81Z" />
+          <path d="M656 468h78l10 11h-81Z" />
+          <path d="M832 455h94l17 12h-91Z" />
+          <path d="M1030 434h91l31 12h-92Z" />
+        </g>
+
+        <!-- Character shadow -->
+        <ellipse cx="487" cy="514" rx="235" ry="23" fill="#061b29" opacity=".35" />
+
+        <g class="animation motion-float" filter="url(#softShadow)">
+          <!-- bicycle frame -->
+          <g stroke="#16384e" stroke-linecap="round" stroke-linejoin="round">
+            <g fill="none" stroke-width="7">
+              <path d="M351 436 438 361 519 439 351 436 496 384 438 361" />
+              <path d="M519 439 496 384 560 372" />
+              <path d="M560 372h26" />
+              <path d="M438 361h-28l-26-17" />
+            </g>
+            <g fill="none" stroke="#f5e5ba" stroke-width="5" opacity=".95">
+              <path d="M351 436 438 361 519 439 351 436" />
+            </g>
+          </g>
+
+          <!-- rear wheel -->
+          <g class="wheel-motion" fill="none" stroke="#16384e">
+            <circle cx="351" cy="436" r="64" stroke-width="8" />
+            <circle cx="351" cy="436" r="6" fill="#f9d37e" stroke-width="4" />
+            <path d="M351 378v116M293 436h116M310 395l82 82M392 395l-82 82" stroke-width="2" opacity=".62" />
+          </g>
+
+          <!-- front wheel -->
+          <g class="wheel-motion" fill="none" stroke="#16384e">
+            <circle cx="560" cy="436" r="64" stroke-width="8" />
+            <circle cx="560" cy="436" r="6" fill="#f9d37e" stroke-width="4" />
+            <path d="M560 378v116M502 436h116M519 395l82 82M601 395l-82 82" stroke-width="2" opacity=".62" />
+          </g>
+
+          <!-- pelican torso -->
+          <path d="M328 298c7-46 49-75 102-69 39 4 78 28 87 68 9 39-8 70-43 81-41 14-99 6-132-18-17-13-19-35-14-62Z" fill="url(#birdBody)" stroke="#21394a" stroke-width="5" />
+          <ellipse cx="398" cy="325" rx="62" ry="27" fill="#b7bac0" opacity=".46" />
+
+          <!-- back wing -->
+          <path class="wing-motion" d="M355 284c28-40 69-40 93-19-15 10-25 26-31 48-16 9-39 8-62-2Z" fill="#d1d2cb" stroke="#21394a" stroke-width="5" />
+          <path d="M380 278c22 0 41 13 54 29M372 289c19 0 34 9 46 22" fill="none" stroke="#9ea8aa" stroke-width="4" stroke-linecap="round" />
+
+          <!-- neck and head -->
+          <path d="M364 275c-14-23-5-62 17-81 17-16 43-19 63-3 21 16 29 48 16 75-12 26-34 42-61 40-16-1-28-11-35-31Z" fill="url(#birdBody)" stroke="#21394a" stroke-width="5" />
+          <path class="feather-motion" d="M379 206c-17-16-31-10-43 3 13 0 20 4 27 13Z" fill="#e2e3da" stroke="#21394a" stroke-width="4" />
+          <path d="M395 192c-11-18-27-19-41-8 13 3 21 10 26 20Z" fill="#f0f0e5" stroke="#21394a" stroke-width="4" />
+
+          <!-- eye and beak -->
+          <circle cx="420" cy="219" r="11" fill="#112b42" />
+          <circle cx="424" cy="215" r="3" fill="#fff6d8" />
+          <path d="M431 230c32 1 75 8 104 24 8 5 7 14-2 17-38 12-73 6-104-9-12-6-16-20 2-32Z" fill="url(#beak)" stroke="#21394a" stroke-width="5" />
+          <path d="M443 249c27 4 57 11 82 12" fill="none" stroke="#bd5f42" stroke-width="4" stroke-linecap="round" />
+          <path d="M493 253c13 5 26 10 37 10" fill="none" stroke="#ffe0a1" stroke-width="7" stroke-linecap="round" opacity=".8" />
+
+          <!-- legs, placed behind the frame -->
+          <g fill="none" stroke="#d76f3e" stroke-linecap="round" stroke-linejoin="round">
+            <path class="leg-back" d="M415 346c26 14 57 27 81 38l-7 12c-31-5-63-14-91-30Z" stroke-width="11" />
+            <path class="leg-front" d="M451 345c17 22 31 42 43 64l-11 8c-22-16-42-34-58-57Z" stroke-width="12" />
+          </g>
+          <g fill="none" stroke="#f7c55d" stroke-width="6" stroke-linecap="round">
+            <path d="M485 396h30M474 412h30" />
+          </g>
+
+          <!-- handlebar and rider wing -->
+          <path d="M552 372c7-17 18-20 28-20 9 0 17 4 21 11M574 352l-5-16" fill="none" stroke="#16384e" stroke-width="6" stroke-linecap="round" />
+          <path class="wing-motion" d="M430 296c38 2 66 22 93 51-11 18-25 29-43 30-25-22-46-43-62-64Z" fill="#f0eee2" stroke="#21394a" stroke-width="5" />
+          <path d="M444 309c22 8 44 24 61 44M457 303c22 9 39 21 54 37" fill="none" stroke="#afb6b7" stroke-width="4" stroke-linecap="round" />
+
+          <!-- pedal crank -->
+          <g class="crank-motion" transform-box="fill-box">
+            <circle cx="496" cy="384" r="11" fill="#f9d37e" stroke="#16384e" stroke-width="4" />
+            <path d="M496 384l26 18M496 384l-24-19" stroke="#f9d37e" stroke-width="6" stroke-linecap="round" />
+            <path d="M519 402h17M472 365h-17" stroke="#16384e" stroke-width="5" stroke-linecap="round" />
+          </g>
+        </g>
+
+        <!-- tiny foreground grass -->
+        <g fill="none" stroke="#96b175" stroke-width="4" stroke-linecap="round" opacity=".78">
+          <path d="M58 579l-8-25m8 25 9-31m-9 31 18-18M871 579l-7-27m7 27 12-34m-12 34 19-21M913 584l-3-22m3 22 12-28" />
+        </g>
+      </svg>
+
+      <div class="controls" aria-label="动画控制">
+        <button id="toggleButton" type="button" aria-pressed="false">暂停</button>
+        <button id="replayButton" type="button">重播</button>
+        <span id="status" class="status" aria-live="polite">播放中</span>
+      </div>
+    </section>
+
+    <footer class="caption">
+      <span>原生 SVG · 内嵌 CSS 动画 · 无外部素材</span>
+      <span>点击暂停或重播</span>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      const scene = document.getElementById('pelicanScene');
+      const toggleButton = document.getElementById('toggleButton');
+      const replayButton = document.getElementById('replayButton');
+      const status = document.getElementById('status');
+
+      const setPaused = (paused) => {
+        scene.classList.toggle('paused', paused);
+        toggleButton.textContent = paused ? '播放' : '暂停';
+        toggleButton.setAttribute('aria-pressed', String(paused));
+        status.textContent = paused ? '已暂停' : '播放中';
+      };
+
+      toggleButton.addEventListener('click', () => {
+        setPaused(!scene.classList.contains('paused'));
+      });
+
+      replayButton.addEventListener('click', () => {
+        scene.classList.remove('paused');
+        scene.querySelectorAll('.motion-float, .road-motion, .cloud-motion, .wheel-motion, .crank-motion, .leg-front, .leg-back, .wing-motion, .feather-motion').forEach((element) => {
+          element.style.animation = 'none';
+          void element.offsetWidth;
+          element.style.animation = '';
+        });
+        setPaused(false);
+      });
+    })();
+  </script>
+</body>
+</html>
