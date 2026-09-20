@@ -1,0 +1,3 @@
+- https://github.com/TheoLeeCJ/SemIf
+- https://docs.typesafe.ai/introduction
+- https://github.com/yibie/awesome-jev
