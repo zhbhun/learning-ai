@@ -1,5 +1,8 @@
+- LangGraph
+- [mastra](https://github.com/mastra-ai/mastra) - Mastra is the modern TypeScript framework for AI-powered applications and agents.
+- [voltagent](https://github.com/voltagent/voltagent) - AI Agent Engineering Platform built on an Open Source TypeScript AI Agent Framework
+- [eve](https://vercel.com/eve)
 - [goose](https://github.com/aaif-goose/goose) - an open source, extensible AI agent that goes beyond code suggestions - install, execute, edit, and test with any LLM
 - [GenericAgent](https://github.com/lsdefine/GenericAgent) - Self-evolving agent: grows skill tree from 3.3K-line seed, achieving full system control with 6x less token consumption
 - [voltagent](https://github.com/VoltAgent/voltagent) - AI Agent Engineering Platform built on an Open Source TypeScript AI Agent Framework
 - [agent-native](https://github.com/BuilderIO/agent-native) - A framework for building agent-native applications.
-- [mastra](https://github.com/mastra-ai/mastra) - Mastra is the modern TypeScript framework for AI-powered applications and agents.
