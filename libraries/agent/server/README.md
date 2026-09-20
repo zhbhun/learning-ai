@@ -1,0 +1,4 @@
+- [agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) - agent-sandbox enables easy management of isolated, stateful, singleton workloads, ideal for use cases like AI agent runtimes and reinforcement learning (RL).
+- [OpenShell](https://github.com/NVIDIA/OpenShell) - OpenShell is the safe, private runtime for autonomous AI agents.
+- https://github.com/temporalio/temporal
+- https://github.com/triggerdotdev/trigger.dev
