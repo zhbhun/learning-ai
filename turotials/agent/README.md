@@ -1,3 +1,5 @@
+- [ai-agents-the-definitive-guide](https://github.com/Nicolepcx/ai-agents-the-definitive-guide) - Repo for AI Agents The Definitive Guide
+- [深入理解 AI Agent：设计原理与工程实践](https://github.com/bojieli/ai-agent-book)
 - [Agentic Design Patterns](https://adp.xindoo.xyz/)
 - [深入理解 AI Agent](https://bojieli.github.io/ai-agent-book/) / https://github.com/bojieli/ai-agent-book
 
