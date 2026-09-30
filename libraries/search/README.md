@@ -1,3 +1,4 @@
+- [agent-reach](https://github.com/Panniantong/agent-reach) - Give your AI agent eyes to see the entire internet. Read & search Twitter, Reddit, YouTube, GitHub, Bilibili, XiaoHongShu — one CLI, zero API fees.
 - [ollama search](https://ollama.com/blog/web-search)
 - [firecrawl](https://www.firecrawl.dev/)
 - [searxng](https://github.com/searxng/searxng) - SearXNG is a free internet metasearch engine which aggregates results from various search services and databases. Users are neither tracked nor profiled.
