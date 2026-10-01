@@ -1,0 +1,404 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './graph-streaming.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 图级流式
+
+[流式输出](?path=/docs/streaming--docs)一课讲了两级 API 的分工：`stream` 给内容增量，`streamEvents` 给过程事件。本课下沉到图编排层：`graph.stream(input, { streamMode })` 把**同一次图执行**投影成多条**通道**——`updates`（默认）给节点粒度的增量、`values` 给每步全量快照、`messages` 给 token 元组、`custom` 给节点里 `config.writer` 发出的自定义载荷、`tools` 给工具生命周期事件。通道只决定"你收到什么、以什么形态"，不改变执行本身。本课讲清通道全集、多通道组合、子图流的 `subgraphs` 选项，以及 `streamEvents` 与这套通道的两层关系和选择判断。读完你应该能预测：把 `streamMode` 从 `updates` 换成 `values` / `messages` / `custom`，`for await` 循环里拿到的东西分别变成什么。
+
+```mermaid
+flowchart LR
+  E["同一次图执行<br/>a → b → c"] -->|"streamMode: 'updates'"| U["节点增量<br/">{ b: { draft } }"]
+  E -->|"streamMode: 'values'"| V["每步全量快照<br/>首条是输入态"]
+  E -->|"streamMode: 'messages'"| M["(chunk, metadata) 元组<br/>metadata.langgraph_node 定位"]
+  E -->|"streamMode: 'custom'"| C["config.writer 的载荷"]
+  E -->|"streamMode: ['updates','custom']"| A["[mode, chunk] 交错"]
+  E -.->|"所有通道再套一层：<br/>subgraphs: true → [namespace, …]"| S["子图条目进入流"]
+```
+
+通道速查（默认值与产出形态是回查的第一落点）：
+
+| streamMode | 收到什么 | 什么时候用 |
+| --- | --- | --- |
+| `updates`（默认） | 每个节点跑完产出 `{ 节点名: 该节点的更新 }`，只含节点返回的 key | 执行进度、按节点观察路由与产出 |
+| `values` | 每个超步后的**全量** state；首条是输入态，末条等于 `invoke` 返回值 | 每步都要渲染完整状态 |
+| `messages` | `[chunk, metadata]` 元组；`chunk` 是消息增量，`metadata.langgraph_node` 标明来源节点 | 打字机文本 |
+| `custom` | 节点/工具里 `config.writer(...)` 发出的载荷 | 进度上报、转发任意 LLM 的 token |
+| `tools` | 工具生命周期事件（`on_tool_start` / `on_tool_event` / `on_tool_end` / `on_tool_error`） | 工具进度（较新通道，见下文） |
+| `debug` | 执行过程尽可能全的信息（节点名 + 全量 state 等） | 排查执行 |
+| `checkpoints` / `tasks` | checkpoint 元信息 / 任务创建与结果 | 观测持久化与任务调度（回查表见下文） |
+
+`subgraphs: true` 不是通道，是包装开关：打开后子图内部条目进入流，所有 chunk 外层加 `[namespace, …]` 前缀。
+
+## 快速上手
+
+最小闭环不需要模型：一个纯函数图，默认通道就会逐节点产出更新。
+
+```ts
+// 运行条件：Node ≥ 20（ESM）；npm i @langchain/langgraph；npx tsx quickstart.ts
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  topic: Annotation<string>(), // 无 reducer：新值覆盖
+  notes: Annotation<string[]>({
+    reducer: (a, b) => a.concat(b), // 有 reducer：追加合并
+    default: () => [],
+  }),
+});
+
+const graph = new StateGraph(State)
+  .addNode('collect', () => ({ notes: ['图级流式'] }))
+  .addNode('summarize', ({ notes }) => ({ topic: `共 ${notes.length} 条` }))
+  .addEdge(START, 'collect')
+  .addEdge('collect', 'summarize')
+  .addEdge('summarize', END)
+  .compile();
+
+// 不传 streamMode = 默认 'updates'：每个节点跑完产出一条 { 节点名: 更新 }
+for await (const chunk of await graph.stream({ topic: 'streaming' })) {
+  for (const [node, update] of Object.entries(chunk)) {
+    console.log(`节点 ${node} 完成：`, update);
+  }
+}
+// 节点 collect 完成： { notes: [ '图级流式' ] }
+// 节点 summarize 完成： { topic: '共 1 条' }
+```
+
+`updates` 的 chunk 键就是节点名，`Object.entries` 解构是标准消费形态；图的构建写法（`Annotation.Root`、reducer）见[Graph API](?path=/docs/graph-api--docs)。
+
+## 通道：streamMode
+
+理解全部通道的钥匙是一个模型：图执行中固定会发生这些事——节点跑完提交更新、模型吐 token、`writer` 被调用、checkpoint 被写入；`streamMode` 只是选择"订阅哪些事件、以什么形态交付"。执行不变，通道变。所以选通道就是选**信息粒度**：
+
+- 要"执行到哪一步、每步产出了什么" → `updates`（默认）
+- 要"每一步之后的完整状态" → `values`
+- 要"生成中的文本" → `messages`
+- 要"自己定义的进度/事件" → `custom`
+- 要"工具执行到哪了" → `tools`
+- 要多种 → 传数组组合订阅
+
+### updates 与 values
+
+`updates` 是默认通道（`StateGraph` 与 `entrypoint` 编译出的图固定 `streamMode: 'updates'`；官方文档的基础用法也是它）。它逐节点产出 `{ 节点名: 更新 }`，只含该节点**返回的 key**——节点没碰的 key 不出现。同一个超步里多个节点并行完成时，各自**分别**产出一条 chunk，而不是合并成一条。
+
+`values` 换成全量视角：每个超步结束后给出**完整的 state**，未改的 key 也在。注意两条边界：**首条是输入态**（任何节点还没跑），**末条等于 `invoke` 的返回值**。同一个图对照：
+
+```ts
+// 图同上；只改 streamMode
+for await (const chunk of await graph.stream({ topic: 'streaming' }, {
+  streamMode: 'values',
+})) {
+  console.log(chunk);
+}
+// { topic: 'streaming', notes: [] }                          ← 首条：输入态
+// { topic: 'streaming', notes: [ '图级流式' ] }
+// { topic: '共 1 条', notes: [ '图级流式' ] }                ← 末条：= invoke 返回值
+```
+
+想从 `updates` 的增量自己拼出全量？得按每个通道的 reducer 语义合并（比如 `notes` 要 concat），不如直接订 `values`，或组合订阅 `['updates', 'values']`。反过来，只要进度就不该订 `values`——每条都带全量，白传没变的数据。
+
+### messages 与过滤
+
+`messages` 通道产出 `[chunk, metadata]` 元组：`chunk` 是消息增量（`AIMessageChunk`，字段与聚合见[流式输出](?path=/docs/streaming--docs)），`metadata` 带执行上下文——最常用的是 `langgraph_node`（token 来自哪个节点）、`langgraph_step`（第几个超步）、`tags`。节点代码里用 `invoke` 调模型也能流出 token，这是自动流式（原因见[流式输出](?path=/docs/streaming--docs)）：
+
+```ts
+// 运行条件：Node ≥ 20（ESM）；@langchain/langgraph + @langchain/openai；
+// .env 配置 OPENAI_API_KEY（dotenv 加载）；npx tsx messages-demo.ts
+import 'dotenv/config';
+import { ChatOpenAI } from '@langchain/openai';
+import { END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
+
+const model = new ChatOpenAI({ model: 'gpt-5.5' });
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode('draft', async (state) => ({
+    messages: [await model.invoke(state.messages)],
+  }))
+  .addNode('review', async (state) => ({
+    messages: [await model.invoke(state.messages)],
+  }))
+  .addEdge(START, 'draft')
+  .addEdge('draft', 'review')
+  .addEdge('review', END)
+  .compile();
+
+for await (const [chunk, metadata] of await graph.stream(
+  { messages: [{ role: 'user', content: '用一句话解释图级流式。' }] },
+  { streamMode: 'messages' },
+)) {
+  process.stdout.write(`[${metadata.langgraph_node}] ${chunk.text}`);
+}
+```
+
+图里有多次模型调用时，按 `metadata` 过滤是标准做法，官方给三种：
+
+```ts
+// 1. 按节点：只要 draft 节点的 token
+if (metadata.langgraph_node === 'draft') { /* … */ }
+
+// 2. 按标签：给特定模型打 tags，消费端筛
+const draftModel = model.withConfig({ tags: ['draft'] });
+// …
+if (metadata.tags?.includes('draft')) { /* … */ }
+
+// 3. 整体排除：nostream 标签——调用照常执行，token 不进入 messages 通道
+const router = model.withConfig({ tags: ['nostream'] });
+```
+
+`nostream` 适合上下文里"不需要打字机"的模型调用（路由、分类）：图照常拿到它的返回值，流里不再混入它的 token。
+
+### custom：config.writer
+
+前三个通道的内容都由图的结构决定。`custom` 通道把内容交给你：节点（或工具）的第二个参数是 `config`（`LangGraphRunnableConfig`），在任意时刻调 `config.writer(payload)`，订阅端就收到什么：
+
+```ts
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  notes: Annotation<string[]>({
+    reducer: (a, b) => a.concat(b),
+    default: () => [],
+  }),
+});
+
+const graph = new StateGraph(State)
+  .addNode('retrieve', async (_state, config: LangGraphRunnableConfig) => {
+    config.writer({ data: 'Retrieved 0/100 records', type: 'progress' });
+    const records = ['a', 'b', 'c']; // 模拟耗时检索
+    config.writer({ data: `Retrieved ${records.length}/100 records`, type: 'progress' });
+    return { notes: records };
+  })
+  .addEdge(START, 'retrieve')
+  .addEdge('retrieve', END)
+  .compile();
+
+for await (const payload of await graph.stream(
+  { notes: [] },
+  { streamMode: 'custom' },
+)) {
+  console.log(payload);
+}
+// { data: 'Retrieved 0/100 records', type: 'progress' }
+// { data: 'Retrieved 3/100 records', type: 'progress' }
+```
+
+两条边界：
+
+- **`streamMode` 不含 `'custom'` 时，`writer` 调用被静默丢弃**（不报错）——单订 `custom` 或组合订阅均可，就是不能只订 `updates`。
+- **`custom` 也是接任意 LLM 的口子**：模型不是 LangChain 集成（自己 `fetch` 提供方 API）时，收到增量就 `config.writer(chunk)` 转发出去，图照样有 token 流。
+
+### 多通道组合
+
+要同时看执行进度和自定义事件，把 `streamMode` 传成数组。此后每条 chunk 变成 `[mode, chunk]` 元组，按**执行时序**交错到达——注意 `custom` 事件会**先于**同一节点的 `updates`：`writer` 在节点执行中就被调用，`updates` 要等超步提交才产出：
+
+```ts
+for await (const [mode, chunk] of await graph.stream(
+  { notes: [] },
+  { streamMode: ['updates', 'custom'] },
+)) {
+  switch (mode) {
+    case 'custom':
+      console.log('进度：', chunk); // 先到：a 执行中 writer 已触发
+      break;
+    case 'updates':
+      console.log('节点：', chunk); // 后到：超步提交时才产出
+      break;
+  }
+}
+// 进度： { data: '解析输入完成', type: 'progress' }
+// 节点： { a: { notes: [ 'a：输入已解析' ] } }
+// 节点： { b: { draft: '定稿：图级流式' } }
+// 节点： { c: { notes: [ 'c：已汇总' ] } }
+```
+
+组合优于跑两次：一次执行同时要 state 和 token 时，用 `streamMode: ['updates', 'messages']` 订一次，不要 `graph.stream` 两遍（第二次是重新执行图）。
+
+### subgraphs：子图流
+
+[子图](?path=/docs/subgraphs--docs)默认对流不可见：只呈现父图的产出。加 `subgraphs: true` 后，子图内部的条目也进入流，并且**所有通道**的 chunk 外层都套上 `[namespace, data]`——`namespace` 是由「节点名:任务 ID」组成的路径，标明这条 chunk 来自哪一层执行，根图是空数组 `[]`：
+
+```ts
+// b 是内含子图（b1 起草 → b2 定稿）的节点，构建见「子图」一课
+for await (const [namespace, chunk] of await graph.stream(input, {
+  streamMode: 'updates',
+  subgraphs: true,
+})) {
+  console.log(namespace, chunk);
+}
+// 输出（任务 ID 为示意短码）：
+// []         { a:  { notes: [ 'a：输入已解析' ] } }
+// ['b:d4f1'] { b1: { draft: '草稿：图级流式' } }   ← 子图条目带 namespace
+// ['b:d4f1'] { b2: { draft: '定稿：图级流式' } }
+// []         { b:  { draft: '定稿：图级流式' } }    ← b 自身的更新在子图跑完之后
+// []         { c:  { notes: [ 'c：已汇总' ] } }
+```
+
+四条要点：
+
+- **父节点的更新排在子图之后**：`b` 里子图先执行（b1 → b2 的条目先到），子图结束 `b` 才提交自己的更新。
+- **`messages` 变三层元组**：`[namespace, [chunk, metadata]]`，逐层解构。
+- **组合模式也套前缀**：`[namespace, mode, chunk]`。
+- **`values` 连子图的快照也给**：子图自己的输入态和每步快照都会插入，带子图 namespace。
+
+用 `createAgent` 编排时，要把 `agent.graph` 作为节点挂进图，嵌套 Agent 才被识别为子图（多智能体视角见[多智能体](?path=/docs/multi-agent-overview--docs)）。
+
+下面把全部通道摆在一起核对——一次固定的执行回放，切换通道与 `subgraphs` 开关，对照输出（不请求模型，`namespace` 中的任务 ID 为示意短码）：
+
+<Canvas of={Stories.ChannelReplay} />
+<Controls of={Stories.ChannelReplay} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 通道切到 `updates` | 3 条：`a` / `b` / `c` 各一条，只含各自返回的 key；`b` 的更新在最后 |
+| 切到 `values` | 4 条：首条是输入态，每条全量（未改的 key 也在），末条是最终 state |
+| 切到 `messages` | 3 条 `(chunk, metadata)` 元组；按官方文档口径默认只呈现父图的 token |
+| 切到 `custom` | 1 条：只有节点 `a` 里 `writer` 发的载荷 |
+| 切到 `["updates","custom"]` | 4 条 `[mode, chunk]`：`custom` 先于同节点的 `updates` 到达 |
+| 打开 `subgraphs: true` | 任一通道都多出子图条目并带 `namespace` 前缀；`messages` 变三层、组合变 `[namespace, mode, chunk]` |
+| 观察顶部图示意 | 有贡献的节点点亮：`updates` 下只有 `a`/`b`/`c`，打开 `subgraphs` 后 `b1`/`b2` 也点亮 |
+| 打开 Show code | 看到该 Canvas 实际执行的 `example.ts`：`TIMELINE` 是一次执行的单一真源 |
+
+### tools 与其他通道
+
+`tools` 通道把工具执行做成结构化生命周期事件，按 `toolCallId` 关联同一次调用：
+
+| 事件 | 载荷 | 时机 |
+| --- | --- | --- |
+| `on_tool_start` | `name`、`input`、`toolCallId` | 工具开始执行 |
+| `on_tool_event` | `name`、`data`、`toolCallId` | 异步生成器工具的每次 `yield` |
+| `on_tool_end` | `name`、`output`、`toolCallId` | 工具执行完成 |
+| `on_tool_error` | `name`、`error`、`toolCallId` | 工具抛错 |
+
+工具定义成**异步生成器**才有 `on_tool_event`：每次 `yield` 是一条进度事件，`return` 值是最终 `ToolMessage` 的内容；普通 Promise 工具只发 start / end（工具定义见[工具](?path=/docs/tools--docs)）：
+
+```ts
+import { tool } from 'langchain';
+import { z } from 'zod';
+
+const search = tool(
+  async function* ({ query }) {
+    yield `检索中：${query}`;              // → on_tool_event（data 载荷）
+    const records = ['a', 'b', 'c'];       // 模拟检索
+    yield `命中 ${records.length} 条`;      // → on_tool_event
+    return records.join(', ');             // → on_tool_end 的 output / ToolMessage
+  },
+  { name: 'search', schema: z.object({ query: z.string() }) },
+);
+```
+
+`tools` 与 `custom` 的取舍（官方判断）：要**结构化工具进度**且不想改节点代码，用 `tools`——事件形态固定、自动带 `toolCallId`；要**完全自由的载荷**或从节点（而非工具）发事件，用 `custom`。注意版本：`tools` 是较新的通道（本地 `@langchain/langgraph` 1.1.5 的 `StreamMode` 类型尚未收录，官方文档已收录）；React `useStream` 在此基础上有 `toolProgress` 之类的派生状态，前端集成不在本手册范围。
+
+其余三个通道服务观测与排查，回查表：
+
+| 通道 | 收到什么 | 关键字段 / 用途 |
+| --- | --- | --- |
+| `debug` | 执行过程尽可能全的信息 | 节点名 + 全量 state；一次看到"图到底做了什么" |
+| `checkpoints` | 每次写 checkpoint 的元信息 | `values` / `next` / `config` / `tasks`，观测持久化（见[持久化](?path=/docs/persistence--docs)） |
+| `tasks` | 任务创建与结果 | 创建：`input` / `triggers`；结果：`result`——排查并行与 `Send` 分发（见[Graph API](?path=/docs/graph-api--docs)） |
+
+## streamEvents：另一层投影
+
+[流式输出](?path=/docs/streaming--docs)讲过 `streamEvents(input, { version: 'v3' })` 的类型化投影（`stream.messages` / `stream.toolCalls` / `stream.output` 等）。放到图上看，它和 `stream(streamMode)` 是**两层**：底层 `stream(streamMode)` 发出 Pregel 引擎的原始通道事件；`streamEvents` 把这些事件**规范化**成统一的协议事件、经 **stream transformers** 变换、再暴露成类型化投影。官方明确了这个传递关系：transformer 声明的 `required_stream_modes` 并集就是底层 `.stream()` 实际订阅的 `stream_mode`，**没有 transformer 请求的通道不会发出**——订阅什么流，图就发什么事件。
+
+直接迭代 `for await (const event of stream)` 拿到的是原始协议事件，封装字段是回查落点：
+
+| 字段 | 含义 | 判断依据 |
+| --- | --- | --- |
+| `seq` | 运行内严格递增的序号 | **排序用它** |
+| `method` | 通道名（`messages` / `values` / `updates` / `custom` / `tools` / `lifecycle` …） | 按事件类别过滤 |
+| `params.namespace` | `节点名:runtime_id` 组成的路径，`[]` 是根 | 子图事件按它归组 |
+| `params.timestamp` | 墙钟时间戳 | 可以漂移，**别用来排序** |
+| `params.node` / `params.data` | 所在节点 / 载荷 | 消费内容 |
+
+v3 没有 `includeTypes` 这类过滤参数，手工按 `method` 与载荷形态过滤即可；嵌套图的归组直接用 `stream.subgraphs` 投影，它已经替你按 namespace 整理：
+
+```ts
+const stream = await graph.streamEvents(input, { version: 'v3' });
+
+for await (const event of stream) {
+  if (event.method !== 'messages') continue;            // 只看 messages 通道
+  const data = event.params.data;
+  if (data.event !== 'content-block-delta') continue;   // 只看增量
+  process.stdout.write(data.text ?? '');
+}
+```
+
+投影不够用时写自己的 transformer（LangGraph 1.2+ 的 API）：
+
+```ts
+// StreamTransformer 接口：init 建初始投影，process 逐事件推进
+interface StreamTransformer<TProjection = unknown> {
+  init(): TProjection;
+  process(event: ProtocolEvent): boolean;
+  finalize?(): void | PromiseLike<void>;
+  fail?(err: unknown): void;
+}
+
+// StreamChannel：无名 = 纯侧通道，可放不可序列化的值；
+// 有名 = 额外向主流发 custom:<name> 事件，载荷必须可序列化
+// 注册两处任选：调用时
+const stream = await graph.streamEvents(input, {
+  version: 'v3',
+  transformers: [statsTransformer],
+});
+// 或编译时
+const graph = builder.compile({ transformers: [statsTransformer] });
+```
+
+人机协同场景下，事件流也有对应投影：`stream.interrupted` / `stream.interrupts`，用 `new Command({ resume })` 恢复执行（需要 checkpointer 和 thread，见[中断与时间旅行](?path=/docs/interrupts-time-travel--docs)）。
+
+选择判断收口成官方口径：**多数 LangGraph 应用代码从事件流（`streamEvents` v3）开始**——类型化投影把文本、工具、最终 state 拆成独立通道，可并发消费；只有需要底层通道的精细控制（按节点看 state 更新、自由的自定义事件、多通道组合）时才用 `stream(streamMode)`。部署在 Agent Server 后面的图不走进程内流式，用 LangSmith Streaming API（见[部署](?path=/docs/deployment--docs)）。
+
+## 最佳实践
+
+- **按信息粒度选通道，不按名字猜**：进度 `updates`、每步全量 `values`、token `messages`、自由载荷 `custom`、工具进度 `tools`；一次执行要多粒度就传数组，不要多次 `stream`（每次都是重新执行）。
+- **全量交给 `values`，不要手工拼**：`updates` 增量要按各通道 reducer 语义合并才能还原 state，成本和正确性都不划算。
+- **`subgraphs` 按需打开**：它改变**所有** chunk 的形态（外层加 namespace，`messages` 变三层），消费端解构要跟着改；不关心子图内部就保持关闭。
+- **用 `nostream` 排掉噪声**：路由、分类这类不需要打字机的模型调用打上 `nostream` 标签，token 不再混入 `messages` 通道。
+- **应用侧多路消费优先事件流**：文本 + 工具 + 最终 state 并发消费时，v3 投影加 `Promise.all`（形态见[流式输出](?path=/docs/streaming--docs)）比手工过滤通道省事；下沉 `streamMode` 是精细控制手段，不是默认选择。
+
+## 常见问题
+
+- **`updates` 的 chunk 里只有节点改过的 key，拿不到完整 state。**
+  这是通道语义不是丢数据。要全量改订 `values`（每步全量快照，末条等于 `invoke` 返回值），或组合 `['updates', 'values']`；用 `updates` 增量手工拼 state 需要按 reducer 合并，不推荐。
+- **同一超步里多个节点并行完成，`updates` 一次来多条 chunk，而不是一条合并的。**
+  设计行为：官方文档明确同一超步的多个更新**分别**流出。消费端按 chunk 里的节点名归组即可，不要假设"一步一条"。
+- **`streamMode` 传数组（或开 `subgraphs`）后解构出来的形态和单通道对不上。**
+  数组形式每条是 `[mode, chunk]`，先解构 `mode` 再分发；再开 `subgraphs: true` 则变 `[namespace, mode, chunk]` 三层，`messages` 是 `[namespace, [chunk, metadata]]`。逐层解构，写消费端前先确认这两个开关的当前组合。
+- **流里看不到子图内部的事件；反过来，子图里模型的 token 不开 `subgraphs` 也出现了。**
+  官方口径是默认只呈现父图，要子图条目就传 `subgraphs: true`。注意实测差异：`@langchain/langgraph` 1.1.x 上子图内模型的 token 默认也会进入 `messages` 通道，只是没有 namespace 前缀、无法区分层级——依赖子图 token 时显式传 `subgraphs: true` 并按三层元组解构，行为最稳；以你安装版本的实际行为为准。
+- **节点里 `config.writer` 发的事件没出现在流里。**
+  依次检查：`streamMode` 是否包含 `'custom'`（不含时 `writer` 调用被**静默丢弃**，不报错）；节点签名是否拿到第二个参数 `config`；组合订阅时是否漏解构了 `[mode, chunk]` 外层。
+- **`streamMode: 'tools'` 报类型错误，或流里没有工具事件。**
+  `tools` 是较新的通道：官方文档已收录，但 1.1.x 的 `StreamMode` 类型还没有它。升级 `@langchain/langgraph` 到文档对应版本；暂不能升级时，用 `custom` 通道在工具里 `config.writer` 上报进度等价替代。
+- **`streamEvents` 想按事件类型过滤，找不到 `includeTypes`。**
+  v3 事件流没有这个参数。手工按 `event.method` 与 `event.params.data` 的形态 `continue` 过滤；按子图过滤用 `stream.subgraphs` 投影；固定需求写成 transformer，注册到调用或编译配置里。
+
+## 总结回顾
+
+摘要：
+
+`graph.stream(input, { streamMode })` 把同一次图执行按通道投影：`updates`（默认）逐节点产出 `{ 节点名: 更新 }`，只含节点返回的 key，同超步并行节点分别多条；`values` 每超步给全量快照，首条是输入态、末条等于 `invoke` 返回值；`messages` 给 `[chunk, metadata]` 元组，`metadata.langgraph_node` 定位来源，可用 tags、节点名过滤或用 `nostream` 标签整体排除；`custom` 承接节点内 `config.writer` 的任意载荷（`streamMode` 不含 `'custom'` 时被静默丢弃），也是转发非 LangChain 模型 token 的口子；`tools` 给带 `toolCallId` 的工具生命周期事件，异步生成器工具的每次 `yield` 是一条 `on_tool_event`；`debug` / `checkpoints` / `tasks` 服务观测回查。多通道组合传数组，chunk 变 `[mode, chunk]` 按执行时序交错（`custom` 先于同节点 `updates`）；`subgraphs: true` 让子图条目进入流并给所有 chunk 套 `[namespace, …]` 前缀，父节点的更新排在子图之后。`streamEvents` v3 是第二层：把通道事件规范化后经 transformer 暴露类型化投影，排序用 `seq` 不用时间戳；官方判断是多数应用代码从事件流开始，需要底层通道精细控制时才用 `stream(streamMode)`，Agent Server 部署的图用 LangSmith Streaming API。
+
+一句话：
+
+> 通道决定你收到什么——`updates` 给节点增量、`values` 给全量快照、`messages` 给 token 元组、`custom` 给自定义载荷；组合变元组、`subgraphs` 加前缀，要类型化多路消费再上 `streamEvents`。
+
+知识要点：
+
+- `streamMode` 怎样改变同一次执行的输出？默认通道是什么？
+- `updates` 与 `values` 各给什么粒度？`values` 的首条和末条分别是什么？
+- `messages` 的元组形态与 `metadata` 里三个常用过滤字段是什么？`nostream` 标签的效果是什么？
+- `config.writer` 的载荷何时被丢弃？它除了进度上报还能接什么？
+- 多通道组合后 chunk 形态怎么变？`custom` 与同节点 `updates` 谁先到，为什么？
+- `subgraphs: true` 对各通道的 chunk 形态和条目集合有什么影响？父节点的更新出现在哪里？
+- `tools` 通道的四个事件是什么？异步生成器工具的 `yield` 和 `return` 分别对应什么？
+- `streamEvents` 与 `stream(streamMode)` 是什么关系？排序用哪个字段？两者怎么选？
+
+## 参考资料
+
+- [Streaming（LangGraph.js 官方文档）](https://docs.langchain.com/oss/javascript/langgraph/streaming)
+- [Event streaming（LangGraph.js 官方文档）](https://docs.langchain.com/oss/javascript/langgraph/event-streaming)
+- [langchainjs 仓库（@langchain/langgraph 源码，核对默认值与输出形态）](https://github.com/langchain-ai/langchainjs)

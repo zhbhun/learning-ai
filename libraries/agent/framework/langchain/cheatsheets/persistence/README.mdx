@@ -1,0 +1,315 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Persistence from './persistence.stories';
+
+<Meta of={Persistence} name="Docs" />
+
+# 持久化
+
+持久化（persistence）是 LangGraph 的落地层：`compile({ checkpointer })` 一个参数，让图在每次节点边界把 state 拍成快照（checkpoint），按 `thread_id` 归档成 thread。「短期记忆」一课已经从使用视角用过它——挂上就能让第二次 `invoke` 记得上一轮；本课往下看一层：checkpointer 到底存了什么、什么时候存、存在哪里。读完本课，你应该能预测：换一个 `thread_id` 会发生什么、进程重启后哪种存储还活着、以及把 `MemorySaver` 换成 `PostgresSaver` 要改几处代码（答案：一处）。
+
+```mermaid
+flowchart TB
+  R1["invoke(input, thread_id: t1)"] --> G
+  R2["再 invoke(input, thread_id: t1)"] --> G
+  R3["invoke(input, thread_id: t2)"] --> G
+  subgraph G ["同一个编译图"]
+    direction LR
+    S([START]) --> A[nodeA] --> B[nodeB] --> E([END])
+  end
+  G -- "每个 super-step 边界一份快照" --> CP["checkpointer<br/>put / putWrites"]
+  CP -- "getTuple / list" --> G
+  CP --> T1["thread t1：ckpt → ckpt → ckpt"]
+  CP --> T2["thread t2：ckpt → ckpt"]
+```
+
+| 关键输入 | 默认 | 回查要点 |
+| --- | --- | --- |
+| `compile({ checkpointer })` | 不传 = 无持久化 | 传了之后 `invoke` 必须带 `thread_id`；`getState` / `getStateHistory` / `interrupt` 才可用 |
+| `thread_id` | 挂 checkpointer 后必填 | checkpointer 的主键，同 id 共享一条 checkpoint 链；Postgres 存储限 255 字符 |
+| checkpoint 粒度 | 每个 super-step 一份 | 顺序图 `START → A → B → END` 一次 `invoke` 产生 4 份；节点执行中途不落盘 |
+| `durability` | `"async"` | 在调用时（`invoke` / `stream` 的第二参数）指定，不在 `compile` |
+| `MemorySaver` | 随 `@langchain/langgraph` 附带 | 存进程内存，重启即失，仅开发 / 实验 |
+| `PostgresSaver.setup()` | 首次使用必须调用 | 建表，幂等，放应用启动处 |
+
+## 快速上手
+
+沿用「Graph API」一课的最小图形态（不需要模型 API key，`npm i @langchain/langgraph` 后 `npx tsx persistence-demo.ts` 直接跑）：
+
+```ts
+// persistence-demo.ts —— checkpointer 最小闭环：编译时挂 MemorySaver，调用时给 thread_id。
+import { Annotation, END, MemorySaver, START, StateGraph } from '@langchain/langgraph';
+
+// notes 通道用追加 reducer：每次节点更新累积进 state
+const State = Annotation.Root({
+  notes: Annotation<string[]>({
+    reducer: (current, update) => current.concat(update),
+  }),
+});
+
+const graph = new StateGraph(State)
+  .addNode('collect', () => ({ notes: ['collect'] }))
+  .addNode('summarize', () => ({ notes: ['summarize'] }))
+  .addEdge(START, 'collect')
+  .addEdge('collect', 'summarize')
+  .addEdge('summarize', END)
+  // 唯一的接线点：compile 时传 checkpointer
+  .compile({ checkpointer: new MemorySaver() });
+
+// 挂了 checkpointer 后，调用必须带 thread_id
+const config = { configurable: { thread_id: 'demo-1' } };
+
+// 第一次 invoke：一个 run 从头执行，结束后留下一条 checkpoint 链
+await graph.invoke({ notes: ['hello'] }, config);
+
+// 同一个 thread_id 再 invoke：state 从链尾恢复，notes 继续累积
+await graph.invoke({ notes: ['world'] }, config);
+
+const snap = await graph.getState(config);
+console.log(snap.values.notes);
+// => [ 'hello', 'collect', 'summarize', 'world', 'collect', 'summarize' ]
+console.log(snap.next);
+// => []（图已跑到 END，无待执行节点）
+```
+
+注意第二次 `invoke` 的输出：`collect` 和 `summarize` 又各跑了一遍——thread 记住的是 **state 的累积**，不是「上次执行到哪里」；每次 `invoke` 都是一个新的 run，从头执行，写进同一条 checkpoint 链。这正是多轮对话记忆的底层机制：对话连续性来自 messages 通道的追加 reducer，而不是断点续跑。
+
+## checkpointer 与 thread
+
+官方文档给 checkpointer 的定义：在每个 super-step 保存一份图状态快照、按 thread 组织的对象。挂上它，四种能力同时解锁：
+
+- **对话记忆**：后续消息发到同一个 thread，历史随消息累积——「短期记忆」一课的用法。
+- **human-in-the-loop**：人要能在任意时刻查看状态，图要能在人处理后继续跑，两者都依赖 checkpoint（`interrupt` 的机制归「中断与时间旅行」一课）。
+- **容错恢复**：某个 super-step 失败后，从最近一次成功的边界重跑，而不是从头再来。
+- **时间旅行**：重放历史执行、在任意 checkpoint 分叉探索——归「中断与时间旅行」一课。
+
+thread 是「一个会话」的数据模型：**一个编译好的图，配 N 个 `thread_id`，就是 N 段互不可见的会话**。`thread_id` 是 checkpointer 的主键——没有它，checkpointer 既不知道存到哪，也不知道从哪恢复。这段关系的使用面（多轮对话、换 id 即新会话）「短期记忆」一课已经讲透；本课补齐底层视角：
+
+- thread 里存的是一条 **checkpoint 链**，每份 checkpoint 通过 `parentConfig` 指向前一份，链尾就是当前状态。
+- 多次 `invoke` = 多个 run 依次把新 checkpoint **追加**到同一条链上。
+- 想让信息跨 thread 存活（用户偏好、全局知识），checkpointer 帮不上忙——那是 Store 的事，归「长期记忆与 Store」一课。
+
+### checkpoint：super-step 边界的快照
+
+checkpoint 产生的位置由执行模型决定：LangGraph 按 super-step 推进（一步之内所有被调度的节点执行完、状态在步末合并，见「LangGraph 思维模型」一课），**每个 super-step 边界落一份完整快照**。官方文档的算例：顺序图 `START → nodeA → nodeB → END` 一次 `invoke` 恰好产生 4 份 checkpoint：
+
+| # | values | next | 含义 |
+| --- | --- | --- | --- |
+| 1 | `{ bar: [] }`（仅通道默认值） | `['__start__']` | 输入写入前的空 checkpoint |
+| 2 | `{'foo': '', 'bar': []}` | `['nodeA']` | 用户输入就绪，下一步 nodeA |
+| 3 | `{'foo': 'a', 'bar': ['a']}` | `['nodeB']` | nodeA 完成，下一步 nodeB |
+| 4 | `{'foo': 'b', 'bar': ['a', 'b']}` | `[]` | nodeB 完成，图结束 |
+
+`bar` 通道带 reducer，所以第 4 份里能看到两个节点的累积输出。这张表也划出了恢复的粒度边界：**只能从 super-step 边界（即某份 checkpoint）恢复**，节点执行到一半的状态无处可存——这就是 `interrupt()` 必须写在节点最前面的原因（「人机协同」一课的现象，机制归 3.5）。
+
+每份 checkpoint 在代码里表现为 `StateSnapshot` 对象：
+
+| 字段 | 说明 |
+| --- | --- |
+| `values` | 该时刻各通道的值（合并后的完整 state） |
+| `next` | 下一步要执行的节点名；`[]` 表示图已跑完 |
+| `config` | 含 `thread_id`、`checkpoint_ns`、`checkpoint_id` |
+| `metadata` | `{ source: 'input' \| 'loop' \| 'update', writes, step }`：本份快照由谁产生（输入 / 循环节点 / updateState）、各节点写了什么、super-step 计数 |
+| `createdAt` | ISO 8601 创建时间 |
+| `parentConfig` | 前一份 checkpoint 的 config；第一份为 `null`——checkpoint 链就是靠它串起来的 |
+| `tasks` | 该步要执行的任务：`id`、`name`、`error`、`interrupts`，子图场景含子图快照 |
+
+**写入与读取的时机**（`BaseCheckpointSaver` 接口的四个方法，生产实现全部要实现它们）：
+
+| 接口方法 | 时机 | 对应的上层 API |
+| --- | --- | --- |
+| `put` | 每个 super-step 边界，写入一份完整 checkpoint | — |
+| `putWrites` | super-step 内每个节点完成时，把该节点的输出作为增量（pending writes）挂到进行中的 checkpoint 上 | — |
+| `getTuple` | 下次 `invoke` 开始时读链尾恢复 state；查快照时按 `thread_id`（+ `checkpoint_id`）取一份 | `graph.getState` |
+| `list` | 枚举一条 thread 的整条链 | `graph.getStateHistory` |
+
+`putWrites` 的增量写入是容错的关键：同一 super-step 里并行节点部分成功时，成功节点的输出已经持久化（官方称为 pending writes），恢复时不必重跑它们。`put` 与 `putWrites` 何时真正落盘，由 durability 决定，见「生产存储」一节。
+
+### compile({ checkpointer }) 前后差异
+
+`checkpointer` 只在编译时接线一次。三条 API 线的入口一致：Graph API 的 `compile({ checkpointer })`、Functional API 的 `entrypoint({ checkpointer })`、`createAgent` 的 `checkpointer` 参数——接的都是同一套机制。编译前后行为差异：
+
+| 行为 | 不传 checkpointer（默认） | 传 checkpointer |
+| --- | --- | --- |
+| 跨 `invoke` 状态 | 每次从初始 state 开始 | 按 `thread_id` 恢复并累积 |
+| 调用约束 | 第二参数可省 | 必须带 `{ configurable: { thread_id } }`，否则报错 |
+| `graph.getState` | 抛 `GraphValueError: No checkpointer set` | 返回该 thread 最新快照 |
+| `graph.getStateHistory` | 同上抛错 | 返回整条 checkpoint 链 |
+| `interrupt` / 恢复 / 重放 | 不可用 | 可用（3.5 课展开） |
+
+下面用确定性模拟把「存储实现 × thread 隔离 × 重启」三个变量合在一起对照：同一个图、两个 `thread_id` 各自推进；切换存储实现，观察 checkpoint 链的产生与存活。
+
+<Canvas of={Persistence.Interactive} />
+<Controls of={Persistence.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 保持「MemorySaver」，推进「thread-1 / thread-2」 | 两条链各自增长，每格 `step` 递增、`next` 依次指向 `nodeA → nodeB → []`——checkpoint 随节点边界产生，且两链互不可见 |
+| 切到「无（默认）」 | 两条链消失：不产生任何 checkpoint，state 只活在当前进程内存里 |
+| 保持「MemorySaver」并打开「模拟进程重启」 | 两条链清空、结论行变红：RAM 数据随进程存亡 |
+| 切到「数据库（Postgres）」并打开「模拟进程重启」 | 两条链完整保留、结论行变绿：新进程按 `thread_id` 从数据库读回 |
+| 打开 Show code | 看到该 Canvas 实际执行的 `example.ts`：纯 TS 确定性模拟，不依赖 `@langchain/*` |
+
+模拟里「重启」对三种实现的语义：无 checkpointer 本来就无处落盘；`MemorySaver` 的数据在 RAM 里随进程消失；数据库实现的 checkpoint 在进程之外，重启只是换一个进程重新 `getTuple`。
+
+## 检查线程状态
+
+检查是 checkpointer 的另一半价值：`getState` / `getStateHistory` 让你不重跑图就能看到 thread 的现在与全部过去。两者都要求图编译时挂了 checkpointer，且 config 里带 `thread_id`。
+
+`getState` 默认返回该 thread **最新**的 `StateSnapshot`；在 `configurable` 里加上 `checkpoint_id` 则取历史中的某一份（按官方文档的输出，一次完整运行后最新快照长这样）：
+
+```ts
+const config = { configurable: { thread_id: '1' } };
+
+// 最新快照（自动应用该 super-step 已持久化的 pending writes）
+await graph.getState(config);
+// StateSnapshot {
+//   values: { foo: 'b', bar: ['a', 'b'] },
+//   next: [],
+//   config: { configurable: { thread_id: '1', checkpoint_ns: '', checkpoint_id: '1ef663ba-…' } },
+//   metadata: { source: 'loop', writes: { nodeB: { foo: 'b', bar: ['b'] } }, step: 2 },
+//   createdAt: '2024-08-29T19:19:38.821749+00:00',
+//   parentConfig: { … },   // 指向 step 1 那份——checkpoint 链的来源
+//   tasks: [],
+// }
+
+// 指定 checkpoint_id：取历史中的那一份
+await graph.getState({
+  configurable: { thread_id: '1', checkpoint_id: '1ef663ba-28fe-…' },
+});
+```
+
+`getStateHistory` 返回整条链，**最新在前**（异步迭代器）：
+
+```ts
+for await (const snap of graph.getStateHistory(config)) {
+  console.log(snap.metadata?.step, snap.next, snap.values);
+}
+// 2  []             { foo: 'b', bar: ['a', 'b'] }
+// 1  ['nodeB']      { foo: 'a', bar: ['a'] }
+// 0  ['nodeA']      { foo: '',  bar: [] }
+// -1 ['__start__']  { bar: [] }
+```
+
+官方文档给的高频过滤模式（先收全量再 `find` / `filter`）：
+
+```ts
+const history: StateSnapshot[] = [];
+for await (const state of graph.getStateHistory(config)) history.push(state);
+
+const beforeNodeB = history.find((s) => s.next.includes('nodeB')); // 某节点执行前
+const step2 = history.find((s) => s.metadata?.step === 2); // 按 step 定位
+const forks = history.filter((s) => s.metadata?.source === 'update'); // updateState 产生的分叉
+const interrupted = history.find( // 发生过 interrupt 的快照
+  (s) => s.tasks.length > 0 && s.tasks.some((t) => t.interrupts.length > 0),
+);
+```
+
+两个使用边界：`forks` / `interrupted` 这类快照拿到之后的**分叉重跑、恢复执行**，归「中断与时间旅行」一课；对从未运行过的 `thread_id` 调 `getState` 不报错，返回 `values` 为空对象、`next` 为空数组的空快照。另外 `getState` 还接受 `{ subgraphs: true }` 选项以附带子图快照——子图有自己的 checkpoint 命名空间（`checkpoint_ns`：根图为 `""`，子图为 `"node_name:uuid"`，嵌套用 `|` 连接），完整机制归「子图」一课。
+
+## 生产存储
+
+`MemorySaver` 来自随 `@langchain/langgraph` 附带的 `@langchain/langgraph-checkpoint` 包，定位是实验。生产切换 = 换一个 checkpointer 实例，图代码零改动：
+
+| 包 | 实现 | 官方定位 | 安装 |
+| --- | --- | --- | --- |
+| `@langchain/langgraph-checkpoint` | `MemorySaver`、`BaseCheckpointSaver`、`SerializerProtocol` | 内存实验；接口基座 | 随 `@langchain/langgraph` 附带 |
+| `@langchain/langgraph-checkpoint-postgres` | `PostgresSaver` | LangSmith 同款，生产首选 | 单独安装 |
+| `@langchain/langgraph-checkpoint-redis` | `RedisSaver` | 生产可用 | 单独安装 |
+| `@langchain/langgraph-checkpoint-mongodb` | `MongoDBSaver`（另有跨 thread 的 `MongoDBStore`） | 生产可用 | 单独安装 |
+| `@langchain/langgraph-checkpoint-sqlite` | `SqliteSaver` | 本地文件，开发 / 实验 | 单独安装 |
+
+以 Postgres 为例的完整切换：
+
+```ts
+// 运行条件：npm i @langchain/langgraph-checkpoint-postgres；
+// 一个可连接的 Postgres 实例，连接串写入环境变量 DATABASE_URL。
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
+
+const checkpointer = PostgresSaver.fromConnString(
+  process.env.DATABASE_URL!, // postgresql://user:password@localhost:5432/db
+  { schema: 'public' }, // 默认 'public'
+);
+
+// 首次使用必须调用：建表（checkpoints / checkpoint_writes 等），幂等，放应用启动处
+await checkpointer.setup();
+
+// 图代码不变：还是那一个 compile 参数
+const graph = workflow.compile({ checkpointer });
+```
+
+三个工程细节：
+
+- `fromConnString` 之外，也可以传入已有的连接池：`new PostgresSaver(pool, undefined, { schema: 'custom' })`——服务端应用复用池时用这种。
+- `setup()` 只需在首次使用前调用一次，幂等；漏掉的典型症状是运行时报表不存在的数据库错误。
+- 使用 LangSmith 的 Agent Server 部署时，持久化由服务端托管，不需要手动配置 checkpointer。
+
+SQLite 版适合单机开发：`SqliteSaver.fromConnString('checkpoints.db')` 建本地文件库（注意其 `setup` 在首次操作时内部执行）。切换回开发环境时同样只改这一处。
+
+### durability：checkpoint 的写入时机
+
+durability 决定 `put` / `putWrites` 何时真正落盘，**在调用执行方法时指定**（不是 `compile`），三档：
+
+| 档位 | 行为 | 取舍 |
+| --- | --- | --- |
+| `"async"`（默认） | 后台异步写，下一步照常开始执行 | 性能好；进程崩溃瞬间有小概率丢最后一份 checkpoint |
+| `"sync"` | 每个下一步开始前，同步等上一份 checkpoint 写完 | 恢复保证最强；每步多一次写延迟 |
+| `"exit"` | 只在整个流程退出（完成 / 出错 / interrupt）时写 | 长跑图性能最好；中途崩溃无法恢复 |
+
+```ts
+await graph.invoke(
+  { notes: ['hello'] },
+  { configurable: { thread_id: 'demo-1' }, durability: 'sync' },
+);
+```
+
+选型判断「LangGraph 思维模型」一课已铺垫（性能与可靠性的档位直觉）；本课补充两个落地事实：默认 `"async"` 意味着不配置时就有「崩溃丢尾部」的窗口，需要严格不丢的场景（资金操作后、不可重试的外部调用后）显式传 `"sync"`；旧参数 `checkpointDuring` 已废弃，与 `durability` 同时传会直接报错。
+
+## 最佳实践
+
+- checkpointer 做成应用级单例：模块级 `new MemorySaver()` 或依赖注入一个 `PostgresSaver`，所有图共用。每个请求新建一个，数据就散落在互不相见的实例里，等于没持久化。
+- `thread_id` 按「用户 × 会话」粒度生成 uuid：全站一个 id 会互相污染，每次 invoke 换 id 等于没有记忆（「短期记忆」一课的结论）；上 Postgres 时控制在 255 字符内，uuid 天然满足。
+- durability 按损失承受度选：默认 `"async"` 起步；不可重试的动作之后、断点恢复要求严格的流程用 `"sync"`；只关心最终结果的长跑图用 `"exit"` 换性能。
+- 长会话要有 checkpoint 修剪策略：每次 invoke 都追加整份快照，历史会无限增长拖慢 `list` 与存储；用 `checkpointer.deleteThread(threadId)` 清理废弃会话，或按保留策略定期删旧链。
+- 开发用 `MemorySaver`、生产换数据库实现，接口相同（`BaseCheckpointSaver`），切换只动 `compile` 传参一处——先在内存里把图跑通，再接真实存储。
+
+## 常见问题
+
+- 服务重启后，对话记忆 / checkpoint 全没了
+  先看用的是哪种实现：`MemorySaver` 存进程内存，重启即失，这是设计行为不是 bug。生产换 `PostgresSaver` / `RedisSaver` / `MongoDBSaver`，换完确认 `setup()` 已在启动时调用过。
+- 挂上 `PostgresSaver` 后写入报数据库长度类错误（value too long / 列超限）
+  `thread_id` 存在限长的列里，超过 255 字符即触发。改用 uuid 或对长标识做哈希。
+- `graph.getState()` 抛 `No checkpointer set`
+  `getState` / `getStateHistory` 只对编译时挂了 checkpointer 的图可用。确认 `compile({ checkpointer })`（或 `entrypoint` / `createAgent` 的对应参数）真的传了实例，而不是只 import 了类。
+- `getState` 看不到子图内部的状态
+  子图有自己的 checkpoint 命名空间（`checkpoint_ns`），根图的 `getState` 默认只返回根图快照。传 `{ subgraphs: true }` 获取子图快照，命名空间细节见「子图」一课。
+- 会话越长 `getStateHistory` 越慢、存储越占
+  每次追加整份快照，长会话的链可能有几百份。清理废弃会话用 `checkpointer.deleteThread(threadId)`；高频写入的长跑图可评估 `"exit"` 档减少 checkpoint 数量。
+- durability 设了 `"exit"`，中途崩溃后恢复不了
+  设计行为：`"exit"` 只在流程退出时落盘，中途崩溃没有任何快照可恢复。需要中途可恢复就回 `"async"` 或 `"sync"`。
+
+## 总结回顾
+
+摘要：
+
+持久化由 checkpointer 承担：图在每个 super-step 边界把完整 state 拍成 checkpoint，节点完成时先写 `putWrites` 增量，链上每份快照用 `parentConfig` 串联，按 `thread_id`（主键）归档成 thread——一个图配 N 个 id 就是 N 段互不可见的会话，多次 invoke 向同一条链追加。`compile({ checkpointer })` 是唯一接线点，同时解锁对话记忆、human-in-the-loop、容错恢复与时间旅行。检查侧 `getState` 取最新（或按 `checkpoint_id` 取指定份）、`getStateHistory` 枚举整链，都建立在 checkpointer 的 `getTuple` / `list` 之上。存储实现可替换：`MemorySaver` 随进程存亡只用于实验，生产换 `PostgresSaver`（`fromConnString` + `setup()`）等数据库实现，图代码零改动；写入时机由调用时的 `durability`（默认 `"async"`，另有 `"sync"` / `"exit"`）决定。
+
+一句话：
+
+> checkpointer 按 `thread_id` 把图的 state 以 super-step 粒度存成一条 checkpoint 链；换存储只换 `compile` 传的那一个对象，其余一切不动。
+
+知识要点：
+
+- `compile({ checkpointer })` 一次性解锁哪四种能力？不传时哪些 API 直接不可用？
+- thread 的数据模型是什么：主键是谁、多次 `invoke` 的关系、存的是「执行位置」还是「state 累积」？
+- 顺序图 `START → A → B → END` 一次 `invoke` 产生几份 checkpoint？各份的 `next` 是什么？
+- `StateSnapshot` 的 `values` / `next` / `metadata.source` / `parentConfig` / `tasks` 分别是什么？
+- `put` / `putWrites` / `getTuple` / `list` 各发生在什么时机，分别支撑哪层 API？pending writes 解决什么？
+- `getState` 和 `getStateHistory` 各返回什么？历史按什么顺序排列？
+- 从 `MemorySaver` 切到 `PostgresSaver` 需要改哪些代码？`setup()` 什么时候调用？
+- durability 三档各在什么时刻落盘？默认是哪档、在哪里配置？
+
+## 参考资料
+
+- [LangGraph.js Persistence（官方：持久化总览、checkpointer 与 store 分工、排障）](https://docs.langchain.com/oss/javascript/langgraph/persistence)
+- [LangGraph.js Checkpointers（官方：thread / checkpoint / super-step、getState 与 StateSnapshot、durability、checkpointer 库清单）](https://docs.langchain.com/oss/javascript/langgraph/checkpointers)
+- [langgraphjs checkpoint-postgres（官方仓库：PostgresSaver.fromConnString 与 setup 用法）](https://github.com/langchain-ai/langgraphjs/tree/main/libs/checkpoint-postgres)

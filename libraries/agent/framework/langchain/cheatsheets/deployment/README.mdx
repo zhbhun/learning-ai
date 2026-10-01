@@ -1,0 +1,502 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Deployment from './deployment.stories';
+
+<Meta of={Deployment} name="Docs" />
+
+# 部署
+
+前六节里 Agent 一直跑在本进程：`invoke` 发生在调用方代码里，状态靠手动接 checkpointer，崩溃即丢。部署回答的是接下来两个问题：你的 Agent 代码以什么形态运行（运行时由谁提供、状态存在哪里、谁负责扩缩容），以及调用方通过什么接口使用它（进程内调用还是 HTTP API）。LangChain.js 生态的答案分两层：最轻是**自托管 Node 服务**——Agent 内嵌在你的 Next.js / Nuxt / Workers 应用里，一个部署单元上线，其余自己管；标准是 **Agent Server**（官方亦称 LangGraph Server / LangGraph API）——一个专为有状态 Agent 设计的服务器运行时，自动带上持久化存储、任务队列、流式 API 和 crons 定时任务，运行位置又有 LangSmith Cloud、Hybrid、Standalone Docker 等多种选择。本课走完从本地到上线的完整闭环：`langgraph.json` 声明图入口 → `langgraphjs dev` + Studio 本地调试 → 部署到 LangSmith 或 Docker → SDK / RemoteGraph 调用 → 上线前检查清单收口。读完你能预测：什么样的应用根本不需要 Agent Server、本地 dev server 与生产部署为什么是同一套 API、三个选型输入如何唯一确定部署形态。
+
+```mermaid
+flowchart LR
+  code["Agent 代码<br/>createAgent / compile()"] -->|"无状态、最轻"| node["自托管 Node 服务<br/>JS 框架内嵌"]
+  code -->|"需要 thread 记忆 /<br/>后台任务 / crons"| lg["langgraph.json<br/>声明图入口"]
+  lg --> dev["本地：langgraphjs dev<br/>内存模式 + Studio"]
+  lg --> as["生产：Agent Server"]
+  as --> cloud["LangSmith Cloud<br/>全托管"]
+  as --> hybrid["Hybrid<br/>数据面在自有 VPC"]
+  as --> stand["Standalone<br/>Docker 自托管"]
+  dev == "同一套 REST / SDK API" ==> cloud
+```
+
+左路把 Agent 当普通库用，右路把 Agent 交给专门的运行时。右路的关键性质是：本地 dev server 与所有生产形态暴露**同一套** Agent Server API——本地用 Studio 和 curl 调通的调用面，部署后原样可用。
+
+`langgraph.json` 是 Agent Server 家族的唯一应用声明，字段先放这里备查，详细规则见[后文](#langgraphjson)：
+
+| 字段 | 示例 | 说明 |
+| --- | --- | --- |
+| `graphs` | `{ "agent": "./src/agent.ts:agent" }` | 图入口映射：键是 graph 名（调用时的 `assistant_id`），值是 `路径:导出名`；图必须 `export` |
+| `dependencies` | `["."]` | 依赖来源；JS 项目用 `"."` 表示按 `package.json` 安装 |
+| `env` | `".env"` | 环境变量文件路径，构建时随镜像注入 |
+| `node_version` | `"20"` | Node 运行时版本，支持 `20` / `22` / `24` |
+| `dockerfile_lines` | `[]` | 追加进生成 Dockerfile 的额外指令行 |
+
+## 快速上手
+
+从已有 Agent 到「本地 Agent Server + Studio 调试」的最小闭环。运行条件：Node ≥ 20 的工程（依赖 `langchain`、`@langchain/openai`、`zod`，沿用[「第一个 Agent」](?path=/docs/first-agent--docs)的 weather agent），加一个免费 LangSmith 账号的 API key——dev server 启动需要它。
+
+1. 安装 CLI 并为已有工程生成配置（扫描 `createAgent()` / `compile()` 自动产出 `langgraph.json`；新工程也可以直接 `npm create langgraph` 用官方模板起）：
+
+```bash
+npm install --save-dev @langchain/langgraph-cli
+npm create langgraph config
+```
+
+2. 确认图入口已导出——这是 Agent Server 加载图的唯一方式，`graphs` 值里冒号后的名字必须与导出名一致：
+
+```ts
+// src/agent.ts —— Agent Server 的图入口：必须 export
+import * as z from 'zod';
+import { ChatOpenAI } from '@langchain/openai';
+import { createAgent, tool } from 'langchain';
+
+const getWeather = tool(
+  ({ city }: { city: string }) => `It's always sunny in ${city}!`,
+  {
+    name: 'get_weather',
+    description: 'Get the weather for a given city',
+    schema: z.object({ city: z.string() }),
+  }
+);
+
+// createAgent 返回编译后的图，正是 graphs 字段期望的格式
+export const agent = createAgent({
+  model: new ChatOpenAI({ model: 'gpt-4o-mini' }),
+  tools: [getWeather],
+  systemPrompt:
+    'You are a weather assistant. Use get_weather for any current weather question.',
+});
+```
+
+3. 核对生成的 `langgraph.json`（放在 TS 文件同级或更上层目录）：
+
+```json
+{
+  "node_version": "20",
+  "dependencies": ["."],
+  "graphs": {
+    "agent": "./src/agent.ts:agent"
+  },
+  "env": ".env"
+}
+```
+
+4. `.env` 里补上 dev server 需要的 key（`OPENAI_API_KEY` 已有）：
+
+```bash
+LANGSMITH_API_KEY=lsv2...
+```
+
+5. 启动本地 Agent Server：
+
+```bash
+npx @langchain/langgraph-cli dev
+```
+
+可观察输出（终端打印的三个地址）：
+
+- API：`http://127.0.0.1:2024`
+- Studio UI：`https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`
+- API 文档（OpenAPI）：`http://127.0.0.1:2024/docs`
+
+6. 打开 Studio URL，选 graph，输入 `What's the weather in San Francisco?` 提交——图按节点执行，中间状态全部可见；改动 `systemPrompt` 保存，热重载立即生效。
+
+再用 curl 验证一次裸 API（与 Studio 走的是同一个服务）：
+
+```bash
+curl -s --request POST --url http://localhost:2024/runs/stream \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "assistant_id": "agent",
+    "input": { "messages": [{ "role": "human", "content": "What is LangGraph?" }] },
+    "stream_mode": "messages-tuple"
+  }'
+```
+
+返回 SSE 流：一串 `event: metadata` / `messages/partial` 事件逐块带回生成内容。`assistant_id` 就是 `langgraph.json` 里 `graphs` 的键。
+
+## 部署形态全景
+
+选型的判断顺序固定三层：**先问要不要 Agent Server 的能力**（thread 持久化、后台任务、crons、Studio），**再问数据能不能上云**，**最后问基础设施谁来运维**。第一层筛掉自托管 Node 服务，后两层在 Agent Server 家族里分流。
+
+| 形态 | 控制面 | Agent Server 与数据 | 数据库 | 前提 / 代价 |
+| --- | --- | --- | --- | --- |
+| LangSmith Cloud | LangChain | LangChain 托管云（AWS/GCP） | LangChain | Plus 及以上套餐 |
+| Hybrid | LangChain 托管 | 你的 VPC | 你自己 | 数据面自运维 |
+| 自托管控制面 | 你自己（K8s） | 你自己 | 你自己 | Enterprise，气隙可用 |
+| Standalone | 无控制面 | 你自己（Docker/K8s） | 自备 Postgres + Redis | 自带 license key |
+| 自托管 Node 服务 | — | 你的 JS 框架应用 | 自选 checkpointer | 无平台依赖 |
+
+前四行运行的是**同一个** Agent Server 运行时，差别只在「谁来管」；最后一行没有 Agent Server，是一切自己来的普通 Web 应用。
+
+**自托管 Node 服务。** 把 Agent 内嵌进现有 JS 全栈框架——官方支持 Next.js、SvelteKit、Nuxt、Cloudflare Workers、Deno Deploy、Vite，前后端打成同一个部署单元。通信契约是 Agent Streaming Protocol（LangChain 的开放协议）：`POST /api/threads/:threadId/commands` 接收命令（如 `run.start`）启动 run，`POST /api/threads/:threadId/stream` 以 SSE 返回协议事件，`GET|POST /api/threads/:threadId/state` 读写线程状态；另有 `GET /api/threads` 列线程、`DELETE` 删线程等侧栏端点。前端用 `@langchain/react` 等绑定的 `useStream` 一类 hook 消费。起步单实例配内存 `MemorySaver`，扩展时换 Redis / Postgres / SQLite checkpointer。适合「交付 agent 驱动的产品、团队已有 JS 托管栈」；代价是没有任务队列、crons、Studio 与 revisions——这些是 Agent Server 家族的出厂能力。各框架的完整示例在官方 deployment-cookbook，超出本课边界。Deep Agents 另有一条专用托管路径（`mda` CLI、项目结构与渠道接入），见[「Managed Deep Agents」](?path=/docs/managed-deep-agents--docs)。
+
+三个输入怎样映射到形态，用下面的选择器走一遍（映射是纯函数：同一组输入永远同一结论）：
+
+<Canvas of={Deployment.FormSelector} />
+<Controls of={Deployment.FormSelector} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 切换「持久化需求」为无状态 | 决策树在第一问后直接落到「自托管 Node 服务」，Agent Server 家族全部淡化——不需要它的能力就不必付它的运维 |
+| 切换「运维能力」为自管容器 | 推荐变为 Standalone（Docker）：卡片「付出」列出自备 Postgres + Redis 与 license key |
+| 保持全托管，切换「数据驻留」为自有基础设施 | 推荐变为 Hybrid：控制面仍托管，数据面留在自有 VPC |
+| 观察左下角读数 | 三个输入值与推荐形态同步变化，与结果卡片一致 |
+| 打开 Show code | 看到该 Canvas 实际执行的 `example.ts`：纯确定性映射，不依赖 `@langchain/*` |
+
+## langgraph.json
+
+Agent Server 家族认的就是这一个文件，本地 dev、LangSmith 部署、Docker 镜像构建读同一份声明。
+
+**位置与生成。** 放在 TS 文件同级或更上层目录（`graphs` 里的相对路径以它为基准）。新项目 `npm create langgraph` 直接产出完整模板；已有工程 `npm create langgraph config` 扫描 `createAgent()`、`StateGraph.compile()`、`workflow.compile()` 等模式自动生成 `graphs` 映射——只有**导出的**图会被识别，未导出的触发警告提醒补 `export`。
+
+**多图声明。** 一个服务可以挂多个图，键名就是调用端的 `assistant_id`：
+
+```json
+{
+  "node_version": "20",
+  "graphs": {
+    "agent": "./src/agent.ts:agent",
+    "searchAgent": "./src/search.ts:searchAgent"
+  },
+  "env": ".env"
+}
+```
+
+**字段边界。** `dependencies` 在 JS 项目固定为 `["."]`（按 `package.json` 安装，无需列出单包）；`env` 指向的 `.env` 里的变量会进入运行时（`OPENAI_API_KEY` 一类模型密钥就放这里），文件本身勿提交版本控制；`node_version` 决定镜像内的 Node 版本；`dockerfile_lines` 只在需要往镜像里加系统依赖（如 `RUN apt-get install ...`）时使用。节点内代码不受限——部署的是 LangGraph 图，图里可以写任意逻辑。
+
+## Agent Server 能力
+
+为什么值得把 Agent 交给专门运行时：它围绕三个原语把「有状态 Agent」的通用需求做成了出厂能力——**assistants**（图 + 一组配置的封装，同一图可以有多个配置变体）、**threads**（一次会话的状态容器）、**runs**（一次执行的工作负载）。「持久化」一课里手动接 checkpointer、手动传 `thread_id` 的两层，在 Agent Server 上分别变成 Postgres 自动存储与 HTTP API 直接管理。
+
+能力清单与手册落点：
+
+| 能力 | 内容 | 展开 |
+| --- | --- | --- |
+| 持久化 | threads、状态快照、长期记忆存数据库 | 本节 |
+| 任务队列 | 后台 run 的 exactly-once 调度 | 本节 |
+| 流式 API | SSE 多模式流式输出 | 本节 |
+| crons | cron 表达式定时调度 | 本节 |
+| 双发处理 | 同线程并发输入的四种策略 | 本节 |
+| 人在环 / 时间旅行 | `interrupt` 恢复、历史快照回放的 server 入口 | 机制归[「中断与时间旅行」](?path=/docs/interrupts-time-travel--docs) |
+| 认证与访问控制 | 自定义认证、按用户隔离资源 | 官方 Auth 文档 |
+
+### 持久化与任务队列
+
+Standalone 部署把这两个组件暴露得最清楚（云上托管形态等价地内置了它们）：**PostgreSQL** 存储 assistants、threads、runs、线程状态与长期记忆，并以 exactly-once 语义管理后台任务队列——run 不会因重启丢掉或重复执行；**Redis** 作为 pub-sub broker，让后台运行的 run 也能实时流出输出。checkpointer 的机制与选型在[「持久化」](?path=/docs/persistence--docs)已讲清，这里只需要知道：Agent Server 自动配好了它，无需在图里显式传。
+
+后台 run 的用法是「创建即走开，需要时再收」：
+
+```ts
+// 运行条件：client 已连上运行中的 Agent Server（本地 dev 或部署 URL）。
+// 后台 run：create 立即返回，不占用当前连接
+const run = await client.runs.create(thread.thread_id, 'agent', {
+  input: { messages: [{ role: 'user', content: '深度整理这份报告' }] },
+});
+
+// 需要结果时阻塞等待……
+const finalState = await client.runs.join(thread.thread_id, run.run_id);
+// ……或 joinStream 接上实时输出（长任务的打字机效果）
+for await (const chunk of await client.runs.joinStream(thread.thread_id, run.run_id)) {
+  console.log(chunk.event);
+}
+```
+
+两个高频的 run 级行为，创建时用 payload 字段控制：
+
+- **双发（double texting）**：同一条 thread 上有进行中的 run 时又来了新输入，`multitaskStrategy` 决定处理方式——`reject`（拒绝新 run）、`interrupt`（打断当前 run，保留已完成步骤）、`rollback`（回滚到 run 开始前再执行新 run）、`enqueue`（排队，当前 run 完成后执行）。
+- **断连行为**：客户端断开时 `onDisconnect` 选 `continue`（后台继续，默认语义）或 `cancel`。
+
+run 的生命周期状态：`pending → running → success | error | timeout | interrupted`，`interrupted` 正是人在环暂停的标志（[「人机协同」](?path=/docs/human-in-the-loop--docs)）。
+
+### 流式 API
+
+Agent Server 的流式是 HTTP 层的 SSE：`POST /runs/stream` 一路推事件，每个 chunk 携带 `event` 与 `data` 两个字段。应用内的 `stream` / `streamEvents`（[「流式输出」](?path=/docs/streaming--docs)、[「图级流式」](?path=/docs/graph-streaming--docs)）到 server 上统一收口为 `streamMode` 选择：
+
+| streamMode | 内容 | 什么时候用 |
+| --- | --- | --- |
+| `updates` | 每个节点的状态增量 | 默认回查：哪个节点改了什么 |
+| `values` | 每个超步后的完整 state | 看执行推进到哪一步 |
+| `messages` / `messages-tuple` | token 级消息增量（tuple 附带元数据） | 前端打字机效果 |
+| `events` | streamEvents 的统一事件流 | 需要事件模型而非状态模型 |
+| `custom` | 图内 `write` 的自定义事件 | 业务进度事件 |
+| `debug` / `tasks` / `checkpoints` | 调试信息 / 当前任务 / 检查点事件 | 排障与快照级消费 |
+
+可传单个字符串或数组（同时订多种）。断线后 `joinStream` 可用 `lastEventId` 从断点续收；`streamResumable: true` 让整条流可重放。
+
+### crons 定时任务
+
+Agent Server 内置 cron 调度：到点后用指定 assistant 向指定输入发起 run，不用自己写调度脚本。JS SDK 方法名是 camelCase（`createForThread`；官方 cron 文档里的 `create_for_thread` 是 Python 写法）：
+
+```ts
+// 运行条件：client 已连上运行中的 Agent Server。
+// 线程绑定：每次调度把同一份 input 发进同一条 thread
+const thread = await client.threads.create();
+await client.crons.createForThread(thread.thread_id, 'agent', {
+  schedule: '27 15 * * *', // 每天 15:27 —— 一律按 UTC 解释
+  input: { messages: [{ role: 'user', content: 'What time is it?' }] },
+});
+
+// 无状态：每次调度新建一个线程，run 完成后默认自动删除该线程
+await client.crons.create('agent', {
+  schedule: '*/30 * * * *',
+  input: { messages: [{ role: 'user', content: 'Run the digest' }] },
+  onRunCompleted: 'keep', // 'delete'（默认）| 'keep'——keep 保留线程供事后查询
+});
+
+// 管理入口：search 列出 / update 改期 / delete 删除
+const [cron] = await client.crons.search({ limit: 10 });
+await client.crons.delete(cron.cron_id);
+```
+
+两条纪律：`schedule` 按 **UTC** 解释，设置前先换算时区；**不再使用的 cron 务必删除**——它到点就发起真实的 LLM 调用，忘了删等于持续烧钱。`onRunCompleted: 'keep'` 保留的线程要配 TTL 或定期清理，否则状态无限累积。
+
+## Studio 调试
+
+Studio 是 LangSmith 提供的免费可视化界面，连接本地（或部署）的 Agent Server，把「改代码 → 重跑 → 看状态」的循环缩短到秒级。入口就是 dev server 终端打印的 Studio URL；`--studio-url` 可改连其他实例。
+
+它能做的事：
+
+- **测试输入、查看中间状态**：每次运行的图结构、每个节点前后的 state 全部展开，不用写任何打印代码。
+- **完整执行 trace**：发给模型的 prompt、工具参数与返回值、token 与延迟——与[「LangSmith 追踪」](?path=/docs/langsmith-observability--docs)的 trace 数据同源。
+- **热重载**：改 prompt、改工具签名，保存即生效，会话不丢。
+- **从任意步骤重跑**：在对话线程的任意历史点重新提交输入，不用从头开始——这是[「中断与时间旅行」](?path=/docs/interrupts-time-travel--docs)机制的 UI 入口。
+- **异常捕获**：报错时保留出错时的完整状态，定位「模型看到了什么才出错」。
+
+dev 命令的常用选项（默认值以 CLI 为准）：
+
+| 选项 | 默认 | 说明 |
+| --- | --- | --- |
+| `--port` / `--host` | `2024` / `localhost` | 换端口后 Studio URL 的 `baseUrl` 参数同步改 |
+| `--no-reload` | 关（即热重载开） | 关闭文件监听 |
+| `--no-browser` | 关 | 不自动打开浏览器 |
+| `--n-jobs-per-worker` | `10` | 并发 worker 数 |
+| `--tunnel` | 关 | Cloudflare 隧道，Safari 无法直连 localhost 时用 |
+
+两条边界要记牢：`dev` 以**内存模式**运行，只用于开发测试，生产必须换持久化后端（LangSmith 部署或 Standalone 的 Postgres）；dev 默认把 trace 上传 LangSmith，不想上传就在 `.env` 设 `LANGSMITH_TRACING=false`——此时数据不离开本地服务器。
+
+## 部署路径
+
+### LangSmith 平台部署
+
+最短的生产路径：代码进 GitHub，平台构建并托管。
+
+1. 确认应用 LangGraph 兼容——本地 `dev` server 跑通即等价（同一套构建逻辑）。
+2. 推送代码到 GitHub（公有 / 私有仓库均可）。
+3. LangSmith 侧栏 **Deployments** → **+ New Deployment** → 首次或私有仓库点 **Add new account** 连接 GitHub → 选仓库 → **Submit**。
+4. 等待约 15 分钟构建完成；Deployment details 页复制 **API URL**，Studio 里可查看部署后的图。
+5. 模型密钥等环境变量在 LangSmith 的部署设置里配置，不随仓库提交（本地 `.env` 同样勿提交）。
+
+也可以从 CLI 发起：`langgraphjs deploy`（选项含 `--api-key`、`--deployment-type dev|prod`、`--name` 等）。部署历史以 **revisions** 管理，可回滚；预览构建（preview builds）支撑分支验证。
+
+对外的调用方式与本课「客户端调用」完全一致，认证用 LangSmith API key（SDK 的 `apiKey` 或 REST 的 `X-Api-Key` 头）。
+
+**Hybrid 与自托管控制面**：当数据不能上云时，Hybrid 把数据面留在你的 VPC、控制面仍由 LangChain 托管；自托管控制面连控制面也搬进你的 K8s（Enterprise，支持气隙）。两者超出本课操作范围，选型判断见形态全景表。
+
+### Docker 自托管
+
+Standalone 形态：没有控制面，你自己运行 Agent Server 镜像，自备 Postgres 与 Redis。
+
+```bash
+# 1) 从 langgraph.json 构建生产镜像（CLI 自动识别 JS 项目并选对基础镜像）
+langgraphjs build -t my-agent
+
+# 2) 运行（Postgres 与 Redis 已就位时）
+docker run --env-file .env -p 8123:8000 \
+  -e REDIS_URI="redis://..." \
+  -e DATABASE_URI="postgres://..." \
+  -e LANGSMITH_API_KEY="lsv2..." \
+  -e LANGGRAPH_CLOUD_LICENSE_KEY="..." \
+  my-agent
+
+# 3) 健康检查：正常返回 {"ok":true}
+curl --request GET --url 0.0.0.0:8123/ok
+```
+
+本地联调用 Compose 把三个服务一起拉起（官方模板的精简版）：
+
+```yml
+# docker-compose.yml —— 本地与测试用；生产路径是 K8s + 官方 Helm chart
+services:
+  langgraph-redis:
+    image: redis:6
+  langgraph-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+  langgraph-api:
+    image: my-agent
+    ports: ["8123:8000"]
+    depends_on: [langgraph-redis, langgraph-postgres]
+    env_file: [.env]
+    environment:
+      REDIS_URI: redis://langgraph-redis:6379
+      DATABASE_URI: postgres://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
+```
+
+关键环境变量：
+
+| 变量 | 说明 |
+| --- | --- |
+| `DATABASE_URI` | PostgreSQL 连接串：threads、runs、队列、长期记忆都在这里 |
+| `REDIS_URI` | Redis 连接串：后台 run 流式输出的 pub-sub |
+| `LANGSMITH_API_KEY` | license 校验与 trace 上报都需要 |
+| `LANGGRAPH_CLOUD_LICENSE_KEY` | Standalone 自带的 license，启动时认证一次 |
+| `LANGSMITH_ENDPOINT` | 指向自托管 LangSmith 时设置；**末尾不能带斜杠**，否则认证失败 |
+
+三条运维规则：**不要在 serverless 上跑**——scale-to-zero 会丢任务、扩容不可靠；**生产只认 K8s + Helm**——非 K8s 部署需自行实现队列扩缩、优雅 drain 等能力，官方只定期测试 Helm 路径；**共享实例要隔离**——多个部署可共用一套 Redis / Postgres，但必须用不同 database 号，同一 database 不可复用。
+
+## 客户端调用
+
+### SDK Client
+
+`@langchain/langgraph-sdk` 是 Agent Server API 的官方 JS 客户端，对本地 dev、LangSmith 部署、Standalone 一视同仁：
+
+```bash
+npm install @langchain/langgraph-sdk
+```
+
+```ts
+// 运行条件：一个运行中的 Agent Server（本地 dev 或部署 URL）。
+import { Client } from '@langchain/langgraph-sdk';
+
+const client = new Client({
+  apiUrl: 'https://your-deployment.url', // 本地 dev 则为 http://127.0.0.1:2024
+  apiKey: process.env.LANGSMITH_API_KEY, // 不传则按环境变量优先级自动读取
+});
+
+// 1) 无状态（threadless）：第一参数传 null，一次问答不留 thread
+const stream = client.runs.stream(null, 'agent', {
+  input: { messages: [{ role: 'user', content: "What's the weather in San Francisco?" }] },
+  streamMode: 'messages-tuple',
+});
+for await (const chunk of stream) {
+  console.log(chunk.event, JSON.stringify(chunk.data));
+}
+
+// 2) 有状态：先建 thread，多轮共享记忆（持久化由服务端负责）
+const thread = await client.threads.create();
+const result = await client.runs.wait(thread.thread_id, 'agent', {
+  input: { messages: [{ role: 'user', content: "What's the weather in San Francisco?" }] },
+});
+console.log(result.messages.at(-1).content);
+```
+
+构造参数的回查要点：
+
+| 参数 | 默认 | 说明 |
+| --- | --- | --- |
+| `apiUrl` | 本地 dev 地址 | 部署换成 Deployment details 里的 API URL |
+| `apiKey` | 环境变量自动读取 | 优先级 `LANGGRAPH_API_KEY` → `LANGSMITH_API_KEY` → `LANGCHAIN_API_KEY`；传 `null` 显式跳过 |
+| `timeoutMs` | 不设 | 单请求超时（毫秒）；长任务改用后台 run + `join`，别靠拉大超时硬等 |
+| `callerOptions` | `maxRetries: 6` | 指数退避重试次数与并发上限（`maxConcurrency` 默认无限） |
+
+消费方式三选一：`runs.stream`（SSE 流式，上面第 1 种）、`runs.wait`（阻塞到完成返回最终 state）、`runs.create` + `join` / `joinStream`（后台 run）。
+
+### RemoteGraph
+
+`RemoteGraph` 把一个远端部署包装成本地编译图——`invoke` / `stream` / `getState` / `updateState` 的用法与 `StateGraph` 编译产物一致，因此**可以直接当另一个图的节点**：
+
+```ts
+// 运行条件：已部署且拿到 API URL 的 Agent Server。
+import { RemoteGraph } from '@langchain/langgraph/remote';
+import { MessagesAnnotation, StateGraph, START } from '@langchain/langgraph';
+
+const remote = new RemoteGraph({ graphId: 'agent', url: 'https://your-deployment.url' });
+
+// 像本地图一样调用；带 thread_id 才有跨调用持久化，默认无状态
+const state = await remote.invoke(
+  { messages: [{ role: 'user', content: "What's the weather in San Francisco?" }] },
+  { configurable: { thread_id: 'demo-thread' } },
+);
+
+// 作为子图节点：远端 agent 成为本地图的一步
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode('child', remote)
+  .addEdge(START, 'child')
+  .compile();
+```
+
+构造参数：`graphId`（必填，`langgraph.json` 的键或 assistant ID）、`url` 或 `client`（二选一，传 SDK Client 实例可复用连接）、`apiKey` / `headers`。方法面对齐编译图：`invoke`、`stream`、`streamEvents`、`getState`、`getStateHistory`、`updateState`。
+
+一条硬性限制：**不要用 RemoteGraph 调用同一部署上的图**——会死锁并耗尽资源；同一部署内的组合用本地图或子图完成。
+
+## 上线前检查清单
+
+收官清单：把观测、测试、评估与部署各课的结论压成上线前的最后一道核对。
+
+| 检查项 | 要点 | 关联 |
+| --- | --- | --- |
+| API key 管理 | 模型与平台密钥走部署环境变量注入，`.env` 进 `.gitignore`，不硬编码进代码或镜像 | 本课 |
+| 观测接通 | tracing 已开启、按环境分 project、dashboard 盯 p99 延迟与错误率——部署形态的 trace 已预配，自托管要自己设 | [LangSmith 追踪](?path=/docs/langsmith-observability--docs) |
+| 超时与重试 | `timeoutMs` 按最坏执行路径设定；外部工具 API 设显式超时；SDK 默认 6 次指数退避是否够用 | 本课 |
+| 成本护栏 | 上下文裁剪压输入 token（成本大头）；停用 cron 清理；成本曲线有告警 | [短期记忆](?path=/docs/short-term-memory--docs) |
+| 评估基线 | 上线前对评估数据集跑一轮回归（LLM-as-judge），分数留档作为回滚判据——没有基线的部署出问题只能靠猜 | [Agent 评估](?path=/docs/agent-evals--docs) |
+| 并发与双发 | `multitaskStrategy` 与 `onDisconnect` 显式设定，不留给默认值兜底 | 本课 |
+| 健康检查与扩缩 | `/ok` 接探活；K8s 参考官方 Helm 配置；共享 Postgres/Redis 的部署用不同 database | 本课 |
+| 认证 | 对外暴露的部署必须有认证（`X-Api-Key` / 自定义认证 / 按用户隔离资源），裸奔的 Agent Server 等于公开的模型付费入口 | 官方 Auth 文档 |
+
+## 最佳实践
+
+- 选型按三层判断走，别从「大家都用 XX」开始：先定要不要 Agent Server 的能力，再定数据驻留与运维归属；输入确定后结论唯一，用形态全景表或选择器复核一遍再动手。
+- 本地即生产：dev server 与生产部署暴露同一套 API，先用 Studio 与 curl 在本地把调用面（graph 名、input 结构、streamMode）调通再部署，部署后只换 URL 和密钥。
+- 密钥与声明分离：仓库里只提交 `langgraph.json` 与代码；`.env` 本地用，云端密钥配在部署设置，运行环境注入——同一份代码要在三种环境可跑。
+- cron 保持最小集合：能不用就不用；`keep` 必配清理；下线功能时同步删 cron——它是唯一一种「你不碰它也持续花钱」的配置。
+- 无状态能跑就别上有状态：threadless run 不建 thread、不留状态、开销最小；确认需要跨轮记忆再引入 thread。
+
+## 常见问题
+
+- dev server 启动正常，但 Studio 页面连不上（尤其 Safari）
+  Safari 会阻断网页到 `localhost` 的连接：启动时加 `--tunnel` 走安全隧道，再在 Studio UI 点 Connect to a local server 手动把隧道 URL 加入允许来源。
+- 部署后调用报 assistant 找不到
+  调用端的 `assistant_id` / `graphId` 必须等于 `langgraph.json` 里 `graphs` 的键；同时确认图文件里 `export` 了该变量——未导出的图 CLI 会在生成配置时警告。
+- `docker run` 起来了但 `/ok` 不通或起不来
+  按顺序查四个环境变量：`DATABASE_URI`、`REDIS_URI`、`LANGSMITH_API_KEY`、`LANGGRAPH_CLOUD_LICENSE_KEY`——Standalone 缺一不可；再确认 Postgres 与 Redis 已就位且网络可达。
+- 调用远端部署 401 / 认证失败
+  SDK 的 `apiKey` 未传且环境变量没配（优先级 `LANGGRAPH_API_KEY` → `LANGSMITH_API_KEY` → `LANGCHAIN_API_KEY`）；自托管 LangSmith 端点另查 `LANGSMITH_ENDPOINT` 末尾是否多了斜杠。
+- 长任务调用偶发超时
+  先区分网络抖动与执行过长：SDK 自带 6 次指数退避，仍失败多半是执行超过 `timeoutMs`——长任务改后台 run（`create` + `join`），不要一味拉大超时硬等。
+- cron 不在预期时间运行
+  `schedule` 一律按 UTC 解释：先换算时区再写表达式；其次用 `crons.search` 确认任务仍处于启用状态。
+- 想省事把 Standalone 部署到 serverless 平台
+  不要：scale-to-zero 会丢任务、扩容不可靠，官方明确排除；serverless 里只能跑自托管 Node 服务形态（且要自己处理 checkpointer）。
+
+## 总结回顾
+
+摘要：
+
+部署先选形态：无状态、最轻的场景用自托管 Node 服务（JS 框架内嵌 + Agent Streaming Protocol）；需要 thread 持久化、后台任务、crons 或 Studio 时选 Agent Server，其运行位置再按数据驻留与运维能力在 LangSmith Cloud、Hybrid、Standalone Docker（及 Enterprise 的自托管控制面）中分流，四种平台形态跑的是同一个运行时。Agent Server 家族用 `langgraph.json` 声明图入口（`graphs` 键即 `assistant_id`，图必须 `export`），本地用 `langgraphjs dev`（内存模式 + 热重载）配 Studio 调试，生产走 GitHub 一键的 LangSmith 部署或 `langgraphjs build` 出镜像的 Docker 自托管（自备 Postgres 存状态与队列、Redis 供流式，`/ok` 探活，不上 serverless）。调用统一走 Agent Server API：SDK Client 管 threads / runs / crons（`wait` / `stream` / 后台 `create` + `join`），RemoteGraph 把部署包装成本地图直接当节点用。上线前过一遍清单：密钥注入、观测接通、超时重试、成本护栏、评估基线、双发策略、健康检查、认证。
+
+一句话：
+
+> 本地 dev server 与所有生产形态暴露同一套 Agent Server API——形态只决定「谁运维、数据放哪」，不改变你的代码与调用方式；选型先问要不要持久化能力，再问数据驻留与运维归属。
+
+知识要点：
+
+- 部署形态有哪几种，分别由哪三个输入决定？
+- `langgraph.json` 各字段声明什么，`graphs` 的键在调用端对应什么？
+- Agent Server 出厂提供哪些能力，Postgres 与 Redis 各承担什么？
+- 从零到 Studio 调试图执行的最小闭环是哪几步，dev 命令有哪些常用选项？
+- LangSmith 平台部署与 Docker 自托管的步骤、前提与各自的运维边界是什么？
+- SDK Client 的三种 run 消费方式怎么选，`apiKey` 的环境变量优先级是什么？
+- RemoteGraph 怎么把部署当本地图用，它的一条硬性限制是什么？
+- cron 的调度按什么时区解释，`onRunCompleted` 两种取值差在哪？
+- 上线前检查清单覆盖哪八个方面，各自关联哪节课？
+
+## 参考资料
+
+- [LangChain.js 部署（官方）](https://docs.langchain.com/oss/javascript/langchain/deploy)
+- [LangGraph.js 部署（官方）](https://docs.langchain.com/oss/javascript/langgraph/deploy)
+- [LangGraph.js 本地 Agent Server（官方）](https://docs.langchain.com/oss/javascript/langgraph/local-server)
+- [LangGraph.js Studio（官方）](https://docs.langchain.com/oss/javascript/langgraph/studio)
+- [LangSmith 部署形态总览（官方）](https://docs.langchain.com/langsmith/deployment)
+- [JavaScript 应用设置：langgraph.json（官方）](https://docs.langchain.com/langsmith/setup-javascript)
+- [Agent Server 概述（官方）](https://docs.langchain.com/langsmith/agent-server-overview)
+- [cron 定时任务（官方）](https://docs.langchain.com/langsmith/cron-jobs)
+- [RemoteGraph（官方）](https://docs.langchain.com/langsmith/use-remote-graph)
+- [Standalone 服务器：Docker 自托管（官方）](https://docs.langchain.com/langsmith/deploy-standalone-server)
+- [部署框架与平台：JS 框架自托管（官方）](https://docs.langchain.com/langsmith/deploy-frameworks-and-platforms)
+- [@langchain/langgraph-cli（npm，命令与配置说明）](https://www.npmjs.com/package/@langchain/langgraph-cli)
+- [LangGraph JS SDK 参考（官方）](https://reference.langchain.com/javascript/modules/_langchain_langgraph-sdk.html)

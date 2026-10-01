@@ -1,0 +1,555 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as GraphApi from './graph-api.stories';
+
+<Meta of={GraphApi} name="Docs" />
+
+# Graph API
+
+上一课把图执行模型立了起来：节点读 state、返回更新片段，边决定下一步，更新在超步末合并。本课把这套模型落成 `StateGraph` 的完整写法：状态通道与 reducer 怎么定义、节点函数怎么写、边怎么连、条件路由与 `Send` 怎么表达动态并行、`compile` 之后 `invoke` / `stream` 的输入输出长什么样。本课只管 Graph API 本身：`entrypoint` / `task` 归「Functional API」一课，checkpointer 细节归「持久化」，中断与时间旅行归 3.5，子图归 3.6。读完你应该能预测：一个节点返回的对象如何进入状态、条件边如何选路、`Send` 分支各自带什么输入、`invoke` 最后拿到什么。
+
+| 构建件 | 用途 | 关键语义 / 默认 |
+| --- | --- | --- |
+| `Annotation.Root` / `StateSchema` | 声明状态通道与合并规则 | 无 reducer 的 key = 新值直接覆盖 |
+| `MessagesAnnotation` / `MessagesValue` | 消息通道预置 | 按 ID 追加，同 ID 替换 |
+| `addNode(name, fn, options?)` | 注册节点 | `fn(state, config)` 返回部分状态 |
+| `addEdge(a, b)` | 固定边；`START` / `END` 是虚拟端点 | 一个节点多条出边 = 下一超步并行 |
+| `addConditionalEdges(src, path, pathMap?)` | 条件路由 | `path` 返回节点名 / `Send` / 数组 |
+| `new Send(node, input)` | 动态并行分支 | 分支各自带独立输入 |
+| `new Command({ update, goto })` | 节点内同时更新状态并路由 | 不与静态出边混用 |
+| `compile(options?)` | 把声明变成可执行图 | 必须 compile 后才能执行 |
+| `invoke` / `stream` | 执行图 | `stream` 默认 `streamMode: "values"`；`recursionLimit` 默认 25 |
+
+## 状态定义
+
+定义 state 时，真正在决定的是两件事：**每个 key 是一条独立的通道**，以及**这条通道怎么合并节点的返回值**。通道有三种典型命运：默认覆盖、按 reducer 合并、不入 checkpoint 的瞬态。先看主线写法 `Annotation.Root`（上一课和 `tester/` 用的就是它）：
+
+```ts
+// state-annotation.ts —— 状态 = 通道集合；reducer 决定节点返回值怎么并入。
+// 运行条件：npm i @langchain/langgraph；npx tsx state-annotation.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  intent: Annotation<string>(),   // 无 reducer：last-value 通道，新值直接覆盖
+  notes: Annotation<string[]>({
+    reducer: (current, update) => [...current, ...update],  // 合并通道
+    default: () => [],                                       // 初始值工厂
+  }),
+});
+
+const classify = async (state: typeof State.State) => ({
+  intent: 'billing',
+  notes: ['classify·识别意图'],  // 返回「部分状态」：只写要改的 key
+});
+
+const graph = new StateGraph(State)
+  .addNode('classify', classify)
+  .addEdge(START, 'classify')
+  .addEdge('classify', END)
+  .compile();
+
+console.log(await graph.invoke({}));
+// { intent: 'billing', notes: ['classify·识别意图'] }
+```
+
+无 reducer 的通道是**最后写入生效**：顺序执行里后写的节点赢，而且同一超步内只允许一次写入（两个并行节点同时写它会在运行时报 `InvalidUpdateError`，见「常见问题」）。有 reducer 的通道把 `(当前值, 本次更新)` 折算成新值，并行分支因此能安全汇合。`default` 是初始值工厂，让 `invoke({})` 可以省略这个 key。类型从定义处提取：`typeof State.State` 是全量状态，节点返回值是它的部分更新。
+
+### MessagesAnnotation
+
+`messages` 是最常用的合并通道，官方直接预置了 `MessagesAnnotation`，它等价于：
+
+```ts
+import { Annotation } from '@langchain/langgraph';
+import type { BaseMessage } from '@langchain/core/messages';
+
+Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,  // 消息专用 reducer（可从包里直接导入）
+    default: () => [],
+  }),
+});
+```
+
+`messagesStateReducer` 的合并规则按**消息 ID** 工作，这解释了它和普通 concat 的三点差异：
+
+- 新 ID 的消息**追加**到列表末尾；
+- 与已有消息**同 ID** 的普通消息**替换**原消息（就地更新）——工具结果回填、修正上一条输出都靠它；
+- `RemoveMessage({ id })` **删除**指定消息；ID 为 `REMOVE_ALL_MESSAGES` 时清空全部。
+
+```ts
+// messages-merge.ts —— 消息通道：输入可用简写，读出来是 LangChain 消息对象。
+// 运行条件：npm i @langchain/langgraph；npx tsx messages-merge.ts（不需要模型 API key）。
+import { END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode('reply', async (state: typeof MessagesAnnotation.State) => ({
+    messages: [
+      { role: 'assistant', content: `收到：${state.messages.at(-1)?.content}` },
+    ],
+  }))
+  .addEdge(START, 'reply')
+  .addEdge('reply', END)
+  .compile();
+
+const out = await graph.invoke({ messages: [{ role: 'user', content: '你好' }] });
+console.log(out.messages.map((m) => `${m.type}: ${m.content}`));
+// ['human: 你好', 'ai: 收到：你好']
+```
+
+输入侧可以用 `{ role, content }` 这样的简写（reducer 会自动补 ID 并转成 LangChain 消息对象），读取侧拿到的永远是 `BaseMessage[]`。消息历史的裁剪与摘要策略归「短期记忆」一课。
+
+### 自定义 reducer 与并行汇合
+
+只要通道会被多条并行分支同时写入，就需要一个合并 reducer。经典形态是 concat：
+
+```ts
+// parallel-merge.ts —— 多条出边 = 下一超步并行；汇合处靠 reducer 合并。
+// 运行条件：npm i @langchain/langgraph；npx tsx parallel-merge.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  question: Annotation<string>(),
+  answers: Annotation<string[]>({
+    reducer: (current, update) => current.concat(update),
+    default: () => [],
+  }),
+  summary: Annotation<string>(),
+});
+
+const graph = new StateGraph(State)
+  .addNode('expand', async (state) => ({ question: `${state.question}（已规范化）` }))
+  .addNode('retrieveWeb', async (state) => ({ answers: [`网页：${state.question} 前 3 条`] }))
+  .addNode('retrieveDb', async () => ({ answers: ['数据库：命中 2 条'] }))
+  .addNode('summarize', async (state) => ({ summary: `共 ${state.answers.length} 条依据` }))
+  .addEdge(START, 'expand')
+  .addEdge('expand', 'retrieveWeb')
+  .addEdge('expand', 'retrieveDb')     // expand 的两条出边：retrieveWeb 与 retrieveDb 并行
+  .addEdge('retrieveWeb', 'summarize')
+  .addEdge('retrieveDb', 'summarize')  // 汇合：两条入边都到位后 summarize 才执行
+  .addEdge('summarize', END)
+  .compile();
+
+console.log(await graph.invoke({ question: 'LangGraph' }));
+// { question: 'LangGraph（已规范化）', answers: ['网页：…前 3 条', '数据库：命中 2 条'], summary: '共 2 条依据' }
+// answers 两条一定都在（reducer 合并），先后顺序取决于并行完成顺序
+```
+
+注意 `summarize` 读到的是两条分支**合并完成**的 `answers`——fan-in 的等待语义由图的执行模型保证。合并通道还有一个高频坑：**返回空值不会清空它**。`concat` 语义下返回 `[]` 等于「本次没有新增」，不写这个 key 效果相同。确实需要「替换」语义时，把 reducer 写成 `(_current, update) => update`，或者单独用一条覆盖通道承载最终值；官方文档还提供了 `Overwrite` 包装器，把单次更新标记为直接替换（注意同一超步多个节点 overwrite 同一 key 会抛 `InvalidUpdateError`）。
+
+### StateSchema：当前文档主推的写法
+
+docs.langchain.com 的 Graph API 页现在以 `new StateSchema({...})` 为推荐写法；`Annotation.Root` 仍被完整支持，存量代码和大量示例都在用，两套语义一一对应：
+
+```ts
+// state-schema.ts —— StateSchema 写法：字段类型决定通道行为。
+// 运行条件：npm i @langchain/langgraph zod；npx tsx state-schema.ts（不需要模型 API key）。
+import { MessagesValue, ReducedValue, StateSchema, StateGraph, START, END } from '@langchain/langgraph';
+import { z } from 'zod';
+
+const AgentState = new StateSchema({
+  messages: MessagesValue,                 // ≈ messages + messagesStateReducer
+  currentStep: z.string(),                // 标准 schema → last-value 覆盖
+  retryCount: z.number().default(0),       // 带默认值的覆盖通道
+  history: new ReducedValue(               // ≈ Annotation + reducer
+    z.array(z.string()).default(() => []),
+    { inputSchema: z.string(), reducer: (current, next) => [...current, next] },
+  ),
+});
+
+type State = typeof AgentState.State;    // 全量状态类型
+type Update = typeof AgentState.Update;  // 节点可返回的部分更新类型
+
+const graph = new StateGraph(AgentState)
+  .addNode('step', async (state: State) => ({ currentStep: 'done', history: '一步' }))
+  .addEdge(START, 'step')
+  .addEdge('step', END)
+  .compile();
+```
+
+对照表：
+
+| 目的 | Annotation 写法 | StateSchema 写法 |
+| --- | --- | --- |
+| 覆盖通道 | `Annotation<string>()` | `z.string()` 等标准 schema |
+| 合并通道 | `Annotation<T>({ reducer, default })` | `new ReducedValue(schema, { reducer, inputSchema? })` |
+| 消息通道 | `MessagesAnnotation` | `MessagesValue` |
+| 瞬态字段（不入 checkpoint） | 底层 `EphemeralValue` 通道 | `new UntrackedValue(schema)` |
+| 容器 | `Annotation.Root({...})` | `new StateSchema({...})` |
+
+`UntrackedValue` 值得单独记：它**不进 checkpoint**，恢复执行时重置为默认值，适合数据库连接、临时缓存、大对象这类运行时资源；`guard`（默认开）在同一个超步内多次写入时报错，关掉后变回覆盖。反过来说，需要跨中断、跨时间旅行存活的数据绝不能放进它。除这两套之外还有更底层的写法（直接声明 `LastValue` / `BinaryOperatorAggregate` / `Topic` / `EphemeralValue` 通道对象，以及 Zod 的 reducer 插件），遇到存量代码能认出来即可，新代码按官方推荐用 `StateSchema`。
+
+### input / output schema
+
+同一张图可以声明三个 schema：`state` 是内部全量通道，`input` 收窄调用方能传什么，`output` 过滤最终返回什么：
+
+```ts
+// io-schemas.ts —— 对外契约与内部实现分离：intent 不出现在输入和输出里。
+// 运行条件：npm i @langchain/langgraph；npx tsx io-schemas.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+
+const Input = Annotation.Root({ question: Annotation<string>() });
+const Output = Annotation.Root({ answer: Annotation<string>() });
+const Overall = Annotation.Root({
+  question: Annotation<string>(),
+  intent: Annotation<string>(),   // 内部字段：对外不可见
+  answer: Annotation<string>(),
+});
+
+const graph = new StateGraph({ state: Overall, input: Input, output: Output })
+  .addNode('classify', async (state) => ({
+    intent: state.question.includes('退款') ? 'billing' : 'general',
+  }))
+  .addNode('answer', async (state) => ({
+    answer: state.intent === 'billing' ? '已登记退款' : '通用答复',
+  }))
+  .addEdge(START, 'classify')
+  .addEdge('classify', 'answer')
+  .addEdge('answer', END)
+  .compile();
+
+console.log(await graph.invoke({ question: '我要申请退款' }));
+// { answer: '已登记退款' }   —— 只含 output schema 声明的字段
+```
+
+一个可见性细节：`invoke` 会按 `output` 过滤，但 `stream` 的 `values` 模式默认输出**全部通道**（私有字段也会流出来）；要收窄就声明 `output` 配合 `outputKeys`，或改用 `streamMode: 'updates'` 只看每步更新（多通道流式归「图级流式」一课）。节点还可以有**自己的**私有输入通道：`addNode('x', fn, { input: NodeXInput })` 让上游只传它需要的字段，其他节点看不到——这是 `Send` 分支输入的常用落点（见「Send」一节）。
+
+## 节点
+
+节点就是一个普通（异步）函数：收当前 state 和执行环境 config，**返回更新片段**。官方措辞很明确：返回更新，而不是就地修改 state——`Nodes should return updates to the state directly, instead of mutating the state.`
+
+```ts
+import type { GraphNode } from '@langchain/langgraph';
+
+// 在图外标注节点类型（StateSchema 写法则用 typeof AgentState.Node）
+const classify: GraphNode<typeof State> = async (state, config) => {
+  // config.configurable.thread_id、config.context.llm 等环境信息在这里可读
+  return { intent: 'billing' };  // 只写要改的 key；没返回的通道保持原值
+};
+```
+
+函数会被包装成 `RunnableLambda`，可以是同步或异步。第二参数 config 携带执行环境：`configurable`（如 `thread_id`）、`context`（运行时上下文，见「compile 与执行」）、`writer`（自定义流事件，归「图级流式」）。`addNode` 的第三个参数是节点级选项：
+
+| 选项 | 作用 |
+| --- | --- |
+| `retryPolicy` | 失败重试策略；默认对除 `TypeError` / `SyntaxError` / `ReferenceError` 外的异常重试 |
+| `input` | 节点私有输入 schema（上游传入的私有通道） |
+| `cachePolicy` | 节点结果缓存（`ttl` 等，需 `compile` 时配 `cache`） |
+| `ends` | 声明 `Command` 的可达目标，供渲染与类型检查（见「Command」） |
+| `metadata` / `subgraphs` | 节点元数据 / 挂载子图（子图归 3.6） |
+
+节点粒度有一条与恢复相关的纪律：checkpoint 落在超步边界，恢复时**整个节点从头重跑**，所以节点里的外部副作用要幂等（幂等键、upsert、先读后写）。节点内部还可以用 `task()` 把多个操作登记为可独立恢复的子步骤——`task` 本身是 Functional API 的成员，细节归那一课。
+
+## 边与条件路由
+
+控制流有三种声明方式：固定边 `addEdge`、条件边 `addConditionalEdges`、节点内 `Command`。`START` 和 `END` 是虚拟端点：`START` 代表用户输入的入口，`END` 代表终止。一个节点有多条出边时，所有目标在**下一超步并行**执行。下面的回放把这三种机制放进同一个小图里，逐步推进「输入 → 节点执行 → reducer 合并 → 边选择 → 输出」：
+
+<Canvas of={GraphApi.Interactive} />
+<Controls of={GraphApi.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 关闭「输入问题含退款」（分支数为 0） | 条件边从 billing 换到 general，最终 answer 变为地址修改步骤 |
+| 打开「notes 用追加合并」 | 同样的节点返回值，notes 通道从「只剩最后一条」变为逐条累积——reducer 决定更新如何并入 |
+| 把「Send 并行分支数」调到 2 | 条件边返回两个 Send，worker:1 ∥ worker:2 同一超步并行，各自收到自己的 topic 输入，results 用 concat 汇合后才进 summarize |
+| 等待回放推进 | 超步日志按「执行 → 路由 → 执行 → END」推进，每格正是一个 super-step；readout 的「当前超步」同步变化 |
+| 打开 Show code | 看到该 Canvas 实际执行的 `example.ts`：通道 + reducer + 条件边 + Send 的迷你实现，不依赖 `@langchain/*` |
+
+### 固定边与并行
+
+`addEdge(a, b)` 声明「a 完成后执行 b」。固定边决定的是**结构**：`addEdge(START, 'x')` 定入口，`addEdge('y', END)` 定出口，多条出边实现 fan-out，多条入边实现 fan-in（汇合节点等所有入边）。「状态定义」一节的 `parallel-merge.ts` 已经是完整例子，这里补两条执行语义：
+
+- 同一超步的并行节点**事务性**执行：任一失败，整个超步失败；
+- 并发上限用 `maxConcurrency` 控制（执行 config 的顶层 key）。
+
+### 条件边
+
+条件边把「下一步走哪」交给一个读 state 的路由函数：
+
+```ts
+// routing.ts —— 条件边：路由函数读 state，返回下一个节点名。
+// 运行条件：npm i @langchain/langgraph；npx tsx routing.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  intent: Annotation<string>(),
+  reply: Annotation<string>(),
+});
+
+// 路由函数：纯函数；返回值直接是节点名，或 pathMap 的 key
+const route = (state: typeof State.State) =>
+  state.intent === 'billing' ? 'billing' : 'general';
+
+const graph = new StateGraph(State)
+  .addNode('billing', async () => ({ reply: '登记退款' }))
+  .addNode('general', async () => ({ reply: '通用答复' }))
+  .addConditionalEdges(START, route, { billing: 'billing', general: 'general' })
+  .addEdge('billing', END)
+  .addEdge('general', END)
+  .compile();
+
+console.log(await graph.invoke({ intent: 'billing' }));
+// { intent: 'billing', reply: '登记退款' }
+```
+
+三个要点：
+
+- `path`（第二个参数）收到 state，返回**节点名、`Send`，或它们的数组**；返回数组表示同时路由到多个目标。
+- `pathMap`（第三个参数）把路由函数的返回值映射到节点名——路由函数返回业务值（如 `'true'` / `'false'`）时用它翻译；返回值本身就是节点名时，pathMap 可以省略，但显式声明（对象或数组形式）对类型和可视化更友好。
+- 条件边也可以接在 `START` 上（条件入口），下面 `Send` 的例子就是这么用的。
+
+一条重要禁令：**同一个节点不要混用静态出边和动态路由（条件边或 `Command`）**——混用时两条路径都会执行，控制流不再是二选一。
+
+### Send
+
+固定并行要求分支数在写代码时已知。分支数运行时才知道（map-reduce），条件边就返回 `Send` 数组：
+
+```ts
+// map-reduce.ts —— Send：每个分支带自己的输入，汇合靠 reducer。
+// 运行条件：npm i @langchain/langgraph；npx tsx map-reduce.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph, Send } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  subjects: Annotation<string[]>(),
+  subject: Annotation<string>(),   // worker 的私有输入：只由 Send 写入
+  jokes: Annotation<string[]>({
+    reducer: (current, update) => current.concat(update),
+    default: () => [],
+  }),
+  best: Annotation<string>(),
+});
+
+// worker 收到的 state 只含 Send 带来的字段
+const generateJoke = async (state: typeof State.State) => ({
+  jokes: [`关于 ${state.subject} 的笑话`],
+});
+
+// fan-in 之后读到合并完成的 jokes；并行完成顺序不保证，用确定性规则挑选
+const bestJoke = async (state: typeof State.State) => ({
+  best: `最佳：${state.jokes.find((j) => j.includes('猫')) ?? state.jokes[0]}`,
+});
+
+// 条件入口：对每个 subject 发出一个 Send 分支
+const continueToJokes = (state: typeof State.State) =>
+  state.subjects.map((subject) => new Send('generateJoke', { subject }));
+
+const graph = new StateGraph(State)
+  .addNode('generateJoke', generateJoke)
+  .addNode('bestJoke', bestJoke)
+  .addConditionalEdges(START, continueToJokes, ['generateJoke'])
+  .addEdge('generateJoke', 'bestJoke')
+  .addEdge('bestJoke', END)
+  .compile();
+
+console.log(await graph.invoke({ subjects: ['猫', '狗'] }));
+// { subjects: ['猫', '狗'], jokes: ['关于 猫 的笑话', '关于 狗 的笑话'], best: '最佳：关于 猫 的笑话' }
+// jokes 的两条一定都在（reducer 合并），先后顺序取决于并行完成顺序
+```
+
+`new Send(node, input)` 的第二个参数就是该分支收到的输入状态：**它不与父状态合并，也不写进共享通道**，worker 读到的只有 Send 带来的字段，所以 state 里要声明对应的通道（例中的 `subject`）让输入能对上类型；`StateSchema` 写法下更推荐用 `addNode('generateJoke', fn, { input: WorkerInput })` 声明私有输入。所有 Send 分支在同一超步并行执行，返回值经 reducer 汇合（例中的 `jokes`），后续节点在 fan-in 之后读到合并结果——把回放的「Send 并行分支数」调到 2 再看一遍日志就能对上。
+
+### Command
+
+`Command` 把「更新状态」和「选择下一步」合并进节点的同一次返回：
+
+```ts
+// command.ts —— 节点返回 Command：update + goto 一次完成。
+// 运行条件：npm i @langchain/langgraph；npx tsx command.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph, Command } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  question: Annotation<string>(),
+  intent: Annotation<string>(),
+  reply: Annotation<string>(),
+});
+
+const classify = async (state: typeof State.State) =>
+  new Command({
+    update: { intent: 'billing' },
+    goto: 'billing',  // 路由决策与状态更新在同一次返回里
+  });
+
+const graph = new StateGraph(State)
+  .addNode('classify', classify, { ends: ['billing', 'general', END] })
+  .addNode('billing', async () => ({ reply: '登记退款' }))
+  .addNode('general', async () => ({ reply: '通用答复' }))
+  .addEdge(START, 'classify')
+  .addEdge('billing', END)
+  .addEdge('general', END)
+  .compile();
+```
+
+`goto` 可以是节点名、`Send` 或数组；`ends` 声明可达目标，让图仍可渲染和做类型检查。`Command` 还有两个方向本课只立边界：`graph: Command.PARENT` 从子图跳回父图节点（归「子图」一课）；`resume` 用于中断后恢复（归「中断与时间旅行」一课）。注意 `Command` 也受上面那条禁令约束：返回 `Command` 的节点不要再挂静态出边。
+
+## compile 与执行
+
+声明完的图必须 `compile()` 才能执行，编译同时做结构检查（如发现孤立节点）：
+
+```ts
+// run.ts —— compile 后：invoke 进「更新」，出「全量状态」；stream 逐超步产出。
+// 运行条件：npm i @langchain/langgraph；npx tsx run.ts（不需要模型 API key）。
+import { Annotation, END, START, StateGraph, MemorySaver } from '@langchain/langgraph';
+
+const State = Annotation.Root({
+  intent: Annotation<string>(),
+  notes: Annotation<string[]>({
+    reducer: (current, update) => current.concat(update),
+    default: () => [],
+  }),
+});
+
+const graph = new StateGraph(State)
+  .addNode('classify', async () => ({ intent: 'billing', notes: ['一步'] }))
+  .addNode('handle', async () => ({ notes: ['二步'] }))
+  .addEdge(START, 'classify')
+  .addEdge('classify', 'handle')
+  .addEdge('handle', END);
+
+// checkpointer 的选型与配置归「持久化」一课；这里只看它对执行的影响
+const app = graph.compile({ checkpointer: new MemorySaver() });
+
+// invoke：输入是对通道的一次写入（可省略有 default 的 key），输出是全量状态
+const final = await app.invoke(
+  {},
+  { configurable: { thread_id: 'demo-1' } },  // 有 checkpointer 时按 thread 区分会话
+);
+console.log(final);
+// { intent: 'billing', notes: ['一步', '二步'] }
+
+// stream：默认 streamMode "values"，每个超步结束产出一份全量状态快照
+for await (const snap of app.stream({}, { configurable: { thread_id: 'demo-2' } })) {
+  console.log(snap.notes);
+}
+// ['一步']
+// ['一步', '二步']
+```
+
+执行有两层保护值得记住：
+
+- **超步上限**：`recursionLimit` 默认 25，超出的循环抛 `GraphRecursionError`。它是 `invoke` / `stream` 第二参数的**顶层** key（不放进 `configurable`）。循环图要显式写终止条件（条件边返回 `END`），再用 `try/catch GraphRecursionError` 兜底。
+- **输入形态**：普通对象输入就是「对通道的一次写入」。接了 checkpointer 并复用同一 `thread_id` 时，这次写入会合并进已有状态——续聊传新的 user 消息即可；`new Command({ resume })` 是唯一适合作输入的特殊形态（归 3.5）。
+
+`compile` 的选项一览：`checkpointer`（3.4）、`interruptBefore` / `interruptAfter`（3.5）、`store`（长期记忆，4.1）、`cache`（配合节点 `cachePolicy`）、`name` / `description`（部署与观测标识）。
+
+**运行时上下文**：不想写死在图里的配置（选哪个模型、数据库连接）走 context，不走 state：
+
+```ts
+// context.ts —— 图级 context：编译不变，运行时注入。
+import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
+import { z } from 'zod';
+
+const State = Annotation.Root({ reply: Annotation<string>() });
+const Context = z.object({ model: z.string() });
+
+const graph = new StateGraph(State, Context)
+  .addNode('reply', async (state, config) => ({
+    reply: `用 ${config.context?.model} 生成`,
+  }))
+  .addEdge(START, 'reply')
+  .addEdge('reply', END)
+  .compile();
+
+await graph.invoke({}, { context: { model: 'gpt-4o-mini' } });
+```
+
+最后是可视化：编译后的图能直接产出结构图，不用手画：
+
+```ts
+const drawable = await app.getGraphAsync();
+console.log(drawable.drawMermaid());      // 输出 Mermaid 文本，可贴进 Markdown / 文档
+// await drawable.drawMermaidPng();       // 生成 PNG（经 Mermaid.ink 服务）
+```
+
+## 模型挂进图
+
+图里的节点不都是纯函数——把模型调用包成节点，它就是「读 messages、写 messages」的普通节点，混合编排由此开始。分类交给模型、路由仍是确定性代码，是 workflow 与 agent 混排的最小形态：
+
+```ts
+// classify-graph.ts —— 模型节点 + 确定性路由：图的分支判断者是代码，不是模型。
+// 运行条件：npm i @langchain/langgraph @langchain/openai；.env 配置 OPENAI_API_KEY
+//（通过 dotenv/config 加载）；npx tsx classify-graph.ts。
+import 'dotenv/config';
+import { ChatOpenAI } from '@langchain/openai';
+import { END, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';
+
+const llm = new ChatOpenAI({ model: 'gpt-4o-mini' });
+
+const classify = async (state: typeof MessagesAnnotation.State) => {
+  const response = await llm.invoke([
+    { role: 'system', content: '只输出 billing 或 general，不要其他内容。' },
+    ...state.messages,
+  ]);
+  return { messages: [{ role: 'assistant', content: response.content as string }] };
+};
+
+// 路由读 messages，不调模型——这一段是 workflow
+const route = (state: typeof MessagesAnnotation.State) =>
+  (state.messages.at(-1)?.content as string).includes('billing')
+    ? 'billing'
+    : 'general';
+
+const graph = new StateGraph(MessagesAnnotation)
+  .addNode('classify', classify)
+  .addNode('billing', async () => ({
+    messages: [{ role: 'assistant', content: '已登记退款申请，1-3 个工作日反馈。' }],
+  }))
+  .addNode('general', async () => ({
+    messages: [{ role: 'assistant', content: '这里是通用支持渠道。' }],
+  }))
+  .addEdge(START, 'classify')
+  .addConditionalEdges('classify', route, ['billing', 'general'])
+  .addEdge('billing', END)
+  .addEdge('general', END)
+  .compile();
+
+const out = await graph.invoke({
+  messages: [{ role: 'user', content: '我上周买的订单想退款' }],
+});
+console.log(out.messages.at(-1)?.content);
+// 已登记退款申请，1-3 个工作日反馈。
+```
+
+## 最佳实践
+
+- reducer 的选择按写入者数量定：一个 key 只有单一写入者、语义是「最终值」，用默认覆盖；会被并行分支或多个节点写入、语义是「累积」，用合并 reducer。要清空一条合并通道，显式设计替换路径（替换式 reducer 或专门的覆盖通道），不要指望「返回空值」。
+- 路由写法按可见性取舍：条件边把分支声明在图上，结构可见、便于对着图讨论；`Command` 把决策收进节点，省掉中间节点，还能和状态更新一次完成。两者不要对同一节点混用，也不要再叠加静态出边。
+- 并行的两种表达各归其位：分支结构固定用多条 `addEdge`；分支数运行时才知道（map-reduce、按输入展开的任务）用条件边返回 `Send`，并给汇合通道配好 reducer。
+- `input` / `output` schema 把对外契约收窄到最少字段，内部字段不泄漏；记得 `stream` 默认输出全部通道，需要收窄时配合 `streamMode` 与输出配置。
+- 状态里存原始数据、不存格式化文本（上一课的原则在 Graph API 里同样成立）：prompt 拼装、派生值都放节点内现算，state 保持单一事实来源。
+
+## 常见问题
+
+- 两个并行节点写同一个没有 reducer 的 key，抛 `InvalidUpdateError: LastValue can only receive one value per step`。
+  给这个 key 定义合并 reducer（如 concat），或改成只有一个节点写它。默认通道是「最后写入生效」，天然不支持同超步多写。
+- 我往数组型 key 返回了新数组，为什么旧数据没了？
+  该 key 没有 reducer，走的是覆盖语义——顺序执行里「最后写入者赢」。数组要累积，把定义改成 `Annotation<T[]>({ reducer: (c, u) => c.concat(u) })`；返回值不写这个 key 才是「保持不变」。
+- 条件边没有生效，或者两条分支都执行了？
+  先看 `path` 的返回值：必须是节点名或 `pathMap` 里声明的 key，拼错会落到未声明的目标。再检查同一个节点是否同时挂了静态出边和条件边（或 `Command`）——混用时两条路径都会执行，删掉其中一种。
+- 图循环跑不完，抛 `GraphRecursionError`？
+  默认 `recursionLimit` 是 25 个超步，循环没有出口就会撞上限。检查条件边的 `END` 出口是否可达；确需更长流程时 `invoke(input, { recursionLimit: 50 })`——它是顶层 config key，放进 `configurable` 里不生效。
+- 第二次 `invoke` 的结果带着上一轮的消息？
+  `compile` 时传了 checkpointer 且复用了同一个 `thread_id`：新输入被当作增量合并进已有状态，这是多轮记忆的工作方式。开新会话换 `thread_id`；续聊传普通对象（新的 user 消息）。checkpointer 细节见「持久化」一课。
+
+## 总结回顾
+
+摘要：
+
+本课把图执行模型落成 `StateGraph` 的完整写法。状态定义的真身是通道集合：无 reducer 的 key 直接覆盖且同超步只许一次写入，合并通道靠 reducer 汇聚并行结果，`MessagesAnnotation` 按 ID 追加 / 替换 / 删除消息，`StateSchema` 是官方当前主推的等价写法并额外提供 `UntrackedValue` 瞬态通道，`input` / `output` schema 收窄对外契约。节点是返回更新片段的普通函数，可用 `retryPolicy` / `input` / `ends` 等选项调节。控制流有三种声明：固定边（多出边即并行、多入边即汇合）、条件边（路由函数返回节点名或 `Send`）、`Command`（更新与路由一次完成），三者不对同一节点混用；`Send` 让分支数运行时决定，每个分支带自己的输入，汇合靠 reducer。`compile` 之后 `invoke` 进更新、出全量状态，`stream` 默认按超步产出快照，`recursionLimit` 默认 25 兜住失控循环，context 注入运行时配置，`drawMermaid` 直接产出结构图。
+
+一句话：
+
+> 节点返回的永远只是「更新」，真正决定这份数据以什么方式进入状态的，是你在 state 定义里写的 reducer；真正决定下一步的，是你在边里声明的路由。
+
+知识要点：
+
+- state 的每个 key 是一条什么通道？无 reducer 时默认行为是什么？
+- `MessagesAnnotation` 的合并按什么规则？同 ID 的消息会发生什么？
+- `Annotation.Root` 与 `StateSchema` 两套写法如何对应？`UntrackedValue` 适合放什么？
+- `input` / `output` schema 分别收窄什么？`stream` 下私有字段的可见性如何？
+- 节点函数的签名是什么？返回 `Command` 时要配什么选项？
+- 一个节点多条出边意味着什么？fan-in 的等待语义由什么保证？
+- 条件边的路由函数可以返回哪几种值？`Send` 的输入会和父状态合并吗？
+- `invoke` 的输入和输出分别是什么形态？`recursionLimit` 默认多少、放在哪里？
+
+## 参考资料
+
+- [Graph API（官方：StateGraph、状态与 reducer、节点、边、Send、Command、runtime context、recursion limit）](https://docs.langchain.com/oss/javascript/langgraph/graph-api)
+- [Use Graph API（官方：定义与更新状态、序列、分支、map-reduce 与 Send、循环、Command、图可视化）](https://docs.langchain.com/oss/javascript/langgraph/use-graph-api)
