@@ -1,0 +1,177 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './code-mode.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 代码模式
+
+代码模式（Beta，需要 `@mastra/core` ≥ 1.38.0，稳定前 API 可能不升主版本直接变更）让 agent 把多工具编排逻辑写成一段 TypeScript，交给隔离沙箱一次执行：模型只发一轮「写代码」的请求，工具通过 `external_*` 桥接函数在宿主逐个调用，聚合结果一次性返回。它解决传统工具循环的两个老问题——每个工具一轮模型交互、工具结果原文在上下文里反复堆积；过滤、分支和数学改由代码执行完成，token 只花在最终结论上。
+
+```mermaid
+flowchart TB
+  subgraph loop[传统循环：一工具一轮]
+    M1[模型] --> T1[工具 1 · 宿主] --> M2[模型] --> T2[工具 2 · 宿主] --> M3[模型 · 汇总]
+  end
+  subgraph cm[代码模式：一段编排代码]
+    C1[模型 · 写编排代码] --> S[沙箱执行 external_* ×N · 工具仍在宿主] --> C2[模型 · 读聚合结果]
+  end
+```
+
+`createCodeMode()` 回查表：
+
+| 项 | 值 |
+| --- | --- |
+| 成熟度 | Beta，`@mastra/core` ≥ 1.38.0 |
+| 返回值 | `{ tool, instructions }`，`instructions` 要拼进 agent 的 instructions |
+| 默认工具 id | `execute_typescript`，可用 `id` 选项覆盖 |
+| 主要选项 | `tools`（允许被编排的工具表）、`sandbox`、`id`；第二参数可传 transport |
+| 默认传输 | `LocalSandbox`（程序写宿主文件系统并用 node 执行） |
+| 桥接约定 | 工具 id `getTopProducts` 对应沙箱内函数 `external_getTopProducts` |
+
+## 两种执行路径
+
+两条路径里工具都在宿主执行，校验、request context 与 tracing 原样保留；区别只在「谁来编排」：传统循环由模型逐轮驱动，代码模式由模型写好的一段代码在沙箱里驱动。切换下方控件，对比两条路径的模型往返次数与累计 token。
+
+<Canvas of={Stories.Interactive} />
+<Controls of={Stories.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 切换「执行路径」 | 时间轴在「N+1 轮模型 + 逐轮回传」与「写码 → 沙箱 → 汇总」之间重画 |
+| 调大「工具调用次数」 | 传统循环 token 柱二次增长；代码模式仅线性增长 |
+
+### 传统循环：一工具一轮
+
+这是 agent 循环的默认形态：模型每轮发出一个工具调用，工具结果原文追加进上下文，下一轮连同之前全部结果重新发送，第 k 轮的输入里已经有前 k-1 份工具结果。过滤、排序、求平均这类「数据加工」全部靠模型逐轮预测完成，工具越多，重复发送越贵。
+
+```
+第 k 轮输入 token ≈ 固定提示词 + (k-1) × 单份工具结果   （示意算例，见上方 Canvas）
+总往返 = N 次工具调用 + 1 次汇总，累计输入随 N 二次增长
+```
+
+边界：单工具、结果即答案的简单任务里这就是最短路径，引入代码模式反而多出一次写码往返。
+
+### 代码模式：一段编排代码
+
+模型根据生成的 `instructions` 写一个 async 函数，`execute_typescript` 工具把它送进沙箱执行；函数体内用 `external_<toolId>` 调用真实工具，可用 `Promise.all` 并行，`return` 前先把结果 reduce 成小对象。
+
+```typescript
+import { Agent } from '@mastra/core/agent';
+import { createCodeMode } from '@mastra/core/tools';
+import { LocalSandbox } from '@mastra/core/workspace';
+
+const { tool, instructions } = createCodeMode({
+  tools: { getTopProducts, getProductRatings },
+  sandbox: new LocalSandbox(), // 默认传输：宿主文件系统 + node，仅限可信或本地开发
+});
+
+const agent = new Agent({
+  id: 'shop-assistant',
+  name: 'shop-assistant',
+  instructions: ['你是购物助手。', instructions], // 生成的 instructions 必须拼接
+  model: 'openai/gpt-5.6-sol',
+  tools: { execute_typescript: tool },
+});
+```
+
+模型生成的编排代码长这样——工具调用指向宿主函数，聚合逻辑是纯代码：
+
+```typescript
+const top = await external_getTopProducts({ limit: 5 });
+const ratings = await Promise.all(
+  top.products.map((p) => external_getProductRatings({ productId: p.id })),
+);
+return top.products.map((product, i) => {
+  const scores = ratings[i].ratings.map((r) => r.score);
+  const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+  return { name: product.name, averageRating: Math.round(avg * 100) / 100 };
+});
+```
+
+可观察证据：把 Canvas 切到「代码模式」，模型往返固定为 2 轮，沙箱节点标注 `external_*` 次数，工具执行位置仍显示宿主；调大 N 时只有工具目录与聚合结果带来线性开销。
+
+边界：编排代码由模型生成，任务描述越结构化越可靠；`external_*` 只暴露 `tools` 里登记的工具，未登记的工具在沙箱内不可见。
+
+## 传输层四种选型
+
+`createCodeMode()` 的选项决定「编什么」，传输层决定「在哪执行」。四种传输的共同点：编排代码永远跑在隔离边界内，工具永远留在宿主；选择入口是部署形态与信任边界。与 [Sandbox 与文件系统](?path=/docs/sandbox--docs) 的关系一句话：`LocalSandbox` 就是 Sandbox 体系里的本地执行器，其余三种 transport 是把同一执行约定搬到远程或进程内的替身。
+
+### LocalSandbox：默认本地
+
+从 `@mastra/core/workspace` 导入，编排程序写入宿主文件系统并用 node 执行，拥有宿主完整权限——官方明确只用于可信环境或本地开发，生产环境不要直连。
+
+### E2BCodeModeTransport：远程微 VM
+
+```typescript
+import { E2BSandbox, E2BCodeModeTransport } from '@mastra/e2b';
+
+const { tool, instructions } = createCodeMode(
+  { tools, sandbox: new E2BSandbox() },
+  new E2BCodeModeTransport(),
+);
+```
+
+编排程序写入远程微 VM 的文件系统执行，宿主不落盘；适合生产或不可信租户场景。
+
+### IsolatedVmCodeModeTransport：进程内 V8 isolate
+
+```typescript
+import { IsolatedVmCodeModeTransport } from '@mastra/isolated-vm';
+
+const { tool, instructions } = createCodeMode(
+  { tools }, // 无需 sandbox
+  new IsolatedVmCodeModeTransport({ memoryLimitMb: 128 }),
+);
+```
+
+原生 addon，无需外部沙箱服务；Node.js 20+ 必须以 `--no-node-snapshot` 标志启动进程。
+
+### QuickJsCodeModeTransport：serverless 兼容
+
+```typescript
+import { QuickJsCodeModeTransport } from '@mastra/quickjs';
+
+const { tool, instructions } = createCodeMode(
+  { tools }, // 无需 sandbox
+  new QuickJsCodeModeTransport({ memoryLimitMb: 128 }),
+);
+```
+
+QuickJS 编译为 WebAssembly，提供与 isolate 同级的进程内隔离边界，代价是执行更慢；适合跑不了原生 addon 的 serverless 环境。
+
+## 最佳实践
+
+- 多工具聚合才上代码模式：需要组合、过滤、并行拉取多个工具结果时收益最大；单工具直调不要套。
+- 工具聚焦、结果小而结构化：编排代码才能把 reduce 做在沙箱里，只回传小对象进上下文。
+- 用多次 `createCodeMode()` 划分子集：不同 `id` 各自捕获自己的工具 allow-list，形成最小权限与更小的提示词面。
+- 数学交给代码：求和、平均、排序在 `return` 前用 JavaScript 算完，不要靠模型逐轮预测。
+
+## 常见问题
+
+- 生产环境用 `LocalSandbox` 安全吗？
+  不安全。它以宿主权限写文件并执行 node，官方定位是可信或本地开发；生产改用 E2B 远程微 VM，或进程内的 isolated-vm / QuickJS 传输。
+- `IsolatedVmCodeModeTransport` 启动报错？
+  Node.js 20+ 需要以 `--no-node-snapshot` 标志启动进程，否则 V8 isolate 初始化失败。
+- 单个工具结果本身就很大，代码模式还救得了吗？
+  能救一半：让编排代码在沙箱内先聚合再 `return`，进入上下文的只有最终小对象；但单个 `external_*` 调用的结果仍要完整穿过桥接，若它本身就超出预算，先把工具拆小。
+
+## 总结回顾
+
+摘要：
+
+代码模式把「多工具怎么调」从模型逐轮决策改成模型一次性写出的编排代码：`createCodeMode()` 返回 `execute_typescript` 工具与配套 instructions，代码在传输层提供的隔离边界里执行，`external_*` 桥接让工具仍在宿主完成校验与 tracing。传统循环每个工具一轮、上下文随结果原文堆积二次增长；代码模式固定两轮往返，聚合结果替换原文堆积。传输层按部署形态选：LocalSandbox 本地默认、E2B 远程微 VM、isolated-vm 进程 isolate（Node 20+ 需 `--no-node-snapshot`）、QuickJS 走 WASM 兼容 serverless。
+
+一句话：
+
+> 工具永远在宿主执行，代码模式只是把「编排」这段最烧 token 的逻辑搬进沙箱里的一次代码执行。
+
+知识要点：
+
+- `createCodeMode()` 返回什么、默认工具 id 是什么、生成的 `instructions` 用在哪？
+- `external_getTopProducts` 调用时工具代码在哪执行，校验与 tracing 由谁保留？
+- 四种传输层各适合什么部署形态，IsolatedVm 为什么需要 `--no-node-snapshot`？
+- 什么样的任务不值得用代码模式？
+
+## 参考资料
+
+- [Mastra Docs — Agents / Code Mode](https://mastra.ai/docs/agents/code-mode)

@@ -1,0 +1,149 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './chunking-and-embedding.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 切块与嵌入
+
+RAG 入库前有两步文本加工：先用 `MDocument` 把长文档切成小块（chunk），再用 `embedMany` 把每块变成定长向量（embedding）。切块决定"检索时拿回来的是不是一段完整语义"，嵌入决定"相似文本在向量空间里是否彼此接近"。本课覆盖 `MDocument` 的构造与九种 `chunk()` 策略、切块参数的取舍，以及嵌入模型的接入与两条硬约束。端到端流程见 [RAG 流水线](?path=/docs/rag-pipeline--docs)。
+
+```mermaid
+flowchart LR
+  A[原始文档] --> B["MDocument.fromMarkdown / fromText / ..."]
+  B --> C["doc.chunk(strategy 参数)"]
+  C --> D[块数组 Chunk 数个]
+  D --> E["embedMany(blocks, model)"]
+  E --> F[向量矩阵]
+  F --> G[写入向量索引]
+  G -.同一嵌入模型.-> H[查询向量化]
+```
+
+## 切块：MDocument 与 chunk()
+
+`MDocument` 来自 `@mastra/rag`，用四个静态构造器把不同来源的文本装进同一个对象，再统一调用异步的 `doc.chunk()` 得到块数组。切块策略通过 `strategy` 参数选择，每种策略有自己的一组参数。
+
+```ts
+import { MDocument } from '@mastra/rag';
+
+// 构造器按输入来源选：fromText / fromHTML / fromMarkdown / fromJSON
+const doc = MDocument.fromMarkdown('# 标题\n\n正文段落……');
+
+const chunks = await doc.chunk({
+  strategy: 'recursive', // 九种策略之一
+  maxSize: 512, // 每块的大小上限
+  overlap: 50, // 相邻块重叠，保住边界上下文
+  separators: ['\n\n', '\n'], // 递归回退用的分隔符
+  extract: { metadata: true }, // 可选：用 LLM 给每块补元数据
+});
+```
+
+下面的离线实例用一篇三个小节的示例文档模拟四种代表性策略的切块效果：每根条是一个块，长度即块字符数，颜色对应所属小节，红框表示这块跨了多个小节（主题被切断）。切换策略、拖动两个滑杆，观察块数、平均块长与跨节块数如何变化。
+
+<Canvas of={Stories.Interactive} />
+<Controls of={Stories.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 切到 character | 块长几乎全部顶到上限，跨节红框最多——硬切不在乎语义边界 |
+| 切到 recursive | 空行段落处断开，块长参差但完整，跨节块明显减少 |
+| 切到 markdown | 每个小节各自成块或成组，小节内不跨主题 |
+| 切到 token | 预算按 1 token ≈ 4 字符换算，同样上限下块更长、块数更少 |
+| 调小 maxCharacters | 块数上升、平均块长下降；调到极小值时 recursive 也被迫硬切 |
+| 调大 overlap | 相邻块重叠区变长，同一句话出现在两个块里 |
+
+### 九种策略怎么选
+
+九种策略按"按什么断开"分三类：按大小、按结构、按语义。官方文档未给出各策略参数默认值，下表"关键参数"列为该策略的核心入参（以 recursive / sentence / semantic-markdown 的官方示例为准），使用前请以 chunk 参考页核对。
+
+| strategy | 适合输入 | 断开依据 | 关键参数 |
+| --- | --- | --- | --- |
+| `recursive` | 通用长文本（默认首选） | 分隔符从大到小回退 | `maxSize`、`overlap`、`separators` |
+| `character` | 只按长度均匀切 | 固定字符数硬切 | 大小、`overlap` |
+| `token` | 按模型 token 预算控制 | token 计数 | 预算大小、`overlap` |
+| `markdown` | Markdown 文档 | `#` 标题层级 | 大小、`overlap` |
+| `semantic-markdown` | Markdown + 想按语义合并小段 | 标题切分后按嵌入相似度合并 | `joinThreshold`、`modelName` |
+| `html` | HTML 页面 | 标签结构 | 大小、选择器 |
+| `json` | JSON 文档 | 键路径 | 大小 |
+| `latex` | LaTeX 论文/公式源 | 命令与环境边界 | 大小 |
+| `sentence` | 按句子粒度控制 | 句子结束符 | `maxSize`、`minSize`、`sentenceEnders` |
+
+选择判断：Markdown 文档用 `markdown` 保留标题结构；没有结构的纯长文本用 `recursive`；要精确控制喂给模型的 token 预算用 `token`；HTML / JSON / LaTeX 各有专用解析器，别用通用策略硬切。
+
+### overlap 与块大小的取舍
+
+两个参数一起决定"块多碎、上下文多连续"：
+
+- **maxSize（上限）**：调小 → 块多而碎，检索单位精准但每块上下文不足；调大 → 块少而全，但一块混入多个主题会稀释向量相关性（实例里表现为跨节红框变多）。
+- **overlap（重叠）**：让相邻块共享一小段文本，避免答案正好被切在边界上而两边都缺一半。代价是总块数变多、存储重复。实例中调大 overlap，能看到同一句话落入两个块。
+
+经验起点是官方 recursive 示例的组合：`maxSize: 512`、`overlap: 50`。`sentence` 策略额外提供 `minSize`，可以把过短的尾块并回去。
+
+### extract：让 LLM 补元数据
+
+```ts
+const chunks = await doc.chunk({
+  strategy: 'recursive',
+  extract: { metadata: true },
+});
+```
+
+开启后每块会附带自动提取的元数据（如标题、摘要类字段），便于入库后做元数据过滤（见 [检索与重排](?path=/docs/retrieval-and-rerank--docs)）。注意：元数据提取会调用 LLM，必须保证对应 provider 的 API key 已设置，否则切块阶段就会失败。
+
+## 嵌入：embed 与 embedMany
+
+`embed` / `embedMany` 由 AI SDK 提供、经 `'ai'` 包使用；模型用 `@mastra/core/llm` 的 `ModelRouterEmbeddingModel`，以 `provider/model` 字符串指定，与 Agent 的模型接入方式一致。切块产出的每个块对应一次嵌入，批量入库用 `embedMany`。
+
+```ts
+import { embed, embedMany } from 'ai';
+import { ModelRouterEmbeddingModel } from '@mastra/core/llm';
+
+const model = new ModelRouterEmbeddingModel('openai/text-embedding-3-small');
+
+// 单条（查询侧常用）
+const { embedding } = await embed({ model, value: '切块的作用是什么？' }); // number[]
+
+// 批量（入库侧常用）
+const { embeddings } = await embedMany({
+  model,
+  values: chunks.map((chunk) => chunk.text), // 每块一段文本
+}); // number[][]
+```
+
+两条硬约束，违反任何一条检索都会静默变差或直接报错：
+
+- **维度匹配**：向量索引的维度必须等于嵌入模型输出维度（如 `text-embedding-3-small` 为 1536 维），建索引前先确定模型。
+- **同一模型**：查询与入库必须用同一个嵌入模型，两批向量必须在同一模型生成的同一向量空间里比较才有意义。
+
+`embed` / `embedMany` 的 `maxRetries` 默认为 2，设为 0 可禁用重试；还可传 `abortSignal` 取消、`headers` 附加 HTTP 头。返回值就是朴素的 `number[]` / `number[][]`，直接交给向量存储写入。
+
+## 常见问题
+
+- 查询能跑通但检索结果几乎不相关，换了查询措辞也没有改善
+  先检查查询与入库是否用了同一个嵌入模型字符串。两个模型（甚至同一模型的不同版本）的向量空间不可互换，混用时相似度分数失去意义；重建索引时统一模型再重新嵌入全部块。
+- 写入向量库时报维度不匹配
+  索引建好后嵌入维度就固定了，换成其他嵌入模型（如从 `text-embedding-3-small` 换到 `text-embedding-3-large`）必须删掉重建索引；建议把模型名和维度写进索引命名或配置里，避免隐式依赖。
+- `chunk()` 时报 API key 缺失
+  只有开了 `extract.metadata` 才会走 LLM；要么设置对应 provider 的 key，要么去掉 `extract` 用纯切块。
+
+## 总结回顾
+
+摘要：
+
+切块与嵌入是 RAG 入库前的两步加工：`MDocument` 用 `fromText` / `fromHTML` / `fromMarkdown` / `fromJSON` 装载文本，`doc.chunk()` 按九种策略之一切块——通用长文本选 `recursive`，Markdown 选 `markdown`，token 预算选 `token`，结构化格式各有专用策略；`maxSize` 与 `overlap` 决定块多碎、上下文多连续，`extract.metadata` 可让 LLM 补元数据但需要 API key。随后 `embed` / `embedMany` 配合 `ModelRouterEmbeddingModel`（`provider/model` 字符串）把每块变成向量，受"索引维度匹配"与"查询入库同一模型"两条硬约束保护。
+
+一句话：
+
+> 切块决定检索单位的语义完整性，嵌入模型决定向量空间——块按结构切，嵌入全程锁定同一个模型。
+
+知识要点：
+
+- 九种 `chunk()` 策略分别按什么断开？各自适合什么输入？
+- `maxSize` 调小 / `overlap` 调大分别会让切块结果发生什么？
+- 开启 `extract.metadata` 的额外前提是什么？
+- `embedMany` 的输入输出形态是什么？`maxRetries` 默认值是多少？
+- 换嵌入模型时为什么必须重建向量索引？
+
+## 参考资料
+
+- [Chunking and Embedding Reference - Mastra](https://mastra.ai/reference/rag/chunking-and-embedding)
+- [Embeddings Reference - Mastra](https://mastra.ai/reference/rag/embeddings)

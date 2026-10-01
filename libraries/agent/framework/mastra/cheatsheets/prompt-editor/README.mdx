@@ -1,0 +1,168 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './prompt-editor.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 提示词管理与 Editor
+
+agent 上线后，系统提示词（instructions）仍要反复打磨——让运营、产品在 Studio 里直接改，而不是每次都改代码发版。Studio Editor 就是 agent 的 CMS：管理 instructions、工具的增删与每个工具的描述，修改以 override 形式单独保存，代码库不动；agent 的 `id`、`name`、`model` 始终由代码掌控。保存产生**草稿**，发布才对线上生效；**prompt block** 把一段指令复用到多个 agent。代码里的 instructions 是初始值与兜底，Editor 负责线上迭代，改完配合评估课验证效果。
+
+```mermaid
+flowchart LR
+  A[代码 instructions<br/>初始值 / 兜底] --> B[Studio Editor<br/>修改 override]
+  B --> C[草稿 Draft<br/>仅预览生效]
+  C -->|发布 Publish| D[已发布版本<br/>线上生效]
+  D --> E[getAgentById<br/>status / versionId 选版本]
+```
+
+| 关键项 | 写法 / 默认 | 说明 |
+| --- | --- | --- |
+| 启用 Editor | `editor: new MastraEditor()`，包 `@mastra/editor` | override 存数据库，需配 store（如 `@mastra/libsql`） |
+| 存进仓库 | `new MastraEditor({ source: 'code', codePath: './mastra/editor' })` | 每个 agent 一个 JSON，走 Git 审查 |
+| 程序化更新 | `mastra.getEditor()` → `editor.agent.update(...)` | 立即激活新版本（发布语义） |
+| 只存草稿 | REST `PATCH /api/stored/agents/<agentId>` | 不立即上线，服务默认前缀 `/api` |
+| 选版本 | `getAgentById(id, { status })` 或 `{ versionId }` | `published` / `draft` / 钉住指定版本 |
+| 控权 | agent 配置的 `editor` 字段 | 缺省全可编辑；`false` 全部禁止 |
+
+## Editor：agent 的提示词 CMS
+
+协作者在 Studio 里改 agent 的 instructions、增删工具、改写工具描述，全程不碰代码库。修改与源码分离存储：代码定义不变，Editor 的 override 叠加在其上。
+
+```ts
+import { Mastra } from '@mastra/core';
+import { MastraEditor } from '@mastra/editor';
+import { LibSQLStore } from '@mastra/libsql';
+
+export const mastra = new Mastra({
+  agents: { supportAgent },
+  storage: new LibSQLStore({ id: 'mastra-storage', url: 'file:./mastra.db' }),
+  editor: new MastraEditor(),
+});
+```
+
+跑 `mastra dev` 打开 Studio（见 [Studio 调试课](?path=/docs/studio--docs)），Agents 页即出现编辑入口；保存后生成草稿，而不是回写代码。
+
+边界：协作者不能在 Studio 里实现新工具，只能改已有工具的描述或增删工具；本地开发之外协作需要已部署的 Studio。
+
+### 程序化更新与草稿
+
+`mastra.getEditor()` 拿到编辑器实例。注意 `editor.agent.update()` 是**发布语义**——立即激活新版本；想先存草稿、走审核再发布，用 REST：
+
+```ts
+// 立即生效（发布）
+const editor = mastra.getEditor()!;
+await editor.agent.update({
+  id: 'support-agent',
+  instructions: '处理订单与退货咨询，语气友好。',
+});
+```
+
+```bash
+# 只存草稿，稍后在 Studio 里发布
+curl -X PATCH http://localhost:4111/api/stored/agents/support-agent \
+  -H 'Content-Type: application/json' \
+  -d '{"instructions": "退货政策 v2：..."}'
+```
+
+## 版本化：草稿、发布与回滚
+
+数据库里的 agent 与 prompt block 都有草稿、已发布两套版本：保存产生草稿，只影响预览；发布才对线上生效；恢复旧版本不是把线上切回去，而是把旧版内容复制成一份**新草稿**，可再编辑后发布。
+
+<Canvas of={Stories.Interactive} />
+<Controls of={Stories.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 「版本操作」保持编辑草稿 | 三个 agent 徽章都停在 v1，受影响数为 0 |
+| 切到「发布」 | support-agent 跳到 v2；打开 block 开关再发布，faq-agent 也变 v2 |
+| 切到「回滚旧版」 | 线上仍是 v1，状态显示生成了新草稿 v3 |
+
+### 按版本取 agent：getAgentById
+
+同一个 agent 定义，按需取草稿或已发布版本，这是 A/B 测试、小范围灰度、给客户钉住固定版本的开关：
+
+```ts
+await mastra.getAgentById('support-agent', { status: 'published' });  // 线上版本
+await mastra.getAgentById('support-agent', { status: 'draft' });      // 草稿预览 / 测试
+await mastra.getAgentById('support-agent', { versionId: 'abc-123' }); // 钉住某个版本
+```
+
+supervisor 调用的 sub-agents 同样适用这套版本控制，整条调用链可一起灰度。
+
+## prompt blocks：可复用指令块
+
+一段保存好的指令文本（如「退货政策」）可被多个 agent 复用：在 Studio 的 Prompts 区创建并发布，再在各 agent 上 Add block 引用。改一处、发布一次，所有引用方同步更新。
+
+- **请求上下文变量**：块里写 `{{userName}}` 这类占位符，运行时由 request context 填充。
+- **显示条件**：给块加 display condition，只在特定客户、角色或 feature flag 下生效。
+- **发布同步**：发布 block 新版本会更新所有引用方的已发布版本；草稿只在预览时生效。
+
+结合上方实例验证：打开「prompt block 待发布修改」再发布——faq-agent 自己没有草稿，也随 block 发布跳到 v2；这就是「改一处、波及全部引用方」。
+
+## 控权与落地方式
+
+### editor 字段：精细控权
+
+在 agent 配置上用 `editor` 字段声明协作者能改什么；`id`、`name`、`model` 不在其中，永远由代码掌控。
+
+| agent 配置 | 协作者能改什么 |
+| --- | --- |
+| 缺省（不写） | instructions、工具增删、工具描述 |
+| `editor: false` | 什么都改不了 |
+| `editor: { instructions: true }` | 只能改 instructions |
+| `editor: { tools: true }` | 只能改工具及其描述 |
+| `editor: { tools: { description: true } }` | 只能改代码中已有工具的描述，不能增删工具 |
+
+```ts
+export const supportAgent = new Agent({
+  id: 'support-agent',
+  name: 'Support Agent',
+  model: 'openai/gpt-5.6-sol', // 模型始终由代码掌控
+  instructions: '你是客服支持助手。', // 初始值与兜底
+  editor: { instructions: true, tools: { description: true } },
+});
+```
+
+### 存数据库还是存仓库
+
+- **数据库（默认）**：`new MastraEditor()` 配合 store；需要给编辑器单独配后端时，用 `@mastra/core/storage` 的 `MastraCompositeStore`，分 `default` 与 `editor` 两个 key。
+- **仓库**：`source: 'code'` 加 `codePath`，每个 agent 落一个 JSON（如 `mastra/editor/agents/support-agent.json`），只含 Editor 管理的字段；Studio 可本地写入、下载变更或经源码集成开 PR，提示词改动进入 Git 审查。
+
+工具的三个来源：代码注册的项目工具（`Mastra` 的 `tools`）；集成工具（`@mastra/editor/composio` 的 `ComposioToolProvider`、`@mastra/editor/arcade` 的 `ArcadeToolProvider`，作为 `toolProviders` 传给 `MastraEditor`）；MCP（协作者在 Studio 创建可复用的 MCP client，本地 `stdio` 或远程 HTTP，按 agent 配过滤）。
+
+## 最佳实践
+
+- **改提示词先草稿、后评估、再发布**：草稿版用 `getAgentById(id, { status: 'draft' })` 接进评估流程跑分，通过后再发布；与 [评估基础与 Scorer](?path=/docs/evals-basics--docs) 形成「改提示词 → 跑评估」闭环。
+- **控权从紧**：默认全开只适合原型期；生产按角色只放开需要迭代的字段，描述可改、模型不可碰。
+- **变更要过审**：提示词影响线上行为的团队用 `source: 'code'` 落仓库，让每次改动都有 diff 与 PR 记录。
+
+## 常见问题
+
+- 调 `editor.agent.update()` 后线上立刻变了？
+  这是预期行为：`update` 是发布语义，立即激活新版本。想先审后发，改用 REST `PATCH /api/stored/agents/<agentId>` 存草稿，再在 Studio 发布。
+- 回滚后线上版本没变化？
+  回滚不是切回旧版：它把旧版本内容复制成一份新草稿，需要再编辑并发布才对线上生效。
+- 改了 prompt block，部分 agent 没变化？
+  草稿状态的 block 只在预览时生效；发布 block 后才会同步到引用其已发布版本的 agent。逐一检查引用方的版本状态。
+
+## 总结回顾
+
+摘要：
+
+Studio Editor 把 agent 的系统提示词当作运营资产管理：协作者在 Studio 改 instructions、工具与描述，override 与源码分离存储，`id`、`name`、`model` 始终由代码掌控。数据库里的 agent 与 prompt block 都有草稿、发布两套版本，`getAgentById` 按 `status` 或 `versionId` 取版本，支撑 A/B、灰度与钉住客户；回滚生成新草稿而非直接切回。`editor` 字段精细控权，override 可落数据库也可经 `source: 'code'` 落仓库走 Git 审查。
+
+一句话：
+
+> 提示词是运营资产：代码给初始值与兜底，Editor 管版本化迭代，模型与身份永远留在代码里。
+
+知识要点：
+
+- `editor.agent.update()` 与 REST `PATCH /api/stored/agents/<agentId>` 在发布语义上有什么区别？
+- `getAgentById` 的 `status` 与 `versionId` 各适合什么场景？
+- prompt block 发布后，哪些 agent 会被同步、哪些不受影响？
+- `editor` 字段五种取值分别放开什么权限？
+- 草稿、发布、回滚分别改变的是哪套版本？
+
+## 参考资料
+
+- [Mastra Editor — Mastra Docs](https://mastra.ai/docs/studio/editor)

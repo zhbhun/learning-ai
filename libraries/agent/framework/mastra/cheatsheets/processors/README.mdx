@@ -1,0 +1,155 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './processors.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 输入输出处理器
+
+处理器是挂在 agent 执行管道上的转换、验证与拦截组件：消息进入模型前由 `inputProcessors` 处理，模型产出后由 `outputProcessors` 处理，LLM API 报错时交给 `errorProcessors`。读完本课，你应能判断「改写输入该用哪类、钩子选哪个」，并写出自定义处理器。安全防护类现成处理器（注入检测、PII 等）在[安全防护](?path=/docs/guardrails--docs)一课；记忆相关的三个处理器在[记忆处理器](?path=/docs/memory-processors--docs)一课。
+
+## 管道与执行顺序
+
+三类数组挂在 Agent 配置上，数组顺序即执行顺序：
+
+```ts
+import { Agent } from '@mastra/core/agent';
+
+export const agent = new Agent({
+  id: 'assistant',
+  name: 'Assistant',
+  instructions: '你是一个简洁的助手。',
+  model: 'openai/gpt-5-mini',
+  inputProcessors: [inputValidator, tokenLimiter],
+  outputProcessors: [piiDetector],
+  errorProcessors: [prefillErrorHandler],
+});
+```
+
+| 数组 | 运行时机 | 典型用途 |
+| --- | --- | --- |
+| `inputProcessors` | 消息进入模型循环前 | 校验、注入上下文、限流、缓存 |
+| `outputProcessors` | 模型产出后、返回用户前 | 脱敏、过滤、附加元数据 |
+| `errorProcessors` | LLM API 抛错时 | 改写请求后重试 |
+
+<Canvas of={Stories.Interactive} />
+
+<Controls of={Stories.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 开关「启用 TokenLimiter」并拖动预算 | 右列最旧的非 system 块被依次丢弃，读数「进入模型 token」随之下降 |
+| 开关「启用 ToolCallFilter」 | 两个工具块变为红色删除线，读数「ToolCallFilter 过滤块」变为 2，但它们仍写入 memory |
+
+两个关键顺序规则：
+
+- **记忆处理器有固定位置。** 输入方向上，记忆处理器（拉历史、语义召回、工作记忆）先于你的 `inputProcessors` 执行；输出方向上，你的 `outputProcessors` 先于记忆处理器。记住这个先后，才能判断「我改写的内容会不会被记忆逻辑覆盖」。
+- **中止即终止。** 处理器内调用 `abort()` 会产生 tripwire：请求不再发出（输入阶段中止），消息不再写入 memory，流式响应里会出现 `tripwire` chunk，需要客户端显式监听。
+
+两类工程化用法：
+
+- **按调用覆盖。** `generate()` / `stream()` 的 `perCall.inputProcessors` / `outputProcessors` / `errorProcessors` 是替换语义：传了就整体替换 Agent 配置里的同名数组，没传沿用配置。想「追加」需先取出原数组再拼接。
+- **按请求构建。** `inputProcessors` 也可以是一个函数，签名 `({ requestContext }) => Processor[]`：用请求级数据（用户身份、租户）动态决定挂哪些处理器，这是多租户场景的标准写法。
+
+## 自定义处理器
+
+自定义处理器实现 `Processor` 接口。读写消息用 `messages`（快照）与 `messageList`（可变列表）；文本不在 `content` 字符串里，而在 `content.parts` 数组中（`type: 'text'` 的 `text` 字段），改写时按块操作。
+
+### processInput：进入循环前改写
+
+适合校验输入、注入上下文、裁剪历史。直接操作 `messageList`：
+
+```ts
+import type { Processor } from '@mastra/core/processors';
+
+export const contextInjector: Processor<'contextInjector'> = {
+  name: 'contextInjector',
+  async processInput({ messages, messageList }) {
+    const today = new Date().toISOString().slice(0, 10);
+    messageList.add([{ role: 'system', content: `今天是 ${today}。` }], 'memory');
+  },
+};
+```
+
+抛出异常会中止请求；调用 `abort()` 则产生 tripwire 并把消息标记为已中止。
+
+### processInputStep 与 prepareStep：控制每一步
+
+`processInputStep` 在循环的每一步前调用（入参含 `stepNumber`、`model`、`toolChoice`），可以逐步切换模型或关闭工具；免建类的简写是 agent 方法里的 `prepareStep` 函数，二者能力等价。
+
+### processOutputStream：过滤流式 chunk
+
+每个输出 chunk（`ChunkType`）都会经过它，返回 `null` 丢弃该 chunk。注意区分两类过滤目标：文本与工具块在 `processOutputStream`，而 `data-*` 类自定义数据块要实现 `processDataParts`，否则不会被这条钩子看到。
+
+```ts
+export const redactor: Processor<'redactor'> = {
+  name: 'redactor',
+  async processOutputStream({ part }) {
+    if (part.type === 'text' && part.text.includes('内部密钥')) {
+      return null; // 丢弃该 chunk
+    }
+    return part;
+  },
+};
+```
+
+### processOutputResult：收尾统计与元数据
+
+流结束后调用一次，拿到完整 `result`（如 `usage`），适合记录用量、附加最终元数据或聚合校验。
+
+### processLLMRequest / processLLMResponse：贴近 provider 的临时改写
+
+直接改写即将发给 provider 的请求或其响应。改动是**临时生效**的：只影响当前这次模型调用，不会持久化到 memory 历史——适合系统级提示词注入这类「每次都要有、但不该进对话记录」的内容。
+
+## 内置处理器
+
+| 处理器 | 做什么 | 关键参数 |
+| --- | --- | --- |
+| `TokenLimiter` | 限制进入循环的历史 token 量 | `limit`（数值或函数），保留最近消息 + 所有 system 消息 |
+| `ToolCallFilter` | 把工具块从发给模型的输入里移除 | `filterAfterToolSteps`（保留最近工具交互轮数）、`preserveModelOutput` |
+| `ToolSearchProcessor` | 工具太多时先给模型一个搜索工具 | `toolCount`（超过才启用）、`autoLoadTools` |
+| `ProviderHistoryCompat` | 输出历史兼容不同 provider 的格式约束 | `target`（如 `openai` / `google`） |
+| `ResponseCache`（Beta） | 相同输入直接复用缓存响应 | 缓存实现与 key 派生策略 |
+
+记忆处理器 `MessageHistory`、`SemanticRecall`、`WorkingMemory` 属于记忆体系，见[记忆处理器](?path=/docs/memory-processors--docs)。
+
+## 最佳实践
+
+- **拦截策略按代价排序。** 能在 `processInput` 阶段挡住的（注入、超长、违禁输入）不要留到输出阶段处理；输出阶段只做必须看到模型产出才能判断的事（脱敏、审校）。
+- **过滤器要区分「模型可见」与「历史留存」。** `ToolCallFilter` 移除的是发给模型的输入，历史仍在 memory；想要「模型不知道但审计可查」，这是默认行为，不要另存一份。
+- **长任务配重试。** 处理器抛错默认会终止请求；给易抖动的处理器（外部审核 API 等）配 `maxProcessorRetries`，配合 `errorProcessors` 做降级。
+- **慢处理走并行。** 多个独立拦截（审核 + 注入检测）可以包装成 workflow 用 `.parallel()` 执行，缩短首 token 延迟。
+
+## 常见问题
+
+- 输出里「隐私内容」仍然出现，处理器没生效？
+  先确认挂的是 `outputProcessors` 且数组顺序没有被 per-call 覆盖替换；再确认匹配逻辑针对 `content.parts` 里的文本块，而不是在 `content` 字符串上做替换。
+- 过滤掉了 `data-*` 数据块但不生效？
+  这类块不走 `processOutputStream`，为处理器补一个 `processDataParts` 实现。
+- 处理器抛错后整次请求失败？
+  默认无重试；为该处理器场景设置 `maxProcessorRetries`，或在 `errorProcessors` 里改写请求后重试，而不是放任异常上抛。
+- 流式客户端没感知到中止？
+  tripwire 以 `tripwire` chunk 形式出现在流里，客户端要显式处理该事件，否则表现为「流静静结束」。
+
+## 总结回顾
+
+摘要：
+
+处理器分 `inputProcessors`、`outputProcessors`、`errorProcessors` 三类，数组顺序即执行顺序，并与记忆处理器有固定先后。自定义处理器实现 `Processor` 接口，按目标选择钩子：改输入用 `processInput`，逐步控制用 `processInputStep` 或 `prepareStep`，过滤流用 `processOutputStream`（数据块用 `processDataParts`），收尾统计用 `processOutputResult`，贴近 provider 的临时改写用 `processLLMRequest` / `processLLMResponse`。内置处理器覆盖限流、工具过滤、工具搜索、格式兼容与缓存。
+
+一句话：
+
+> 改什么就挂哪类数组，动哪层就选哪个钩子——输入阶段拦截最便宜，`abort()` 产生的 tripwire 必须被客户端显式处理。
+
+知识要点：
+
+- 三类处理器分别运行在什么时机？数组顺序和记忆处理器的先后如何？
+- `perCall` 覆盖是替换还是追加？如何按请求动态构建处理器？
+- 修改消息应该用 `messages` 还是 `messageList`？文本实际存放在哪？
+- 哪些改动会持久化进 memory，哪些只在本次调用生效？
+- `tripwire` 由什么触发，客户端应该如何处理？
+
+## 参考资料
+
+- [Processors | Agents | Mastra Docs](https://mastra.ai/docs/agents/processors)
+- [createScorer 与 Processor 接口参考](https://mastra.ai/reference/processors/processor-interface)
+- [Agent generate 参考（maxProcessorRetries、tripwire）](https://mastra.ai/reference/agents/generate)

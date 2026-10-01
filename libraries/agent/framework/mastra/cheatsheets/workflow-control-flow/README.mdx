@@ -1,0 +1,164 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './workflow-control-flow.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 控制流
+
+工作流的控制流，是把多个步骤连成一张执行图的链式 Builder API：`.then()` 顺序串联、`.parallel()` 并行分流、`.branch()` 条件选路、`.dountil()` / `.dowhile()` 循环、`.foreach()` 批处理，`.map()` 负责步骤间的数据重塑。所有原语挂在同一条链上，最后 `.commit()` 固化定义。本课给出每种原语的最小代码与执行顺序证据；下方的流程图执行器可切换原语，对比各自的执行顺序与并发形态。
+
+步骤、inputSchema / outputSchema 与变量映射的细节见[工作流基础](?path=/docs/workflow-basics--docs)；本课只讲流程控制原语本身。
+
+## 原语总览
+
+先按「输入 → 输出」判断需要哪种连接方式，再进入对应小节。默认值与官方文档一致。
+
+| 方法 | 用途 | 输入 → 输出 | 并发 |
+| --- | --- | --- | --- |
+| `.then(step)` | 顺序处理 | `T` → `U` | 一次一个 |
+| `.parallel([a, b])` | 同一输入的不同操作 | `T` → 按 step id 键控的对象 | 全部同时，无上限选项 |
+| `.branch([[cond, step], …])` | 条件选路 | `T` → 被执行分支的输出 | 只执行首个为真的条件 |
+| `.foreach(step, opts)` | 对数组每项做同一操作 | `T[]` → `U[]`（按输入顺序） | `concurrency` 默认 1 |
+| `.dountil(step, cond)` | 先执行再判断，至少一轮 | `T` → `U` | 一次一个；`iterationCount` 防死循环 |
+| `.dowhile(step, cond)` | 先判断再执行，可能零轮 | `T` → `U` | 同上 |
+| `.map(fn)` | 步骤间数据重塑 | `T` → `U` | 无执行副作用 |
+
+另有 `.sleep(duration)` / `.sleepUntil()`（暂停）、`.classifier(router)`（模型分类路由）等原语；每个方法都可接受尾部标注参数 `{ id, description, metadata }`，写入 `serializedStepGraph` 便于观测，不影响执行。
+
+<Canvas of={Stories.Interactive} />
+<Controls of={Stories.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 切换「控制流原语」 | 执行图重画，读数给出该原语的执行序列、已执行步骤与并发峰值 |
+| 调整「branch 判断值 value」 | 命中分支的节点点亮，其余分支灰显「未执行」 |
+| 调整「foreach 并发度 concurrency」 | 6 个数组项分成的波次数变化，执行序列保持输入顺序 |
+
+### 顺序与并行：.then / .parallel
+
+`.then()` 把步骤串成顺序链，每个步骤的 `inputData` 是上一步的输出；`.parallel()` 接受步骤数组，让它们用同一输入同时执行，全部完成后流程才继续，输出按 step id 键控为对象。
+
+```ts
+workflow
+  .then(stepA)               // stepA 的输出作为下一步的 inputData
+  .parallel([stepB, stepC])  // 同一输入同时执行，输出形如 { 'step-b': …, 'step-c': … }
+  .then(stepD)               // stepB、stepC 全部完成后才执行
+  .commit();
+```
+
+可观察证据：实例切到「`.parallel` 并行」，读数显示 step-b、step-c、step-d 位于同一波次，并发峰值 3；切回「`.then` 顺序」时每个波次只有一个节点。
+
+边界：`.parallel()` 是同步点，不提供部分结果的流式输出；数组中任一步骤抛错会让整个块失败，除非在步骤内部自行捕获（见最佳实践）。
+
+### 条件分支：.branch
+
+`.branch()` 接受「条件函数 → 步骤」数组，按定义顺序评估条件，**只执行第一个为真的分支**——条件顺序就是判断顺序，这是控制流里最高频的坑。
+
+```ts
+.branch([
+  [async ({ inputData: { value } }) => value >= 80, stepApprove], // 先评估
+  [async ({ inputData: { value } }) => value >= 40, stepReview],  // 前者为假才评估到这里
+  [async ({ inputData: { value } }) => true, stepReject],         // 兜底分支放最后
+])
+```
+
+可观察证据：把「branch 判断值」调到 85，只有 step-approve 点亮；调到 50 时 step-review 点亮，step-approve 灰显「未执行」。
+
+边界：分支输出按被执行步骤的 id 键控，下游步骤要为每个可能的分支输出声明可选字段；读取时用 `getStepResult(stepApprove)` 或 `inputData['step-approve']`。
+
+### 循环：.dountil 与 .dowhile
+
+两者都重复执行同一个步骤，判断时机不同：`.dountil()` 先执行再判断，至少跑一轮；`.dowhile()` 先判断再执行，可能一轮都不跑。条件函数的 `inputData` 里自带 `iterationCount`，是防死循环的安全读数。
+
+```ts
+.dountil(stepAsk, async ({ inputData: { userResponse, iterationCount } }) => {
+  if (iterationCount >= 10) {
+    throw new Error('Maximum iterations reached'); // 达到上限抛错，工作流以失败终止
+  }
+  return userResponse === 'yes';
+})
+```
+
+可观察证据：实例切到「`.dountil` 循环」，loop 节点连续执行 3 轮才进入 finish，角标同时标注执行轮次与安全上限。
+
+边界：条件依赖外部状态时可能永远为假，靠 `iterationCount` 抛错兜底，不要让 run 无限挂起。
+
+### 批处理：.foreach 与嵌套工作流
+
+`.foreach()` 对数组输入的每一项执行同一个步骤，结果数组保持输入顺序；`concurrency` 控制同时处理的项数，默认 1（逐项执行）。每项需要完整多步管道时，直接把 workflow 传给 `.foreach()`，而不是再链一层。
+
+```ts
+.foreach(processItem, { concurrency: 4 })      // 最多 4 项同时执行，默认 1
+.foreach(pipelineWorkflow, { concurrency: 2 }) // 每项跑完整管道的嵌套工作流
+```
+
+| 链式模式 | 行为 | 典型用途 |
+| --- | --- | --- |
+| `.then().then()` | 顺序步骤 | 简单管道 |
+| `.parallel().then()` | 并行后汇合 | 扇出 / 扇入 |
+| `.foreach().then()` | 逐项处理后聚合 | map-reduce |
+| `.foreach(workflow)` | 每项跑完整管道 | 每项多步处理 |
+| `.foreach().foreach()` | 产生数组的数组 | 避免：改用嵌套 workflow 或 `.map()` + `.flat()` |
+
+可观察证据：把并发度从 1 调到 3，6 个 item 节点从 6 个波次合并为 2 个波次，读数中的执行序列始终是 item-1 到 item-6 的输入顺序。
+
+边界：`.foreach()` 也是同步点；嵌套 workflow 继承父级的并发设置，可独立测试和复用。
+
+### 数据映射：.map 与 getStepResult
+
+`.map()` 在步骤之间转换数据形态，回调的 `inputData` 是上游输出；`getStepResult(step)` 取任意上游步骤的完整输出，`getInitData()` 取工作流初始输入，`mapVariable()` 用声明式对象语法提取并重命名字段。
+
+```ts
+.map(async ({ inputData }) => ({
+  bar: `new ${inputData.foo}`,
+}))
+
+// 取任意上游输出与初始输入
+.map(async ({ inputData }) => ({
+  prev: getStepResult(stepA),
+  init: getInitData<any>().query,
+}))
+
+// 声明式写法：按路径从初始输入提取
+.map({ message: { initData: true, path: 'message' } })
+```
+
+可观察证据（算例）：上游 `.parallel()` 输出 `{ 'step-b': 12, 'step-c': 'ok' }`，一个 `.map()` 把它整形为 `{ total: 12, note: 'ok' }`，下游 inputSchema 只需认 `{ total, note }`。
+
+## 最佳实践
+
+- **parallel 里让失败可控。** 任一分支抛错会失败整个 parallel 块；把可能失败的外部调用包在 try/catch 里，返回 `{ brief: null, failed: true }` 一类的标志，让下游按 `failed` 字段判断。
+- **循环必须带上限。** 循环条件里读 `iterationCount`，达到上限就 throw；宁可让 run 以失败终止，也不要无限挂起。
+- **branch 条件按严格到宽松排列。** 只执行第一个为真的条件，恒真的兜底分支放最后；更具体的条件放前面，避免被宽松条件抢先。
+- **foreach 先想并发与嵌套。** 默认 `concurrency: 1` 逐项执行最稳；每项是 I/O 操作时调大并发度，每项是多步管道时改用嵌套 workflow。
+
+## 常见问题
+
+- 「branch 写了三个分支，下游却拿不到某些字段」
+  只有一个分支被执行，输出按该步骤 id 键控；下游 inputSchema 为每个分支输出声明可选字段，读取用 `getStepResult(步骤对象)` 或 `inputData['step-id']`。
+- 「foreach 之后再 foreach，结果是数组的数组」
+  第二个 foreach 在数组上继续逐项处理；改为把 workflow 传给 `.foreach()`，或在 `.map()` 里对结果 `.flat()`。
+- 「dountil 一直不退出」
+  条件永远为假；在条件函数里读 `inputData.iterationCount`，达到上限时 `throw new Error(...)`，工作流以失败终止而不是无限循环。
+
+## 总结回顾
+
+摘要：
+
+控制流的六类原语挂在同一条 Builder 链上：`.then()` 顺序传递上一步输出；`.parallel()` 用同一输入同时跑多个操作，按 step id 键控汇合且是同步点；`.branch()` 按定义顺序评估条件、只执行第一个为真的分支；`.dountil()` 与 `.dowhile()` 以「先执行」或「先判断」区分循环时机，靠条件里的 `iterationCount` 防死循环；`.foreach()` 以可调并发度处理数组并保持输出顺序，多步管道交给嵌套 workflow；`.map()` 与 `getStepResult()` / `getInitData()` 负责各形态之间的数据对齐。
+
+一句话：
+
+> 先用连接形态回答「步骤按什么顺序、以多大并发执行」，再用 `.map()` 回答「数据如何在它们之间对齐」。
+
+知识要点：
+
+- `.branch()` 会执行几个分支？条件按什么顺序评估？
+- `.foreach()` 的 concurrency 默认值是多少？输出数组的顺序由什么决定？
+- 循环条件里防止死循环的读数叫什么？达到上限该怎么处理？
+- `.parallel()` 的输出长什么样？任一分支抛错会发生什么？
+
+## 参考资料
+
+- [Workflows: Control Flow](https://mastra.ai/docs/workflows/control-flow)
+

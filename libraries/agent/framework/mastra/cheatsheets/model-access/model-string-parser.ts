@@ -1,10 +1,11 @@
 /**
  * 演示内容：模型字符串解析器——把读者选择的「网关 / provider / 模型名」拼装成
  * Mastra model router 能识别的 model 字符串，并给出路由路径与所需环境变量。
- * 输入：网关前缀（none = 直连）、provider 段、模型名末段。
+ * 输入：网关前缀（none = 直连、models-dev = models.dev 注册表无前缀，或 7 个内置网关 id）、
+ *   provider 段、模型名末段。
  * 操作：调整 Controls 中的任一输入，画布立即重绘。
- * 预期结果：直连得到两段式 provider/model；选择网关得到三段式 gateway/provider/model；
- *   分支行的高亮随路由切换，左下读数同步显示最终字符串、路由与环境变量。
+ * 预期结果：直连或 models.dev 得到两段式 provider/model；选择网关得到三段式
+ *   gateway/provider/model；分支行高亮随路由切换，读数显示最终字符串、路由与环境变量。
  * 阅读主线：分段着色的字符串 → model router 的两路分支 → 右下角环境变量。
  */
 import {
@@ -16,7 +17,7 @@ import {
 export const PROVIDER_ENV: Record<string, string[]> = {
   openai: ['OPENAI_API_KEY'],
   anthropic: ['ANTHROPIC_API_KEY'],
-  google: ['GOOGLE_API_KEY'],
+  google: ['GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
   xai: ['XAI_API_KEY'],
   deepseek: ['DEEPSEEK_API_KEY'],
 };
@@ -37,6 +38,39 @@ export const GATEWAY_ENV: Record<string, string[]> = {
     'AZURE_SUBSCRIPTION_ID',
   ],
 };
+
+/** models.dev 注册表的选项 id：它不是网关前缀，选中后仍输出两段式。 */
+export const REGISTRY_GATEWAY_ID = 'models-dev';
+
+/** Controls 的网关选项：none = 直连，models-dev = 默认注册表，其余为内置网关 id。 */
+export const GATEWAY_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: 'none', label: '直连 provider（无网关）' },
+  { id: REGISTRY_GATEWAY_ID, label: 'models.dev 注册表（无前缀）' },
+  { id: 'openrouter', label: 'OpenRouter' },
+  { id: 'vercel', label: 'Vercel' },
+  { id: 'mastra', label: 'Mastra' },
+  { id: 'merge-gateway', label: 'Merge Gateway' },
+  { id: 'neon', label: 'Neon' },
+  { id: 'netlify', label: 'Netlify' },
+  { id: 'azure-openai', label: 'Azure OpenAI' },
+];
+
+/** Controls 的 provider 段选项（所需环境变量见 PROVIDER_ENV）。 */
+export const PROVIDER_OPTIONS: readonly string[] = [
+  'openai',
+  'anthropic',
+  'google',
+  'xai',
+];
+
+/** Controls 的模型名选项，示例取自官方文档。 */
+export const MODEL_ID_OPTIONS: readonly string[] = [
+  'gpt-5.6-sol',
+  'claude-sonnet-4-6',
+  'claude-haiku-4.5',
+  'gemini-2.5-flash',
+  'grok-4.3',
+];
 
 export interface ModelAccessOptions {
   /** 网关前缀；'none' 表示不走网关、直连 provider。 */
@@ -88,7 +122,8 @@ export function resolveModelString(
   options: ModelAccessOptions,
 ): ResolvedModel {
   const modelId = options.modelId.trim() || '(模型名)';
-  const viaGateway = options.gateway !== 'none';
+  const viaRegistry = options.gateway === REGISTRY_GATEWAY_ID;
+  const viaGateway = options.gateway !== 'none' && !viaRegistry;
   const segments: ModelStringSegment[] = viaGateway
     ? [
         { text: options.gateway, kind: 'gateway' },
@@ -115,7 +150,9 @@ export function resolveModelString(
     envDisplay,
     route: viaGateway
       ? `经网关 ${options.gateway}（三段式）`
-      : '直连 provider（两段式）',
+      : viaRegistry
+        ? 'models.dev 注册表（无前缀 · 两段式）'
+        : '直连 provider（两段式）',
   };
 }
 
@@ -303,7 +340,8 @@ export function createModelParser(
 
   function drawBranches() {
     const modelId = current.modelId.trim() || '(模型名)';
-    const viaGateway = current.gateway !== 'none';
+    const viaGateway =
+      current.gateway !== 'none' && current.gateway !== REGISTRY_GATEWAY_ID;
     const directExample = `${current.provider}/${modelId}`;
     const gatewayExample = `${viaGateway ? current.gateway : 'openrouter'}/${current.provider}/${modelId}`;
 

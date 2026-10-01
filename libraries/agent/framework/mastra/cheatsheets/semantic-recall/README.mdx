@@ -1,0 +1,127 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Stories from './semantic-recall.stories';
+
+<Meta of={Stories} name="Docs" />
+
+# 语义召回
+
+对话变长后，早期消息会滑出近期消息历史的窗口。语义召回把历史消息写入向量库，每轮按「含义」把相关片段拉回来，让 agent 记得住几百条消息之前的关键约束。它默认关闭、需要显式开启，因为每次调用都要付出嵌入与向量查询的延迟。近期消息靠[消息历史](?path=/docs/memory-basics--docs)，更早的内容靠语义召回——两者互补。
+
+## 开启语义召回
+
+需要三组件：`storage`（消息与元数据落库）、`vector`（向量库）、`embedder`（嵌入模型字符串走 model router）。libSQL 允许 storage 与 vector 共用同一个本地文件：
+
+```ts
+import { LibSQLStore, LibSQLVector } from '@mastra/libsql';
+import { Memory } from '@mastra/memory';
+import { ModelRouterEmbeddingModel } from '@mastra/core/llm';
+
+export const memory = new Memory({
+  storage: new LibSQLStore({ id: 'agent-storage', url: 'file:./local.db' }),
+  vector: new LibSQLVector({ id: 'agent-vector', url: 'file:./local.db' }),
+  embedder: new ModelRouterEmbeddingModel('openai/text-embedding-3-small'),
+  options: { semanticRecall: true },
+});
+```
+
+工作方式：每轮先用新消息查询向量库找相似历史；LLM 回复后，本轮所有消息（用户、助手、工具调用与结果）写入向量库供日后召回。
+
+| 参数 | 含义 | 说明 |
+| --- | --- | --- |
+| `topK` | 按相似度取几条匹配 | 数值越大注入越多 |
+| `messageRange` | 每条匹配前后各附带几条相邻消息 | 补全上下文，避免断章取义 |
+| `scope` | 搜当前 `thread` 还是整个 `resource` | `'resource'` 跨会话，仅部分存储支持 |
+| `filter` | 匹配结果上的元数据条件 | 支持 `$eq` / `$in` / `$and` 等 |
+
+<Canvas of={Stories.Interactive} />
+
+<Controls of={Stories.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 增大 topK | 更多加粗匹配条出现，注入 token 上升 |
+| 增大 messageRange | 每条匹配周围的蓝底窗口扩大，即使相似度低的邻近消息也被带上 |
+| scope 切到 resource | 更早的 8 条参与检索，R6（物流折扣）这条高相似度历史被召回 |
+
+### scope：搜当前会话还是跨会话
+
+`'thread'` 只搜当前会话；`'resource'` 把该用户所有会话纳入检索，适合「用户上周说过」这类记忆。注意 `'resource'` 只有 LibSQL、PostgreSQL、MongoDB、OracleDB、Upstash 存储适配器支持。
+
+### filter：按元数据收窄
+
+过滤条件匹配消息保存时记录在 embedding 上的元数据：
+
+```ts
+semanticRecall: {
+  topK: 3,
+  messageRange: 2,
+  filter: { projectId: { $eq: 'project-a' } },
+}
+```
+
+## 直接查询 recall()
+
+不经过 agent、按语义检索记忆可以用 `recall()`，传 `vectorSearchString` 按含义查找：
+
+```ts
+const { messages } = await memory.recall({
+  threadId: 'thread-123',
+  vectorSearchString: '项目截止日我们定的是什么？',
+  threadConfig: { semanticRecall: true },
+});
+```
+
+开启 tracing 后，召回回的消息会出现在 agent 的 trace 输出中，便于核对「这轮模型到底看到了什么」。
+
+## 性能与索引
+
+- 每轮调用都会新增一次嵌入 + 一次向量查询的延迟；对实时双向语音这类性能敏感场景保持关闭。
+- PostgreSQL 向量可用 `indexConfig` 换 HNSW（默认 IVFFlat），配合 OpenAI 嵌入的内积距离效果更好：
+
+```ts
+semanticRecall: {
+  topK: 5,
+  messageRange: 2,
+  indexConfig: { type: 'hnsw', metric: 'dotproduct', m: 16, efConstruction: 64 },
+}
+```
+
+`m: 16` 与 `efConstruction: 64` 是 HNSW 的默认值。想完全离线可安装 `@mastra/fastembed` 用本地嵌入（E5 多语言模型 1024 维，passage 与 query 是两个模型，索引维度必须一致且不能与其他 embedder 混用同一索引）。
+
+## 最佳实践
+
+- **先问「近期窗口够不够」。** 消息历史已经覆盖的对话不需要召回；只为「跨周、跨会话的记忆」开启。
+- **messageRange 宁小勿大。** 匹配靠相似度已经准了，窗口过大反而注入大量弱相关内容。
+- **嵌入模型一旦选定不要换。** 换模型 = 全量重新嵌入，不同维度不能混用同一索引。
+
+## 常见问题
+
+- 刚说的话召回不到？
+  它还在近期消息历史窗口里，不需要召回；确认本轮消息已写入向量库（LLM 回复后写回），再查过滤条件是否把它排除。
+- 调整了 thread 元数据，filter 却不生效？
+  过滤匹配的是消息保存时固化在 embedding 上的元数据快照；旧消息要重新保存后才会带上新元数据。
+- 配了 `scope: 'resource'` 启动报错？
+  当前存储适配器不支持跨会话检索；换用 LibSQL / PostgreSQL / MongoDB / OracleDB / Upstash 之一。
+
+## 总结回顾
+
+摘要：
+
+语义召回把历史消息写入向量库，每轮按含义取回相关片段，补足近期消息窗口之外的记忆。开启需要 storage、vector、embedder 三组件，用 topK 控制匹配数、messageRange 控制上下文扩展、scope 决定搜当前会话还是跨会话、filter 按元数据收窄。`recall()` 支持脱离 agent 直接语义查询，PostgreSQL 可用 HNSW 索引优化。
+
+一句话：
+
+> 语义召回解决「几百条之前说过什么」，但每轮都有嵌入与查询延迟——只为近期窗口装不下的记忆开启它。
+
+知识要点：
+
+- 三组件分别承担什么？libSQL 为什么能共用一个文件？
+- topK 和 messageRange 如何共同决定注入量？
+- `scope: 'resource'` 的价值与存储限制是什么？
+- filter 匹配的元数据存在哪里，为什么改元数据后旧消息不生效？
+- 什么场景应该保持默认关闭？
+
+## 参考资料
+
+- [Semantic Recall | Memory | Mastra Docs](https://mastra.ai/docs/memory/semantic-recall)
+- [Embeddings | Models | Mastra Docs](https://mastra.ai/models/embeddings)
