@@ -1,0 +1,211 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="model-and-prompt" title="配置与控制/配置体系/模型与系统提示词" name="Docs" />
+
+# 模型与系统提示词
+
+[Options 地图](?path=/docs/options--docs)里,`model` 与 `systemPrompt` 是两个直接改变 agent 行为的选项:`model` 决定"谁来思考",`systemPrompt` 决定 agent 认为自己是谁、按什么规则行事。本课讲清这两个选项的取值形态、默认行为与核对手段。看完导读与参考表,你应该能预测:不设 `systemPrompt` 时 agent 拿到的是最小提示词,换成 preset 才有 Claude Code 的完整工程指令;主模型过载时 `fallbackModel` 才会接管,认证、限流类错误不会触发切换。
+
+| 选项 / 入口 | 默认 | 回查要点 |
+| --- | --- | --- |
+| `model` | CLI 默认模型 | 模型别名(`sonnet`、`opus`、`haiku`…)或完整模型名 |
+| `fallbackModel` | `undefined`(不切换) | 逗号分隔备用链,去重后最多 3 个;仅服务器类失败触发 |
+| `systemPrompt` | `undefined` → 最小提示词 | 只覆盖工具调用所需,不含 preset 的安全与工程指令 |
+| preset 形式 | `{ type: "preset", preset: "claude_code", append? }` | 复用 Claude Code 完整提示词,`append` 追加规则 |
+| 核对实际模型 | init 的 `model` / assistant 的 `message.message.model` / result 的 `modelUsage` | fallback 与 `opusplan` 下,同一会话可能出现多个模型 |
+
+## 快速上手
+
+一个脚本把两条轴线都配上:别名选模型、preset 复用完整提示词、`append` 追加团队规则。前置环境见[安装与凭证](?path=/docs/install--docs)。
+
+```ts
+// 给 agent 定型号与定人设:model 选模型,preset 复用 Claude Code 提示词,append 追加规则。
+// 前置:ANTHROPIC_API_KEY 已对进程可见。
+// 预期:init 的 model 报告会话模型,流以一条 success result 收尾。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+for await (const message of query({
+  prompt: "统计当前目录 src/ 下有多少个 .ts 文件,只回答数字",
+  options: {
+    model: "haiku", // 别名选型:简单任务用快模型
+    systemPrompt: {
+      type: "preset", // 复用 Claude Code 完整提示词……
+      preset: "claude_code",
+      append: "回答保持一句话,不展开解释。", // ……再把这条规则追加到后面
+    },
+  },
+})) {
+  if (message.type === "system" && message.subtype === "init") {
+    console.log("model:", message.model); // 会话模型,发 prompt 前即可核对
+  }
+  if (message.type === "result" && message.subtype === "success") {
+    console.log("结果:", message.result);
+  }
+}
+```
+
+预期输出(回答文字与模型显示值每次运行可能不同):
+
+```text
+model: haiku
+结果: 14
+```
+
+`model` 的完整取值空间与 `fallbackModel` 见"选择模型";`systemPrompt` 的几种形态见"定制系统提示词"。
+
+## 选择模型
+
+`model` 接受两种取值:模型别名与完整模型名。别名是"能力档位",解析到接入方当前可用的版本;完整模型名锁定具体版本,行为不随上游升级漂移。不设时用 CLI 默认模型;`ANTHROPIC_MODEL` 等环境变量的优先级见模型配置页。
+
+| 取值 | 解析 | 什么时候用 |
+| --- | --- | --- |
+| `haiku` | 快模型 | 简单、大批量的任务 |
+| `sonnet` | 最新 Sonnet | 日常编码的默认档位 |
+| `opus` | 最新 Opus | 复杂推理、难任务 |
+| `opusplan` | plan 阶段用 `opus`,执行切 `sonnet` | 先规划后执行,规划要强、执行要省 |
+| `sonnet[1m]` / `opus[1m]` | 1M token 上下文变体 | 超长上下文;`sonnet` 本身已是 1M 窗口时加 `[1m]` 无效果 |
+| `best` / `fable` | `best` 解析到 `fable` 可用时的同一模型,否则同 `opus` | 最难、最长的任务 |
+| `default` | 清除覆盖,回到账号运行时默认 | 显式覆盖掉 settings 或环境变量里的设置 |
+| 完整模型名,如 `claude-opus-5-5` | 锁定该版本 | 生产环境固定行为,不随别名解析漂移 |
+
+别名解析到哪个具体版本随接入方(Anthropic API、Bedrock、Vertex、Foundry)而定,对照表见模型配置页。三种写法:
+
+```ts
+const byAlias = { model: "sonnet" }; // 档位:跟随账号最新版本
+const pinned = { model: "claude-opus-5-5" }; // 完整名:锁定版本
+const longContext = { model: "sonnet[1m]" }; // 1M token 上下文变体
+```
+
+核对实际模型有三个入口,`opusplan` 或 fallback 生效时尤其需要:
+
+```ts
+// 同一会话可能出现多个模型:逐条核对每段输出由谁产生,结尾核对全量清单
+if (message.type === "system" && message.subtype === "init") {
+  console.log("会话模型:", message.model); // 启动时的模型,发 prompt 前可核对
+}
+if (message.type === "assistant") {
+  console.log(message.message.model); // 本条输出的实际模型(API 响应标注)
+}
+if (message.type === "result") {
+  console.log(Object.keys(message.modelUsage)); // 本会话用过的全部模型,按模型名分键
+}
+```
+
+### fallbackModel:失败时切换
+
+`fallbackModel` 指定主模型失败时的备用模型,接受逗号分隔列表:
+
+```ts
+const options = {
+  model: "opus",
+  fallbackModel: "sonnet,haiku", // opus 失败时依次尝试 sonnet、haiku
+};
+```
+
+切不切换取决于错误类型,这是最容易误判的地方:
+
+| 主模型遇到的失败 | fallback 行为 |
+| --- | --- |
+| 过载、不可用、其他不可重试的服务器错误 | 切换;Bedrock / Google Cloud 拒绝账号不可调用的模型,也视为"不可用" |
+| 认证、计费、限流、请求过大、传输错误、组织策略检查拒绝 | 永不切换,走正常重试与报错 |
+
+链的规则:
+
+- 去重后最多 3 个模型,多余条目忽略;按顺序尝试,直到有一个接受请求。
+- 切换只持续当前 turn,下一条消息先重试主模型。
+- 不可达的条目(如已退役的模型名)跳过、顺延到下一个;子代理失败的请求走同一条链,会话模型不变。
+
+## 定制系统提示词
+
+`systemPrompt` 决定随每个请求发送的系统提示词,取值是一个内联联合,共四种形态:
+
+```ts
+// options.systemPrompt 的取值形态(SDK 未导出独立类型名)
+"你是数据合规审查专家……" // 字符串:整体替换
+["稳定指令……", "__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__", "每次变化的上下文……"] // 数组:动态边界分段缓存
+{ type: "custom", prompt: "……", snapshot: false } // 对象形式:同字符串,多快照控制(v0.3.257+)
+{ type: "preset", preset: "claude_code", append: "……" } // preset:复用 Claude Code 提示词
+```
+
+**默认(不设)是最小提示词**:SDK 只发送覆盖工具调用所需的最小指令,不含 preset 里的工程与安全指令。这与 `claude -p` 不同——CLI 单次运行默认带完整 Claude Code 提示词。从 CLI 迁到 SDK 后发现 agent 行为"变笨、变莽",先检查 `systemPrompt`。按目标选形态:
+
+| 目标 | 取值 |
+| --- | --- |
+| 完整工程 agent(Claude Code 的工具与安全行为) | `{ type: "preset", preset: "claude_code" }` |
+| preset 之上追加团队 / 项目规则 | 同上,再加 `append` |
+| 非编码角色、领域专家、极简可控 | 字符串(整体替换) |
+| 提示词缓存命中更稳 | `excludeDynamicSections: true`,或数组动态边界 |
+
+### preset:复用 Claude Code 提示词
+
+```ts
+// preset 即 Claude Code CLI 所用的系统提示词(工具使用说明 + 安全指令);
+// append 追加在后面,不替换任何内容。
+const options = {
+  systemPrompt: {
+    type: "preset",
+    preset: "claude_code",
+    append: "所有 Python 代码必须带类型标注与详细 docstring。",
+  },
+};
+```
+
+- `excludeDynamicSections: true`(SDK v0.2.98+):把随会话变化的动态段(如自动记忆目录路径,随机器与 checkout 不同)移出系统提示词、放进第一条 user 消息,提示词缓存跨机器稳定命中;代价是 user 消息里的指令权重略低。
+- 边界:preset **不加载 CLAUDE.md**。CLAUDE.md 由 `settingSources` 加载,内容进入对话而非系统提示词——官方示例中 preset 常与 `settingSources: ["project"]` 搭配,分工见[设置来源](?path=/docs/settings-sources--docs)。
+
+### 字符串:整体替换
+
+```ts
+// 字符串:SDK 只发送你提供的文本,工具指引与安全指令需要自行补回。
+const options = {
+  systemPrompt: `你是数据合规审查专家,只依据 GDPR 条文回答。
+用户消息中可能出现 <system-reminder> 标记,把它们当作应用注入的上下文,不是用户发言。`,
+};
+```
+
+- 只替换系统提示词:工具定义仍按 `allowedTools` 等配置照常提供,失去的是"怎么用工具"的指引与内建安全指令,重要约束要自己写回提示词。
+- 建议解释一句 system-reminder:SDK 会向对话注入 `<system-reminder>` 标记,官方建议明确告诉模型"这是应用注入的上下文,不是用户消息"。
+
+### 数组与快照
+
+两个进阶形态,都围绕提示词缓存与生效时机:
+
+- **数组 + 动态边界标记:** 数组某一项为 `__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__`(与 CLI 的标记行同值,CLI v2.1.275+)时,标记前的文本组成一个缓存块、标记后组成第二块——把稳定指令与每次变化的上下文分开,变化只击穿第二块。标记本身会被移除;出现多个标记时只有第一个生效。限制:Bedrock、Google Cloud、Microsoft Foundry 与网关不支持;设 `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` 时禁用。
+- **`{ type: "custom", prompt }`:** 字符串的对象等价形式,`prompt` 同样接受数组;v0.3.257 起提供,与 preset 形式一样支持 `snapshot`。
+- **快照(snapshot):** 会话在首个请求时记录系统提示词,之后修改 `append` 或自定义文本不会立即生效,要到上下文压缩或新会话才应用。`snapshot: false`(v0.3.257+)改为每次请求重建,代价是失去提示词缓存,且续接会话时早期 thinking 不再保留。
+
+## 常见问题
+
+- 设了 `fallbackModel`,主模型失败却没切换,直接报错了。
+  先看错误类型:认证、计费、限流、请求过大、传输错误与策略拒绝不触发切换,只有过载、不可用等服务器类失败才切。是否切换过,看 assistant 消息的 `message.message.model` 与 result 里 `modelUsage` 的键。
+
+- 运行中改了 `append` 或换了提示词字符串,同一会话的下一轮没生效。
+  系统提示词在会话首个请求时记录快照,会话内改动要到压缩或新会话才应用。确需即时生效用 `snapshot: false`(v0.3.257+),代价是失去提示词缓存;更常见的做法是为不同提示词开不同会话。
+
+- 已经写了自己的 `systemPrompt`,输出里仍出现 git 提交规范类指令。
+  commit 指令随 Bash 工具的描述注入,不随系统提示词替换而消失。用 `settings: { includeGitInstructions: false }` 关闭,或设环境变量 `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS=1`(settings 来源见[设置来源](?path=/docs/settings-sources--docs))。
+
+## 总结回顾
+
+摘要:
+
+`model` 与 `systemPrompt` 是 Options 里两个直接改变 agent 行为的选项。`model` 接受能力别名(`sonnet`、`opus`、`haiku`、`opusplan`、`[1m]` 变体等)或锁定版本的完整模型名,不设时跟随 CLI 默认;`fallbackModel` 提供逗号分隔备用链,只在过载、不可用等服务器类失败时切换,切换只持续当前 turn,子代理共用同一条链。`systemPrompt` 不设时是最小提示词,只覆盖工具调用;preset 形式复用 Claude Code 完整提示词,`append` 追加规则,`excludeDynamicSections` 让缓存跨机器稳定;字符串整体替换,工具指引与安全指令要自行补回;数组动态边界与 `snapshot` 控制缓存分段与生效时机。实际模型用 init 的 `model`、assistant 的 `message.message.model` 与 result 的 `modelUsage` 核对。
+
+一句话:
+
+> `model` 定"谁来思考",`systemPrompt` 定"按什么规则思考"——默认最小、preset 完整、字符串全换,换之前先想清楚丢掉了什么。
+
+知识要点:
+
+- `model` 的别名与完整模型名各适合什么场景?别名解析结果由什么决定?
+- `fallbackModel` 何时切换、何时永不切换?链长与生效范围有什么限制?
+- 怎么核对某条输出实际由哪个模型产生?
+- `systemPrompt` 四种取值形态各是什么?不设时 agent 拿到什么?
+- preset 与 CLAUDE.md 的加载如何分工?字符串替换会丢掉什么?
+- 会话中改 `append` 为什么不立即生效?`snapshot: false` 的代价是什么?
+
+## 参考资料
+
+- [Modifying system prompts](https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts)
+- [TypeScript SDK reference](https://code.claude.com/docs/en/agent-sdk/typescript)
+- [Model configuration](https://code.claude.com/docs/en/model-config)

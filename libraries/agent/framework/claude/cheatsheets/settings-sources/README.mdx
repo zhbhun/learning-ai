@@ -1,0 +1,267 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as SettingsSources from './settings-sources.stories';
+
+<Meta of={SettingsSources} name="Docs" />
+
+# 设置来源
+
+`query()` 的很多配置不是从 `Options` 里来的,而是从文件系统读进来的:`~/.claude/settings.json`、项目里的 `.claude/settings.json`、`.claude/settings.local.json`,以及各层的 CLAUDE.md。本课讲清 `settingSources` 怎么决定装哪几层、各层装什么、多层都设了同一个键时谁说了算,以及怎么用 `resolveSettings()` 在启动前核对生效配置。看完导读与参考表,你应该能预测:在一个只有项目层设置了 `model` 的目录里,把 `settingSources` 从省略改成 `[]` 再跑 `resolveSettings`,生效的 `model` 会从项目层的值变成 `undefined`。
+
+| 项 | 默认 / 位置 | 回查要点 |
+| --- | --- | --- |
+| `settingSources` | 省略 = `["user", "project", "local"]` | `[]` 即隔离模式;必须含 `"project"` 才加载 CLAUDE.md |
+| user 层 | `~/.claude/settings.json` | 个人全局:settings、CLAUDE.md、`.claude/rules/`、skills/commands/agents |
+| project 层 | `<cwd>/.claude/settings.json` | 随仓库提交;settings 与 hooks 只从 `<cwd>/.claude/` 读,不回溯父目录 |
+| local 层 | `<cwd>/.claude/settings.local.json` | 个人覆盖、通常不提交;`CLAUDE.local.md` 同属本层 |
+| 合并优先级 | user < project < local < flag < policy | 标量键最高层说了算;`permissions.allow` 这类列表合并 |
+| flag 层 | `Options.settings` | 文件路径 / JSON 字符串 / 设置对象,等价 `--settings` |
+| policy 层 | managed-settings.json / MDM / 服务端 | 不受 `settingSources` 控制,始终会读 |
+| 核对工具 | `resolveSettings()` | alpha;与 CLI 同一合并引擎,不启动 CLI |
+
+## 快速上手
+
+用 `resolveSettings()` 核对一个目录的生效配置。它只做本地合并,不启动 CLI、不发起模型请求,所以不需要 `ANTHROPIC_API_KEY`,也不产生费用。先在项目里放一个项目层设置:
+
+```bash
+mkdir -p demo/.claude && cd demo
+cat > .claude/settings.json <<'EOF'
+{ "model": "claude-haiku-4-5" }
+EOF
+```
+
+新建 `check-settings.ts`,打印生效值与决定它的层:
+
+```ts
+// 前置:在上面的 demo 目录里运行;用户层 ~/.claude/settings.json 有没有设置 model 都行。
+// 预期:生效 model 是项目层的 claude-haiku-4-5,provenance 显示它来自 project 层;
+//       sources 按优先级从低到高列出实际读到的各层。
+import { resolveSettings } from "@anthropic-ai/claude-agent-sdk";
+
+const resolved = await resolveSettings({ cwd: process.cwd() });
+
+console.log("生效 model:", resolved.effective.model);
+console.log("决定层:", resolved.provenance.model?.source);
+for (const { source, path } of resolved.sources) {
+  console.log(`  ${source.padEnd(8)} ${path ?? "(内存或策略层)"}`);
+}
+```
+
+```text
+生效 model: claude-haiku-4-5
+决定层: project
+  user     /Users/you/.claude/settings.json
+  project  /Users/you/demo/.claude/settings.json
+```
+
+再把来源关掉,验证"不加载"的效果:
+
+```ts
+// settingSources: [] 跳过 user/project/local 三层;托管策略层仍会从磁盘读。
+const isolated = await resolveSettings({
+  cwd: process.cwd(),
+  settingSources: [],
+});
+console.log("隔离模式生效 model:", isolated.effective.model);
+```
+
+```text
+隔离模式生效 model: undefined
+```
+
+`sources` 里还可能出现 `flag`(传了 `settings` 选项时)与 `managed`(机器上有托管策略时)。`resolveSettings` 的完整返回结构与边界见下文「核对生效配置」。
+
+## settingSources:加载哪几层
+
+`settingSources` 的类型是 `SettingSource[]`,取值 `'user' | 'project' | 'local'`。规则有三条:**省略 = 全部三层加载**(与 CLI 交互会话一致);**`[]` = 隔离模式**,agent 只用 `Options` 里程序化配置的那份;**必须含 `"project"` 才会加载 CLAUDE.md**。项目的根由 `options.cwd` 决定,未设置时用进程当前工作目录。
+
+```ts
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+// 省略 settingSources = ["user", "project", "local"],与 CLI 默认一致
+query({ prompt: "跑一遍测试并总结失败原因", options: { cwd: projectRoot } });
+
+// 只加载项目层:CI 与容器常用;注意 CLAUDE.md 也会随之加载
+query({ prompt: "...", options: { settingSources: ["project"] } });
+
+// 隔离模式:三层文件设置全部关闭,配置只来自 Options
+query({ prompt: "...", options: { settingSources: [] } });
+```
+
+两个与来源选择相邻的边界:`additionalDirectories` 只授予文件访问权,不加载那些目录的设置;`projectConfigRoot` 供 worktree 场景把项目设置(hooks、permissions)、`.mcp.json` 与 `.claude` 配置树指向受信任的检出根,而不是 `cwd`。其余常用配置项见 [Options](?path=/docs/options--docs)。
+
+### user 全局层
+
+`"user"` 加载 `~/.claude/settings.json`、用户级 `~/.claude/CLAUDE.md`、`~/.claude/rules/*.md`,以及用户级 skills、slash 命令与子代理。定位是"这台机器上我的偏好,对每个项目生效",典型内容是全局 `permissions.deny`、`env`、个人 API 设置。
+
+```json
+// ~/.claude/settings.json
+{
+  "permissions": { "deny": ["Read(./.env)"] }
+}
+```
+
+判断:开了 `"user"`,机器级配置就跟着每个会话走——本地开发方便,但在服务端、多租户场景这是首要隔离点,通常关掉(见下文「最佳实践」)。
+
+### project 项目层
+
+`"project"` 加载 `<cwd>/.claude/settings.json`(随仓库提交,团队共享)及其中的 hooks;项目级 skills、commands、agents 从 `<cwd>` 向上到仓库根,外加 `additionalDirectories` 对应目录;`.mcp.json` 里声明的项目 MCP server 也随本层加载。CLAUDE.md 与 `.claude/rules/*.md` 同属本层,从 `<cwd>` 及所有父目录收集,加载时机见下文「CLAUDE.md 的加载与叠加」。
+
+最容易踩的边界:**settings.json 与 hooks 只认 `<cwd>/.claude/`,不向上回溯父目录**——CLAUDE.md 才回溯。脚本从仓库子目录启动时,项目层会扑空;要么把 `cwd` 指到仓库根,要么用 `projectConfigRoot` 指定检出根。
+
+```ts
+// 场景:脚本放在仓库子目录运行,项目设置却只在仓库根。
+// 预期:cwd 指到仓库根后,project 层的设置与 hooks 才会加载。
+query({
+  prompt: "按仓库规范检查这段代码",
+  options: { cwd: repoRoot, settingSources: ["project"] },
+});
+```
+
+### local 个人本地层
+
+`"local"` 加载 `<cwd>/.claude/settings.local.json` 与各父目录的 `CLAUDE.local.md`,定位是"只影响我自己的项目内覆盖":个人想加的工具白名单、临时调试配置,通常写进 `.gitignore`。
+
+```json
+// .claude/settings.local.json
+{
+  "permissions": { "allow": ["Bash(npm run dev)"] }
+}
+```
+
+判断:不想改团队共享文件又要覆盖时用本层。列表类键(`permissions.allow` 等)会与本层的上层并集合并,所以 local 里加一条 allow 规则是"追加",不会替换项目层已有的规则;allow/ask/deny 规则本身的写法见[权限规则与 canUseTool](?path=/docs/permissions--docs)。
+
+### 一直会读的来源
+
+`settingSources` 管不到下面这些——即使传 `[]`,它们仍会生效。做隔离时要逐项确认:
+
+| 来源 | 何时仍会读 | 关闭或重定向 |
+| --- | --- | --- |
+| 托管策略层(managed-settings.json、MDM、服务端下发) | 始终 | 管理员侧控制;嵌入方可用 `Options.managedSettings` 提供策略层 |
+| `~/.claude.json` 全局配置 | 始终 | `options.env` 里设 `CLAUDE_CONFIG_DIR` 重定位 |
+| auto memory(`~/.claude/projects/<项目>/memory/`) | 始终,注入 system prompt | `autoMemoryEnabled: false` 或 env 加 `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` |
+| claude.ai MCP connectors | 凭 claude.ai 登录时 | `strictMcpConfig: true`、`disableClaudeAiConnectors: true` 或 env `ENABLE_CLAUDEAI_MCP_SERVERS=false` |
+| `~/.claude/settings.json` 里的 sandbox `deny`/`mask` 条目 | 沙箱运行时 | 安全边界,设计如此,不随来源开关 |
+
+官方对服务端场景的警告:不要依赖默认 `query()` 选项做多租户隔离——推荐每租户独立文件系统、`settingSources: []`,并在 env 里传 `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`。
+
+## 优先级与合并
+
+各层都设了同一个键时,合并规则一句话:**user < project < local < flag < policy**。`flag` 是 `Options.settings` 注入的标志层(设置对象、设置文件路径或 JSON 字符串,等价 CLI 的 `--settings`),`policy` 是托管策略层。两条取值规则:
+
+- **标量键:`model` 这类取最高已启用层的值**——"最高层设了就用它的"。想让某个键生效,先确认没有更高层在设同一个键。
+- **列表键:`permissions.allow` 这类合并而非替换**——各已启用层的规则取并集。
+
+另外,程序化的 `Options`(如 `agents`、`allowedTools`、`settings`)覆盖文件系统设置,而托管策略层又盖过程序化选项;`settings` 选项注入的标志层还可在运行中用 `applyFlagSettings()` 更新。
+
+下面的实例回放四个来源的合并过程:开关任一来源,看生效值、出处(provenance)与 CLAUDE.md 的加载情况(全部为演示数据,不调用模型):
+
+<Canvas of={SettingsSources.Interactive} />
+<Controls of={SettingsSources.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 关掉「project 项目层」 | project 的 model 与 allow 规则退出合并,生效 model 改由 user 层决定,卡片里的 CLAUDE.md 标记转为 ✗ |
+| 打开「settings 标志层」 | 生效 model 切到 flag 层的值——标志层盖过所有文件层 |
+| 三个文件层全部关掉 | 底部出现隔离模式横幅,只剩 flag 与托管策略层能影响结果 |
+| 打开 Show code | 看到该 Canvas 实际执行的 `settings-sources-demo.ts`,上半部分即合并规则 |
+
+## CLAUDE.md 的加载与叠加
+
+CLAUDE.md 家族走 `settingSources` 同一套来源开关,但合并方式与 settings 不同:**settings 是"最高层说了算",CLAUDE.md 是"全部叠加"**——没有层与层之间的硬优先级,规则冲突时靠模型自行裁决。各文件的归属与时机:
+
+| 文件 | 随哪层加载 | 加载时机 |
+| --- | --- | --- |
+| `~/.claude/CLAUDE.md` | user | 会话启动 |
+| `<cwd>/CLAUDE.md` 或 `<cwd>/.claude/CLAUDE.md`,及各父目录的 | project | 会话启动 |
+| 子目录里的 CLAUDE.md | project | agent 读到该子树的文件时按需加载 |
+| `CLAUDE.local.md`(从 `<cwd>` 向上回溯) | local | 会话启动 |
+| `~/.claude/rules/*.md` 与 `.claude/rules/*.md` | user / project | 会话启动 |
+
+```ts
+// 场景:仓库根与子目录都有 CLAUDE.md,确认哪些会进上下文。
+// 预期:含 "project" 时,根与父目录的 CLAUDE.md 启动即加载;
+//       子目录的要等 agent 读到对应文件才进来。
+query({
+  prompt: "按仓库规范重构 utils 目录",
+  options: { cwd: repoRoot, settingSources: ["project"] },
+});
+```
+
+两个直接推论:`settingSources` 不含 `"project"` 时,项目根的 CLAUDE.md 写得再全也不会进上下文;想让规则确定生效,就避免在不同层写互相冲突的规则,或在文件里显式说明优先级。
+
+## 核对生效配置
+
+`resolveSettings()` 用与 CLI 相同的合并引擎解析指定目录的生效设置,不启动 CLI 子进程——启动会话前核对配置、排查"这条规则是谁设的"都用它。
+
+```ts
+// 前置:alpha API,稳定前签名可能调整;MDM 解析在 macOS 可能调用 plutil。
+// 预期:sources 按优先级从低到高;provenance 回答每个顶层键由哪层决定。
+import { resolveSettings } from "@anthropic-ai/claude-agent-sdk";
+
+const resolved = await resolveSettings({ cwd: repoRoot });
+
+console.log("各层原始设置(低 → 高):");
+for (const { source, path, settings } of resolved.sources) {
+  console.log(`  ${source}  ${path ?? ""}  keys: ${Object.keys(settings).join(", ")}`);
+}
+
+console.log("model ←", resolved.provenance.model?.source);
+```
+
+返回值 `ResolvedSettings` 有三部分:
+
+| 字段 | 内容 | 用法 |
+| --- | --- | --- |
+| `effective` | 合并后的生效设置 | 直接读 `effective.model` 等顶层键 |
+| `provenance` | 每个顶层键由哪个来源决定 | 排查"这个值是谁设的";文件来源带 `path` |
+| `sources` | 各来源的原始设置,按优先级从低到高 | 逐层检查;顶层 provenance 太粗时看嵌套键 |
+
+边界与注意:
+
+- `options` 有四个:`cwd`(默认进程工作目录)、`settingSources`(默认全部;`[]` 跳过三层但托管策略层仍从磁盘读)、`managedSettings`、`serverManagedSettings`。
+- 策略层行为对齐 CLI 启动,但管理员配置的 `policyHelper` 子进程不会执行——依赖它注入托管设置的部署,结果会不同。
+- `permissions.defaultMode` 原样报告,不做升级过滤;要据此行动,先过一遍 SDK 同样导出的 `filterEscalatingDefaultMode()`。
+- settings 文件解析失败(非法 JSON、JSON 注释、schema 不匹配)时整份文件被跳过,其中的 allow/deny 规则不会应用。
+
+## 最佳实践
+
+- **服务端与多租户:** `settingSources: []` + env 传 `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` + 每租户独立文件系统;关掉文件层后托管策略与 `~/.claude.json` 仍会读,强隔离场景还要处理这两项。
+- **CI 与测试:** 显式传 `settingSources`(`[]` 或 `["project"]`),让会话配置只由代码与仓库决定,不受执行机器的用户设置影响,结果可复现。
+- **个人覆盖团队配置:** 写 `.claude/settings.local.json` 或 `CLAUDE.local.md`,不动共享文件;`allow` 这类列表会自动并入项目规则。
+- **想覆盖某个键:** 标量键只认最高已启用层——改 user 层盖不过 project 层;要稳赢用 local 层或 `settings` 标志层,再跑 `resolveSettings` 确认。
+
+## 常见问题
+
+- 网上教程说"SDK 默认不加载任何文件系统设置",本课说默认全加载。
+  以当前版本为准:0.1.0 曾把默认改为不加载,当前版本(v0.3.x)省略 `settingSources` 即加载全部三层,官方文档与 SDK 类型定义一致。旧教程按旧默认写的安全建议可能已不再成立,拿不准就在自己的目录跑一次 `resolveSettings` 实测。
+
+- 项目 `.claude/settings.json`(或项目 CLAUDE.md)写了却没生效。
+  两步排查:确认 `settingSources` 含 `"project"`——CLAUDE.md 也随它加载;确认 `cwd` 指向包含 `.claude/` 的目录——settings 与 hooks 只从 `<cwd>/.claude/` 读、不回溯父目录,从仓库子目录启动会话会扑空。
+
+- 明明改了 settings.json,行为还是旧的,甚至权限规则凭空丢失。
+  先检查文件能否通过 JSON 校验:非法 JSON、JSON 注释、schema 不匹配都会让整份文件被跳过,其中的 allow/deny 规则不会应用。文件本身合法时,用 `resolveSettings` 的 `provenance` 看该键实际由哪层决定——大概率有更高层设了同一个键。
+
+## 总结回顾
+
+摘要:
+
+`settingSources`(`'user' | 'project' | 'local'` 数组)决定 SDK 会话从文件系统装哪几层配置:省略时三层全开、与 CLI 默认一致,传 `[]` 进入隔离模式,项目层的 CLAUDE.md 也随 `"project"` 加载。user 层是 `~/.claude` 下的个人全局配置,project 层是仓库里随提交共享的 `.claude/settings.json` 与 hooks(settings 与 hooks 只认 `<cwd>/.claude/`,CLAUDE.md 才向上回溯),local 层是不入库的个人覆盖。合并按 user < project < local < flag(`Options.settings`)< policy(托管策略)排序,标量键最高层说了算、列表键并集合并;托管策略、`~/.claude.json`、auto memory 等不受该选项控制。CLAUDE.md 家族按层加载、全部叠加,子目录的按需进上下文。拿不准就调 `resolveSettings()`(alpha),用 `effective`、`provenance`、`sources` 三份输出核对生效配置。
+
+一句话:
+
+> 文件系统设置装不装看 `settingSources`,谁说了算看 user < project < local < flag < policy;拿不准就用 `resolveSettings()` 核对 provenance。
+
+知识要点:
+
+- `settingSources` 三个取值各加载哪些文件?省略与传 `[]` 分别是什么行为?
+- 三个文件层与 flag、policy 层的优先级顺序是什么?标量键与列表键的合并规则有何不同?
+- 哪些配置不受 `settingSources` 控制?做服务端隔离除 `[]` 外还要关什么?
+- CLAUDE.md 家族各文件随哪一层加载?启动时与按需加载怎么区分?
+- `resolveSettings()` 返回哪三部分?怎么查"某个键由哪层决定"?
+
+## 参考资料
+
+- [Agent SDK configuration](https://code.claude.com/docs/en/agent-sdk/configuration)(settingSources、settings、cwd 与 env 的职责划分)
+- [Claude Code features available to the SDK](https://code.claude.com/docs/en/agent-sdk/claude-code-features)(三层各加载什么、不受控来源、多租户警告)
+- [TypeScript SDK reference](https://code.claude.com/docs/en/agent-sdk/typescript)(settingSources 默认值、Settings precedence、resolveSettings 与相关类型)
+- [Settings](https://code.claude.com/docs/en/settings)(settings 文件体系与优先级的 CLI 侧背景)

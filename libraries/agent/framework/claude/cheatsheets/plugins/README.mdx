@@ -1,0 +1,293 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="plugins" title="扩展能力/子代理与扩展/插件" name="Docs" />
+
+# 插件
+
+命令、技能、子代理、hooks、MCP server 各写一份太散,插件把它们装进同一个目录,作为一个可跨项目复用的分发单元。SDK 视角下用插件只有三件事:用 `Options.plugins` 把本地插件目录挂进会话;从 init 消息核对装上了什么;会话运行中插件文件发生变化时,调 `query.reloadPlugins()` 让运行中的会话重新读盘。看完导读与参考表,你应该能预测:往 `plugins` 数组加一条 `{ type: "local", path: "./greet-plugin" }`,init 消息的 `plugins` 字段会出现 `greet-plugin`,插件带来的技能会以 `greet-plugin:greet` 出现在 `skills` 与 `slash_commands` 里;而路径写错不会中断会话——插件缺席或进 `plugin_errors`,所以每次加载都以 init 消息为准。
+
+| 项 | 默认 / 规则 | 回查要点 |
+| --- | --- | --- |
+| `Options.plugins` | `[]` | `SdkPluginConfig[]`;`type` 只认 `"local"` |
+| `path` | 相对 `Options.cwd` 解析 | 指向插件根目录;不展开 `~`;目录不存在时静默跳过 |
+| `plugin.json` | 可选 | 位置 `.claude-plugin/plugin.json`;省略时按目录布局自动发现,插件名取目录名 |
+| 命名空间 | `插件名:组件名` | 技能/命令直接调用发 `/插件名:技能名` |
+| 加载核对 | system/init 消息 | `plugins`、`skills`、`slash_commands`、`plugin_errors` |
+| `reloadPlugins()` | 需 SDK v0.2.85+ | 返回重载后的 `commands`、`agents`、`plugins`、`mcpServers`、`error_count` |
+| `holdOnCacheImpact` | 不传 = 直接应用 | 需 SDK v0.3.268+;会使 prompt cache 失效时暂缓,`held: true` |
+| 插件内文件引用 | `${CLAUDE_PLUGIN_ROOT}` | hooks 与 MCP 配置里引用插件自带脚本 |
+
+## 快速上手
+
+一个插件最小可以只有一个技能目录——没有 `plugin.json` 也能加载,SDK 按目录布局自动发现,插件名取目录名。先建插件:
+
+```bash
+mkdir -p greet-plugin/skills/greet
+cat > greet-plugin/skills/greet/SKILL.md <<'EOF'
+---
+name: greet
+description: 用一句话向指定的人打招呼
+---
+
+向用户指定的对象打一句友好的招呼。
+EOF
+```
+
+再写加载脚本。前置:`ANTHROPIC_API_KEY` 已配置(见[安装与凭证](?path=/docs/install--docs));在 `greet-plugin` 同级目录运行,相对路径按 `Options.cwd` 解析。
+
+```ts
+// 场景:挂载本地插件目录,核对它带来了什么。
+// 预期:init 的 plugins 出现 greet-plugin;skills 与 slash_commands
+//       出现带命名空间前缀的 greet-plugin:greet。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+for await (const message of query({
+  prompt: "打个招呼",
+  options: {
+    plugins: [{ type: "local", path: "./greet-plugin" }],
+    maxTurns: 3,
+  },
+})) {
+  if (message.type === "system" && message.subtype === "init") {
+    console.log("插件:", message.plugins);
+    console.log("技能:", message.skills);
+    console.log("命令:", message.slash_commands);
+  }
+}
+```
+
+```text
+插件: [ { name: 'greet-plugin', path: '/Users/you/demo/greet-plugin' } ]
+技能: [ 'greet-plugin:greet', '…其余已启用技能' ]
+命令: [ '/greet-plugin:greet', '…其余可派发命令' ]
+```
+
+插件技能带命名空间,直接调用时把 `/插件名:技能名` 作为 prompt 发送即可:
+
+```ts
+query({
+  prompt: "/greet-plugin:greet 小蓝",
+  options: { plugins: [{ type: "local", path: "./greet-plugin" }] },
+});
+```
+
+## 插件里能打包什么
+
+一个插件就是遵循标准布局的目录:每个组件类型一个子目录,外加一个可选清单。SDK 加载时逐项扫描,把它们并进会话的对应能力里:
+
+```text
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json          # 可选清单
+├── skills/                   # Agent Skills
+│   └── my-skill/
+│       └── SKILL.md
+├── commands/                 # 扁平 .md 文件形式的技能
+│   └── custom-cmd.md
+├── agents/
+│   └── specialist.md
+├── hooks/
+│   └── hooks.json
+└── .mcp.json                # 插件自带的 MCP server
+```
+
+| 组件 | 目录 | 进入会话的方式 | 编写详见 |
+| --- | --- | --- | --- |
+| Agent Skills | `skills/<name>/SKILL.md` | 模型自主调用;`/插件名:技能名` 直接调用 | [Agent Skills](?path=/docs/skills--docs) |
+| slash 命令 | `commands/*.md` | 以 `/插件名:命令名` 派发 | [Slash 命令](?path=/docs/slash-commands--docs) |
+| 子代理 | `agents/*.md` | 面向特定任务的专用 subagent | [子代理](?path=/docs/subagents--docs) |
+| hooks | `hooks/hooks.json` | 响应 PreToolUse 等事件 | [Hook 事件](?path=/docs/hooks--docs) |
+| MCP server | `.mcp.json` | 插件自带的外部工具 | [接入 MCP server](?path=/docs/mcp-integration--docs) |
+
+两个选择边界:`commands/` 与 `skills/` 都提供命令式入口——官方注记 `commands/` 存放扁平 Markdown 文件形式的技能,新插件建议用 `skills/`,两者均受支持;组件必须是磁盘文件,SDK 没有程序化注册插件组件的 API(程序化定义子代理走 `agents` 选项,见[子代理](?path=/docs/subagents--docs))。
+
+### plugin.json 清单
+
+清单位于插件根目录的 `.claude-plugin/plugin.json`,其余组件文件放在插件根目录,不要放进 `.claude-plugin/` 里面。清单可省略:省略时 SDK 按上面的标准布局自动发现组件,插件名取目录名(SDK 按本地路径加载)或 marketplace 条目。写清单时:
+
+- `name` 是唯一必填字段,kebab-case,不能含空格、`@`、`:`、路径分隔符——它是所有组件的命名空间前缀。
+- `version` 可选;声明后会出现在 init 消息与 `reloadPlugins()` 响应里,由插件作者填写,展示或信任前先校验。
+- `homepage` 若填写,必须能解析为 URL,否则插件加载失败——排查"装不上"时别漏了它。
+- 其余字段(`displayName`、`author`、`dependencies`、`userConfig` 等)主要服务 CLI 与 marketplace 分发,SDK 本地加载用得少;清单还能把各组件指向自定义路径——`commands`/`agents` 替换默认扫描,`skills` 追加,`hooks`/`mcpServers` 合并,细节见清单参考。
+
+### 引用插件内的文件
+
+hooks 命令、MCP server 启动命令要引用插件自带的脚本时,不要写死安装路径,用插件变量:
+
+| 变量 | 解析为 | 用途 |
+| --- | --- | --- |
+| `${CLAUDE_PLUGIN_ROOT}` | 插件当前安装目录的绝对路径 | hooks 的 `command`、MCP stdio 的 `command`/`args` 引用插件自带脚本 |
+| `${CLAUDE_PLUGIN_DATA}` | `~/.claude/plugins/data/<id>/`,首次引用时创建 | 装依赖、写缓存等跨插件更新保留的数据 |
+| `${CLAUDE_PROJECT_DIR}` | 项目根目录 | 引用项目本地的脚本与配置 |
+
+边界:这些变量在 hook 的 `command`/`args`、MCP 配置、技能/命令/agent 的 Markdown 正文里被内联替换;Bash 工具的执行环境里没有它们——要在 Markdown 正文里写 `${...}` 交给 Claude Code 替换。
+
+## 加载插件
+
+`Options.plugins` 的类型是 `SdkPluginConfig[]`,默认 `[]`:
+
+```ts
+type SdkPluginConfig = {
+  type: "local";
+  path: string;
+  skipMcpDiscovery?: boolean;
+};
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `type` | 只认 `"local"`——SDK 目前只支持从本地目录加载 |
+| `path` | 插件根目录,即 `skills/`、`hooks/`、`.claude-plugin/` 的父目录;相对路径相对 `Options.cwd` 解析 |
+| `skipMcpDiscovery` | `true` 时仍加载该插件的 skills/hooks/agents/commands,但不读它的 `.mcp.json` 与清单 `mcpServers`;适合宿主应用自己接管 MCP 连接 |
+
+可以混挂多个来源的插件:
+
+```ts
+// 预期:三个插件都进 init 的 plugins;相对路径按 cwd 解析,
+//       home 目录下的用 homedir() 拼绝对路径。
+import path from "node:path";
+import os from "node:os";
+
+query({
+  prompt: "按部署手册检查当前环境",
+  options: {
+    cwd: repoRoot,
+    plugins: [
+      { type: "local", path: "./plugins/deploy-tools" },
+      { type: "local", path: "/srv/team-plugins/reviewer" },
+      { type: "local", path: path.join(os.homedir(), ".claude", "plugins", "cache", "deploy-tools") },
+    ],
+  },
+});
+```
+
+三条路径边界,踩中任何一条都不会报错中断,只会"没装上"或进 `plugin_errors`:SDK 不展开 `~`,写 `"~/my-plugin"` 不会生效,用 `os.homedir()` 拼接;`path` 必须指向插件根目录,不是 `.claude-plugin/` 也不是 `skills/`;目录不存在时该插件被静默跳过,会话照常运行。
+
+marketplace 与远程仓库分发的插件,SDK 不直接认 marketplace 标识:先用 CLI 安装或手动下载,再把插件根目录的本地路径传给 `plugins`(CLI 装过的插件在 `~/.claude/plugins/` 下找)。
+
+插件自带的 MCP server 还有第二道开关:`strictMcpConfig: true` 的会话只认 `Options.mcpServers`,插件提供的 MCP server 一并忽略——与 `skipMcpDiscovery` 的分工是,前者全会话隔离,后者只放过单个插件。
+
+## 核对加载结果
+
+加载结果以 system/init 消息为准(消息类型总览见[消息流](?path=/docs/message-stream--docs)):
+
+| 字段 | 形状 | 说明 |
+| --- | --- | --- |
+| `plugins` | `{ name, path, version? }[]` | 已加载插件;完全没加载成功的插件不在这里,而在 `plugin_errors` |
+| `skills` | `string[]` | 用户可调用的技能,插件技能带插件名前缀 |
+| `slash_commands` | `string[]` | 可派发命令,同样带前缀 |
+| `plugin_errors` | `{ plugin, type, message, path? }[]` | 加载错误;无错误时整个字段省略 |
+
+```ts
+// 场景:核对插件是否装载、带来了哪些命令。
+// 预期:plugins 列出插件名;slash_commands 出现 /greet-plugin:greet;
+//       有问题时 plugin_errors 给出 plugin、type、message。
+if (message.type === "system" && message.subtype === "init") {
+  console.log(message.plugins.map((p) => p.name));
+  console.log(message.skills);
+  console.log(message.slash_commands);
+  console.log(message.plugin_errors ?? []);
+}
+```
+
+`plugin_errors` 的 `type` 是开放集合(`path-not-found`、`manifest-validation-error`、`dependency-unsatisfied`、`hook-load-failed` 等),遇到不认识的值当一般失败处理。一个插件"整体没加载"时不会出现在 `plugins` 里;只缺个别组件时仍保留插件行,同时在这里记一条错误。CI 里可以直接用 `(message.plugin_errors?.length ?? 0) > 0` 作失败判据。
+
+## reloadPlugins:运行中重载
+
+会话启动时对插件做一次快照;之后往插件目录加技能、改 hooks、换插件,运行中的 `query` 不会自动感知。`reloadPlugins()` 让 CLI 从磁盘重读插件,把改动送进当前会话:
+
+```ts
+// 场景:会话运行中,往 greet-plugin 新增了一个技能文件。
+// 预期:reloaded.commands 出现新命令;plugins 仍是 greet-plugin;
+//       error_count 为 0。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+const q = query({
+  prompt: "看看你现在有哪些技能",
+  options: { plugins: [{ type: "local", path: "./greet-plugin" }] },
+});
+
+for await (const message of q) {
+  if (message.type === "system" && message.subtype === "init") {
+    const reloaded = await q.reloadPlugins();
+    console.log("插件:", reloaded.plugins.map((p) => p.name));
+    console.log("命令:", reloaded.commands.map((c) => c.name));
+    console.log("错误数:", reloaded.error_count);
+  }
+}
+```
+
+响应描述的是调用之后的会话状态:
+
+| 字段 | 形状 | 用法 |
+| --- | --- | --- |
+| `commands` | `SlashCommand[]` | 重载后可用命令(`name`/`description`/`argumentHint`);插件技能以 `/插件名:技能名` 出现在这里 |
+| `agents` | `AgentInfo[]` | 重载后的子代理;`supportedAgents()` 返回的是初始化快照,重载后以这里为准 |
+| `plugins` | `{ name, path, version? }[]` | `version` 来自清单,作者可控,使用前校验 |
+| `mcpServers` | `McpServerStatus[]` | 插件带来的 MCP server 状态 |
+| `error_count` | `number` | 非 0 说明本次加载有错误,逐项核对插件文件与清单 |
+
+两点对照:`supportedCommands()` 从 SDK v0.3.216 起也能反映会话中途的命令变化(经 `commands_changed` 消息推送),但要拿"这次重载的结果快照",直接读响应字段;只改了技能、没动其他组件时,可以只用 `reloadSkills()`(v0.3.163+),见[Agent Skills](?path=/docs/skills--docs)。会话运行中发生插件安装时,流里还会出现 `subtype: "plugin_install"` 的 system 消息(`status` 为 `started`/`installed`/`failed`/`completed`)。
+
+### 暂缓重载:holdOnCacheImpact
+
+不传选项时重载直接应用。传 `{ holdOnCacheImpact: true }`,CLI 先做与交互式 `/reload-plugins` 相同的检查:如果应用重载会改变会话的工具列表,而当前对话的 prompt cache 依赖这份列表,就什么都不应用,返回 `held: true`——缓存失效意味着后续请求要按新前缀重新计费,长会话值得先探再动:
+
+```ts
+// 场景:缓存敏感的长会话,重载前先探影响。
+// 预期:held 为 true 时,cache_impact 列出应用后会增删的插件 MCP server;
+//       确认后再调一次不带选项的 reloadPlugins() 强制应用。
+const held = await q.reloadPlugins({ holdOnCacheImpact: true });
+
+if (held.held === true) {
+  console.log("已暂缓,应用将带来:", held.cache_impact);
+} else {
+  console.log("已应用");
+}
+```
+
+`held` 的三种读法:`true` = 未应用,响应里各列表描述的是仍然生效的旧状态,`cache_impact` 描述应用后会变什么;`false` = 检查未发现缓存影响,已应用;字段缺失 = 没传该选项,或所指向的 CLI 可执行文件早于 v2.1.268(未检查直接应用)。`cache_impact` 里 `mcp_servers_added`/`mcp_servers_removed` 以 `plugin:<插件>:<server>` 的作用域名列出受影响的插件 MCP server,名字由插件作者定义,展示前校验;`lsp_tool_change` 表示应用后是否会增删 LSP 工具。强制应用只需再调一次不带选项的 `reloadPlugins()`。
+
+## 最佳实践
+
+- **服务端与 CI:** 插件路径写进部署产物或镜像,启动后核对 init 的 `plugins` 名单与 `plugin_errors`——路径不存在会被静默跳过,不核对就等于没装。
+- **插件 MCP 的归属:** 宿主要自己接管某插件的 MCP 连接,给该插件加 `skipMcpDiscovery: true`;整个会话只想用 `Options.mcpServers`,用 `strictMcpConfig: true`,它连插件 MCP 一起忽略。
+- **复用 CLI 侧资产:** CLI 已安装的插件在 `~/.claude/plugins/` 下,直接把插件根目录路径传给 `plugins`;marketplace/远程插件先落到本地再用,不要在 SDK 里等远程解析。
+- **用 agent 维护插件:** 让 agent 编辑自己的插件目录时,写完调 `reloadPlugins()` 让当前会话立即拿到新能力;在意缓存的长会话先用 `holdOnCacheImpact` 探一次再强制应用。
+
+## 常见问题
+
+- `plugins` 里写了路径,init 的 `plugins` 却没有它。
+  先看 `plugin_errors`:插件行缺席又没有错误项,多半是目录不存在被静默跳过。再按序核对:`path` 是否指向插件根目录(`skills/`、`.claude-plugin/` 的父目录);`plugin.json` 是否为合法 JSON、`homepage` 是否能解析为 URL;目录是否可读;路径是否用了不会被展开的 `~`。
+
+- 技能装了,发 `/greet` 却调不到。
+  插件组件都带命名空间:发 `/greet-plugin:greet`,并以 init 的 `skills`/`slash_commands` 里的实际名字为准。另外 init 的 `skills` 只列"用户可调用"的技能——SKILL.md 缺 `description`/`when_to_use` 或声明 `user-invocable: false` 的技能不进列表,但模型仍能按需调用。
+
+- 会话跑着改了插件文件,行为没变。
+  插件状态在启动时快照,磁盘变化不会自动进会话:调 `await q.reloadPlugins()`。重载后注意 `supportedAgents()` 仍是初始化快照,要以响应的 `agents` 字段为准。
+
+## 总结回顾
+
+摘要:
+
+插件把命令、技能、子代理、hooks、MCP server 装进一个遵循标准布局的目录,作为跨项目复用的分发单元;`.claude-plugin/plugin.json` 清单可选,省略时自动发现、插件名取目录名,写清单时 `name` 必填并决定所有组件的 `插件名:组件名` 命名空间。SDK 用 `Options.plugins`(`SdkPluginConfig[]`,`type` 只认 `"local"`)把本地目录挂进会话:相对路径按 `cwd` 解析、`~` 不展开、目录不存在静默跳过,marketplace/CLI 安装的插件先落本地再传路径;插件自带的 MCP 可用 `skipMcpDiscovery` 单插件跳过或 `strictMcpConfig` 全会话忽略。加载结果以 init 消息为准——`plugins`、`skills`、`slash_commands` 核对清单,`plugin_errors` 核对失败原因。会话运行中插件文件变化时调 `reloadPlugins()` 重读磁盘,从响应的 `commands`/`agents`/`plugins`/`mcpServers`/`error_count` 拿重载快照(`supportedAgents()` 仍是旧快照);缓存敏感的会话先传 `holdOnCacheImpact: true` 探影响,`held: true` 时再不带选项强制应用。
+
+一句话:
+
+> 插件在 SDK 里就是一份本地目录:`Options.plugins` 挂进来,init 消息核对,`reloadPlugins()` 在运行中刷新——路径指向插件根,核对以消息为准,不靠静默成功。
+
+知识要点:
+
+- 插件目录里各组件放在哪?`plugin.json` 什么时候可有可无?没有清单时插件名从哪来?
+- `SdkPluginConfig` 三个字段各管什么?相对路径相对什么解析?哪三种路径写法会"静默失败"?
+- init 消息里用哪些字段核对插件加载?`plugin_errors` 的 `type` 覆盖哪些失败类别?CI 里怎么做失败判据?
+- `reloadPlugins()` 返回什么?为什么重载后不能信 `supportedAgents()`?
+- `holdOnCacheImpact` 的 `held` 与 `cache_impact` 怎么读?怎么强制应用被暂缓的重载?
+- `skipMcpDiscovery` 与 `strictMcpConfig` 对插件自带 MCP server 的分工是什么?
+
+## 参考资料
+
+- [Agent SDK plugins](https://code.claude.com/docs/en/agent-sdk/plugins)(插件目录结构、`Options.plugins` 加载方式、init 消息核对与排查)
+- [TypeScript SDK reference](https://code.claude.com/docs/en/agent-sdk/typescript)(`SdkPluginConfig`、`reloadPlugins()`、`SDKControlReloadPluginsResponse`、`strictMcpConfig` 的权威定义)
+- [Plugins manifest reference](https://code.claude.com/docs/en/plugins/manifest-reference)(`plugin.json` 字段、无清单时的自动发现、`${CLAUDE_PLUGIN_ROOT}` 等变量)
+- [Agent SDK skills](https://code.claude.com/docs/en/agent-sdk/skills)(SKILL.md frontmatter 最小结构、init 的 `skills` 字段与命名空间)

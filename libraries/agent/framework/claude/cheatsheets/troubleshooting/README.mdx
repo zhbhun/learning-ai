@@ -1,0 +1,185 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="troubleshooting" title="生产化/健壮性/故障排查" name="Docs" />
+
+# 故障排查
+
+agent 出故障时,问题大多不在你的业务代码里,而在 SDK 驱动的 CLI 子进程与它的进程环境里:凭证没到达进程、平台二进制没装上、工具没放行、配置没传到、网络被代理拦住。本课是全手册的运维排查入口,按官方排查路径组织:先拿到错误原文,再按"现象 → 原因 → 处理动作"落到五类高频故障。各机制的原理与正常用法在各自课程,本课只给定位路径。看完导读与分类表,你应该能预测:同样是运行失败,先挂上 stderr 回调的人和不挂的人,能拿到的信息差多少。
+
+| 故障类别 | 典型报错或现象 | 首查动作 |
+| --- | --- | --- |
+| 凭证类 | `Invalid API key`、`Not logged in`、`authentication_failed` | 同一终端核对 `ANTHROPIC_API_KEY` 可见性 |
+| 进程类 | `Native CLI binary ... not found`、`process exited with code N` | 接住 stderr,再看二进制路径与退出码 |
+| 工具与 MCP 类 | 工具没被调用、`mcp_servers` 出现 `failed` / `needs-auth` | 读 init 消息里每个 server 的 `status` |
+| 配置类 | `error_max_turns`、`structured_output` 为空 | 读 result 消息的 `subtype` 与字段 |
+| 网络类 | `rate_limit`、`overloaded`、流卡住不动 | 先分清 429 / 529,再查重试与代理变量 |
+
+## 快速上手
+
+最小闭环:把一次运行包进"stderr 回调 + try/catch",让故障留下完整现场。
+
+```ts
+// 前置:已按"安装与凭证"课程配置 ANTHROPIC_API_KEY。
+// 演示:正常时输出结果;故障时 catch 到完整错误原文,而不是只有一句退出信息。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+try {
+  for await (const message of query({
+    prompt: "用一句话介绍你自己",
+    options: {
+      // stderr 默认被丢弃;进程类故障的线索几乎全在这里
+      stderr: (data) => process.stderr.write(data),
+    },
+  })) {
+    if (message.type === "result") {
+      console.log(message.subtype, message.result ?? "");
+    }
+  }
+} catch (error) {
+  // 消息循环 reject 的是普通 Error,没有专用错误类;message 原文就是排查入口
+  console.error("query 失败:", (error as Error).message);
+}
+```
+
+正常运行输出一行结果:
+
+```text
+success 好的——我是一个由 Claude Agent SDK 驱动的命令行 agent。
+```
+
+故障时的输出形如:
+
+```text
+query 失败: Claude Code process exited with code 1
+```
+
+两个关键点:
+
+- **异常路径上没有 SDK 错误类。** 启动失败与非零退出都表现为消息循环 reject 的普通 `Error`;`message` 原文加上 stderr 回调拿到的完整输出,就是按上表定位的依据。
+- **还看不出原因时,把调试日志落盘。** 在 `options` 里加 `debugFile: "claude-debug.log"`,它会隐式开启 CLI 的 debug 模式,把子进程内部日志写进文件。
+
+## 凭证类故障
+
+凭证类故障的共同原因是"key 没有到达运行进程":SDK 只从进程环境读凭证,不读配置文件。配置路径与凭证来源见[安装与凭证](?path=/docs/install--docs)。
+
+- 报 `Invalid API key` 或 `Not logged in`。
+  先在运行脚本的同一个终端核对变量可见:`printenv ANTHROPIC_API_KEY`(PowerShell 用 `echo $env:ANTHROPIC_API_KEY`)。不可见就回到设置变量的那个 shell 或重设;可见则核对 key 是否有效,以及用的是 API key 而不是订阅登录(订阅登录不支持 SDK 用途)。
+- 显式设置过 `options.env` 后凭证失效,或子进程直接起不来。
+  `env` 是替换式而非合并式:必须写 `env: { ...process.env, ANTHROPIC_API_KEY: apiKey }`,漏掉展开会连 `PATH` 一起丢。
+- 流中途出现 `authentication_failed`、`billing_error`、`account_on_hold`。
+  这些是 API 层错误值,出现在 `SDKAssistantMessage` 的 `error` 字段:`authentication_failed` 核对 key 有效性;`billing_error`、`account_on_hold` 到 Claude Console 检查账户与账单状态。
+- 报 `oauth_org_not_allowed`。
+  当前组织不允许这种接入方式:改用 API key 凭证。
+
+## 进程类故障
+
+`query()` 实际驱动一个 CLI 子进程,进程类故障分两段:启动失败和中途退出。两者的异常表现相同——消息循环 reject,错误不带 SDK 错误类。子进程模型见[进程与预热](?path=/docs/process-model--docs)。
+
+### CLI 启动失败
+
+- 报 `Native CLI binary for <platform>-<arch> not found`。
+  平台二进制没装上,最常见于包管理器跳过可选依赖(`npm ci --omit=optional`、部分 monorepo 配置):正常重新安装让可选依赖落地;确需跳过时,用 `pathToClaudeCodeExecutable` 指向单独安装的 CLI。`bun build --compile` 打包会触发同一句报错,但属于另一个原因,处理见[打包与托管](?path=/docs/hosting--docs)。
+- 报 `Claude Code native binary not found at <path>` 或 `Claude Code executable not found at <path>. Is options.pathToClaudeCodeExecutable set?`。
+  解析出的路径下没有可运行文件,或进程无权访问:确认路径指向有执行权限的 `claude` 可执行文件;没有自定义路径时,先去掉 `pathToClaudeCodeExecutable` 让 SDK 用默认解析;容器里报错,则在镜像构建阶段安装 SDK,让捆绑二进制匹配容器平台。
+
+### 进程中途退出
+
+- 报 `Claude Code process exited with code N`。
+  CLI 以非零退出码结束;报错末尾会附带 stderr 尾部(如果有)。退出码只说明"退了",不说明"为什么":用 stderr 回调拿完整输出定位根因。
+- 报 `Claude Code process terminated by signal <name>`。
+  进程被信号终止,常见于被手动 kill 或 OOM killer 选中:核对内存限额与系统日志,容器环境同时检查资源限制。
+- 报 `Claude Code returned an error result: <reason>`。
+  CLI 在退出前报了错误结果,冒号后就是它报告的原因;按 `reason` 的内容回到对应类别(凭证、网络)继续排查。
+
+## 工具与 MCP 类故障
+
+工具类故障有一条反直觉前提:MCP server 连接失败**不抛错**,run 照常进行,答案在状态里。run 开始时 SDK 会发一条 `system`/`init` 消息,其中 `mcp_servers[]` 带每个 server 的连接状态。server 接入配置见[接入 MCP server](?path=/docs/mcp-integration--docs)。
+
+### server 连不上或掉线
+
+- init 消息里 `mcp_servers[].status` 是 `failed` 或 `needs-auth`。
+  逐项核对:stdio server 确认命令存在、Node 在 `PATH`、`env` 字段满足 server 要求;HTTP server 确认 URL 可达;`needs-auth` 时 SDK 不会替你跑 OAuth,按 server 要求在 `headers` 里带 token。
+- 状态一直是 `pending`,不确定算不算失败。
+  `pending` 不等于失败:可能尚未连上、工具列表来自缓存(首次调用才连接),或连接时限刚到。用 `mcpServerStatus()` 查最新状态,`reconnectMcpServer()` 手动重连;运行中连续五次重连失败才报 `failed`。
+- 连接等待太久或超时。
+  连接等待受 `MCP_TIMEOUT` 约束(默认 30 秒),单次工具调用超时看 `MCP_TOOL_TIMEOUT`。
+- `failed` / `needs-auth` 状态下仍拿到了"看似正常"的结果。
+  不要直接信任:Claude 可能在 server 不可用时回退到内置工具,输出与预期的 server 工具无关。
+
+### 工具不被调用或找不到
+
+- Claude 看得到工具,但就是不调用。
+  MCP 工具需要显式放行:在 `allowedTools` 里加 `mcp__<server>__<tool>`,支持通配如 `mcp__github__*`;`permissionMode: "acceptEdits"` 不会自动放行 MCP 工具。
+- 写的放行规则对不上工具。
+  先从 init 消息的 `tools` 数组里筛出 `mcp__` 前缀确认真实名称,再按 `mcp__<server>__<tool>` 写规则。
+- 调用被拒绝。
+  权限拒绝会记录在 result 消息的 `SDKPermissionDenial[]` 里,先看记录再改放行规则。
+
+## 配置类故障
+
+配置类故障的特征是"不抛异常":run 以非 `success` 结束,或字段悄悄为空。先读 result 消息的 `subtype` 与字段,再回[Options](?path=/docs/options--docs)核对默认值。
+
+- run 结束时 `subtype` 是 `error_max_turns` 而非 `success`。
+  `maxTurns` 用尽了,不是异常:提高上限或拆小任务;result 里仍有 usage 可核算本轮成本。
+- `structured_output` 是 `undefined`,但 `subtype` 是 `success`。
+  把这种情况按失败处理:判定成功要同时满足 `subtype === "success"` 且 `structured_output` 存在。反复出现时,先化简 schema 直到输出能通过校验,再逐条加回约束——常见原因是 schema 根本没有输出能满足(例如互相冲突的长度限制)。用法见[结构化输出](?path=/docs/structured-outputs--docs)。
+- 设置 `permissionMode: "bypassPermissions"` 后报错。
+  该模式还要同时设置 `allowDangerouslySkipPermissions: true`,缺一不可。
+- 工具调用悬住不动,run 不结束。
+  权限提示不会超时:确认 `canUseTool` 对每个请求都返回决定,不要返回 `null`(`null` 仅在你已自行发送 `control_response` 时合法);无界面接入改用 `permissionPrompts: "none"`,本应提示的调用会被直接拒绝。回调写法见[权限规则与 canUseTool](?path=/docs/permissions--docs)。
+- 改了设置文件或 CLAUDE.md 但没生效。
+  SDK 默认不加载文件系统设置,需要 `settingSources` 显式声明来源,核对方法见[设置来源](?path=/docs/settings-sources--docs)。
+- 报 `model_not_found`。
+  所选模型不存在,或当前账户/部署不可用该模型:核对模型名与凭证可用的模型列表。
+
+## 网络类故障
+
+网络类故障分两步:先从 `SDKAssistantMessage.error` 的错误值分清"谁拒绝了你",再查变量有没有传到子进程。本节的变量都经 `options.env` 进入 CLI 子进程;超时、中断与重试的完整机制见[错误处理与中断](?path=/docs/error-handling--docs),本课只给排查动作。
+
+- 报 `rate_limit`。
+  对应 HTTP 429,触达的是自己的配额:降低并发或申请提额;重试次数可用 `CLAUDE_CODE_MAX_RETRIES` 调整(默认 10,上限 15)。
+- 报 `overloaded`。
+  对应 HTTP 529,是服务端容量问题,不是你的配额:退避重试即可;要求极端可用性时用 `CLAUDE_CODE_RETRY_WATCHDOG=1` 对瞬时容量错误持续重试。
+- 请求慢或经常超时、流长时间不动。
+  单请求超时由 `API_TIMEOUT_MS` 控制(默认 600000 毫秒,含子代理);流卡住可开 `CLAUDE_ENABLE_STREAM_WATCHDOG` 并按需调 `CLAUDE_STREAM_IDLE_TIMEOUT_MS`(默认 300000 毫秒);用 `includePartialMessages` 时,`ping` 事件是心跳帧,不要按静默时长判断卡死。
+- 终端能访问 API,脚本里却连接超时。
+  查代理变量有没有到达子进程:CLI 从继承环境读 `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY`,走 LLM 网关时核对 `ANTHROPIC_BASE_URL`;显式设置过 `options.env` 时它是替换式,漏展开 `process.env` 会把代理变量一起丢。这些变量在 CLI 启动时读取一次,运行中改动不生效。
+
+## 最佳实践
+
+- 诊断与生产共用一份环境构造。
+  凭证、代理、重试变量都经 `options.env` 进入子进程,而它是替换式:诊断脚本与生产脚本写同一个 `{ ...process.env, ...overrides }`,能消灭一整类"我这里好的"故障。
+- 先最小复现,再逐项放大。
+  用裸 `query()`(短 prompt、`maxTurns: 1`、无自定义配置)复现故障,排除任务复杂度后,把 options 逐项加回,定位引入故障的那个配置。
+- 平时就把 stderr 接进日志系统。
+  退出类故障事后只留下退出码,现场全在 stderr 里;把回调接到日志管道(配合[可观测性](?path=/docs/observability--docs)),回查时有完整输出。
+- 官方排查路径的最后一步是提 issue。
+  以上路径仍无法定位时,先到 [claude-agent-sdk-typescript 仓库](https://github.com/anthropics/claude-agent-sdk-typescript)查已有 issue,再附完整错误原文与 SDK 版本新提。
+
+## 总结回顾
+
+摘要:
+
+故障排查从拿全错误原文开始:stderr 回调接住 CLI 子进程输出,try/catch 接住消息循环 reject 的普通 Error,`debugFile` 落盘调试日志。之后按五类落点:凭证类在同一终端核对 `ANTHROPIC_API_KEY` 与 `options.env` 的替换式展开;进程类区分启动失败(平台二进制、可执行路径)与中途退出(退出码、信号、错误结果);工具与 MCP 类不抛错,靠 init 消息的 `mcp_servers[].status` 与 `allowedTools` 放行定位;配置类读 result 消息的 `subtype` 与字段,把 `structured_output` 为空的 `success` 按失败处理;网络类先分清 429 与 529,再查重试参数与代理变量是否传到子进程。跨类别的两个共同根因:`options.env` 替换式丢环境,以及"权限提示不会超时"这类反直觉默认。
+
+一句话:
+
+> 先接住错误原文,再按凭证、进程、工具、配置、网络五类落到处理动作——故障大多不在业务代码里,而在 CLI 子进程与它的进程环境里。
+
+知识要点:
+
+- 排查第一步用什么手段拿到 CLI 子进程的完整错误输出?
+- `Native CLI binary ... not found` 的两类触发原因分别怎么处理?
+- `process exited with code N` 与 `returned an error result` 两种报错有何区别?
+- MCP server 连不上时为什么没有异常?用哪两个 API 核对与恢复状态?
+- 工具"看得到却调不动"最常见的原因是什么?
+- `structured_output` 为空但 `subtype` 为 `success` 时,按什么原则处理?
+- `rate_limit` 与 `overloaded` 对应哪个 HTTP 状态码,处理动作有何不同?
+- 哪个常见写法会一次性丢掉凭证、代理与重试变量?
+
+## 参考资料
+
+- [Agent SDK Troubleshooting](https://code.claude.com/docs/en/agent-sdk/troubleshooting)
+- [TypeScript SDK Reference](https://code.claude.com/docs/en/agent-sdk/typescript)
+- [Agent SDK MCP](https://code.claude.com/docs/en/agent-sdk/mcp)
+- [Corporate Proxy](https://code.claude.com/docs/en/corporate-proxy)

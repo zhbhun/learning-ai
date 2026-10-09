@@ -1,0 +1,283 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as HookControl from './hook-control.stories';
+
+<Meta of={HookControl} name="Docs" />
+
+# Hook 拦截与自动化
+
+上一课把 33 个 hook 事件与配置结构铺成目录;本课进入回调体内,回答三个问题:返回什么 JSON 能放行、拦截、转人工或推迟一次调用;怎么在 hook 里改写工具的输入与输出;以及这些自动化和 `canUseTool` 回调怎么分工。决策输出的核心载体是 `hookSpecificOutput`:`PreToolUse` 在这里表态四种 `permissionDecision` 并可携带 `updatedInput`,`PostToolUse` 在这里改 `updatedToolOutput`、补 `additionalContext`;`Stop` 则用顶层 `decision: "block"` 把"验收不过不许停"做成自动循环。看完导读与参考表,你应该能预测:一个返回 `allow` 的 `PreToolUse` 回调与一条 `Edit(./.env)` deny 规则并存时,写 `.env` 的调用会怎样。
+
+| 你要的效果 | 回什么 | 事件 | 边界 |
+| --- | --- | --- | --- |
+| 放行某类调用 | `permissionDecision: "allow"` | `PreToolUse` | 免提示执行;deny/ask 规则仍可否决 |
+| 拦截调用 | `permissionDecision: "deny"` + `permissionDecisionReason` | `PreToolUse` | 最硬的拒绝,`bypassPermissions` 下也生效 |
+| 转人工确认 | `permissionDecision: "ask"` | `PreToolUse` | 交给权限提示宿主应答(即 canUseTool) |
+| 推迟到自己的界面 | `permissionDecision: "defer"` | `PreToolUse` | query 以 `tool_deferred` 结束,`resume` 继续 |
+| 改写工具输入 | `updatedInput` | `PreToolUse` | 放在 `hookSpecificOutput` 内;不与 defer 同用 |
+| 改写工具输出 | `updatedToolOutput` | `PostToolUse` | 替换模型看到的输出,对任何工具生效 |
+| 给模型补上下文 | `additionalContext` | 多数事件 | 注入 system reminder,给模型不给用户 |
+| 给 auto 分类器递话 | `classifierContext` | `PostToolUse`(TS 独有) | 上限 2000 字符,仅同步回调生效 |
+| 阻止停止继续干 | 顶层 `decision: "block"` + `reason` | `Stop` / `SubagentStop` | 连续 8 次后 SDK 强制结束 |
+| 代答权限请求 | `decision`(allow / deny) | `PermissionRequest` | 形态与 canUseTool 应答相同 |
+
+## 快速上手
+
+用一个 `PreToolUse` 回调拦下 `.env` 写入。前置环境沿用[安装与凭证](?path=/docs/install--docs)(SDK 已装、`ANTHROPIC_API_KEY` 可见)。
+
+```ts
+// 预期:Claude 想写 .env 时,调用在评估链第 1 步被 hook 拦截;
+//       reason 回给模型、systemMessage 显示给用户,模型会换方案收尾。
+import { query, HookCallback } from "@anthropic-ai/claude-agent-sdk";
+
+const protectEnvFiles: HookCallback = async (input) => {
+  if (input.hook_event_name !== "PreToolUse") return {};
+  const { tool_name, tool_input } = input;
+  if (tool_name !== "Write" && tool_name !== "Edit") return {};
+  const filePath = String((tool_input as { file_path?: unknown }).file_path ?? "");
+  if (!filePath.endsWith(".env")) return {};
+
+  return {
+    systemMessage: "已拦截对 .env 的写入", // 给用户看,不给模型
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse", // 必带:标明这段输出属于哪个事件
+      permissionDecision: "deny",
+      permissionDecisionReason: "密钥文件禁止 agent 直接写入,请改用 .env.example",
+    },
+  };
+};
+
+for await (const message of query({
+  prompt: "把 API key 写进 .env",
+  options: {
+    hooks: { PreToolUse: [{ matcher: "Write|Edit", hooks: [protectEnvFiles] }] },
+  },
+})) {
+  if (message.type === "result" && message.subtype === "success") {
+    console.log("结果:", message.result);
+  }
+}
+```
+
+预期输出(拒绝消息是模型读到 reason 后自己的说法):
+
+```text
+结果:我无法写入 .env——密钥文件被策略禁止直接写入,建议改用 .env.example……
+```
+
+三个观察点:`hookSpecificOutput.hookEventName` 必带,漏了整段输出不生效;`permissionDecisionReason` 走给模型,`systemMessage` 走给用户,两条通道不混;返回 `` `{}` `` 表示不表态而非放行——非 `.env` 的写入就这样落到正常权限评估(评估链全貌见[权限规则与 canUseTool](?path=/docs/permissions--docs))。
+
+## 拦截工具调用
+
+`PreToolUse` 站在权限评估链第 1 步,每次工具调用都触发——不管这个调用需不需要权限。这是它与 `canUseTool` 的根本差别:回调只在"落到提示"时被问,hook 每次都被问。回调用 `hookSpecificOutput.permissionDecision` 表态,四个值对应四种裁决;同一事件配多个回调时并行执行、取最严——`deny` > `defer` > `ask` > `allow`,任何一个 `deny` 否决其余(裁决规则见[Hook 事件](?path=/docs/hooks--docs))。
+
+### permissionDecision
+
+| 值 | 效果 | 典型用法 |
+| --- | --- | --- |
+| `"allow"` | 免提示放行该调用;deny/ask 规则仍可否决 | 自动批准只读工具、批准改写后的输入 |
+| `"deny"` | 拦截调用,`permissionDecisionReason` 作为拒绝原因回给模型 | 危险命令、越权路径;任何权限模式下都生效 |
+| `"ask"` | 交给权限提示宿主应答(SDK 里就是 canUseTool) | 政策上"必须过一道人"的调用 |
+| `"defer"` | 见下节 | 无终端的宿主应用接自己的审批 UI |
+
+```ts
+// allow:免批只读工具,其余调用照常走评估链
+return {
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "allow",
+    permissionDecisionReason: "只读工具自动放行",
+  },
+};
+```
+
+两种 allow 放不掉的例外,写回调前先分清:
+
+- **交互型工具**:`AskUserQuestion` 与 `ExitPlanMode` 的 hook `allow` 必须搭配 `updatedInput`——用你自己的界面收集答案、填回原始输入一起返回,光 allow 无效;标注 `_meta["anthropic/requiresUserInteraction"]` 的 MCP 工具更严,SDK 不接受 hook 代收交互,`allow` 连同 `updatedInput` 都绕不过它的审批提示。
+- **关键路径删除**:`rm`/`rmdir` 对关键路径的删除是"任何模式都不自动放行"的动作,allow 规则放不掉,hook 的 `allow` 同样放不掉(`dontAsk` 模式下直接拒绝)。
+
+### defer:暂停等 resume
+
+`"defer"` 把"这个调用先别执行"变成一次可恢复的暂停:query 立即结束,`result` 消息的 `stop_reason` 为 `"tool_deferred"`,`deferred_tool_use` 带回待决调用的 `id`、`name`、`input`。宿主程序读这个字段把请求呈到自己的界面,收集完答案再 resume 同一会话;resume 后同一次 `PreToolUse` 再次触发,这次返回 `allow` 并把答案填进 `updatedInput` 即可放行。
+
+```ts
+// 往返示意:宿主用状态区分两轮
+// 第 1 轮:暂停,把待决调用交给自己的界面
+return {
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "defer",
+  },
+};
+
+// resume 同一 session 后同一次 PreToolUse 再触发,答案已备好时放行:
+return {
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "allow",
+    updatedInput: { ...toolInput, answers: collectedAnswers },
+  },
+};
+```
+
+三条边界:同一轮 Claude 并行发起多个工具调用时 `defer` 被忽略并告警,调用照常走权限流程——defer 只对单工具调用轮生效;`defer` 不能与 `updatedInput` 同用,推迟的调用输入会被丢弃;resume 时工具已不存在(如 MCP server 未连接)则以 `tool_deferred_unavailable` 报错结束,`is_error: true`。
+
+## 改写输入与输出
+
+方向决定位置:出境的调用在 `PreToolUse` 改输入,入境的结果在 `PostToolUse` 改输出——脱敏、重定向、裁剪各拦一头。
+
+### updatedInput
+
+```ts
+// 官方示例:把所有 Write 重定向进 sandbox 目录,并自动批准改写后的调用
+// 预期:file_path 被改写,工具在 sandbox 内执行;Claude 只看到执行结果,
+//       不知道输入被改过。
+return {
+  hookSpecificOutput: {
+    hookEventName: "PreToolUse",
+    permissionDecision: "allow",
+    updatedInput: { ...toolInput, file_path: `/tmp/sandbox/${relativePath}` },
+  },
+};
+```
+
+`updatedInput` 放在 `hookSpecificOutput` 里(不是顶层),与决策字段三种搭配:配 `"allow"` 自动批准改写后的调用;配 `"ask"` 让用户确认改写后的输入;**省略决策字段也合法**——改写仍然生效,调用继续走正常权限评估。三个坑:与 `"defer"` 同用时改写被丢弃;漏 `hookEventName` 整段输出不生效;想让 Claude 知道"为什么被改",用 deny 的 reason 或 `additionalContext`,改写本身是静默的。
+
+### updatedToolOutput
+
+`PostToolUse` 的 `updatedToolOutput` 替换模型看到的工具输出,内置与 MCP 工具都有效(旧的 `updatedMCPToolOutput` 只管 MCP 工具,已废弃)。替换值的形态要匹配该工具的输出类型——替换 Bash 输出就给 `BashOutput` 形态的对象。
+
+```ts
+// 预期:大日志被截断后再进模型上下文;真实输出仍留在你的进程里,可自行落盘。
+import type { BashOutput } from "@anthropic-ai/claude-agent-sdk/sdk-tools";
+
+const PostUse: HookCallback = async (input) => {
+  if (input.hook_event_name !== "PostToolUse") return {};
+  // tool_response 类型为 unknown,按官方工具输出类型收窄后使用
+  const bashOutput = input.tool_response as BashOutput;
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PostToolUse",
+      updatedToolOutput: { ...bashOutput, stdout: bashOutput.stdout.slice(0, 2000) },
+    },
+  };
+};
+```
+
+### additionalContext
+
+`additionalContext` 把一段文本以 system reminder 注入模型上下文,落点随事件变化:工具事件上追加在工具结果旁,`UserPromptSubmit` 上附在 prompt 旁,`Stop` 上补在回合末尾。它是"观察之后给模型递话"的正规通道——写事实性陈述而不是命令,模型会当成项目信息消化。它与 `systemMessage` 分工明确:前者给模型,后者给用户。
+
+```ts
+// 预期:Claude 的后续动作会带上这条环境事实。
+return {
+  hookSpecificOutput: {
+    hookEventName: "PostToolUse",
+    additionalContext: "部署目标是 staging 环境,数据库写入需先走迁移脚本",
+  },
+};
+```
+
+TS SDK 的 `PostToolUse` 还有一条只给机器看的通道:`classifierContext`(v0.3.236+)给 auto 模式的权限分类器递一句批注,说明这次调用结果的关键事实。上限 2000 字符,同一次调用的多个回调共享额度,只有同步回调生效。回调跑在你自己的进程里,分类器可能把你转述的话当作用户意图——别把不可信的工具输出抄进去。
+
+## 阻止停止
+
+`Stop` 在 agent 完成响应时触发,返回顶层 `decision: "block"` 加 `reason` 会让 agent 不停、把 `reason` 当下一条指令继续干——"验收不过不许停"的自动循环就靠它。`additionalContext` 也能让对话继续,语义更温和(转录里标为 hook 反馈而非错误)。`SubagentStop` 同款,`reason` 回给子代理。
+
+```ts
+// 预期:测试没全绿时 agent 被要求继续修;全绿才真正停下。
+import { query, HookCallback } from "@anthropic-ai/claude-agent-sdk";
+
+const gateOnTests: HookCallback = async (input, _toolUseID, { signal }) => {
+  if (input.hook_event_name !== "Stop") return {};
+  const report = await runTestSuite(signal); // 示意:你的验收检查
+  if (report.ok) return {};
+  // block 让 agent 带着 reason 继续干;stop_hook_active 为 true 时说明
+  // 已在"继续-再停"循环里,验收条件要能收敛,否则会撞下面的硬上限
+  return { decision: "block", reason: `测试未全绿:先修复 ${report.failing[0]}` };
+};
+
+for await (const message of query({
+  prompt: "修到测试全部通过为止",
+  options: { hooks: { Stop: [{ hooks: [gateOnTests] }] } },
+})) {
+  // ...
+}
+```
+
+两条防线防死循环:输入字段 `stop_hook_active` 在"本轮已因 stop hook 继续过"时为 `true`,验收逻辑要检查它,别在无法满足的条件下反复 block;SDK 还有硬上限——连续继续 8 次后忽略下一次 block 强制结束,可用环境变量 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` 调整。把它当故障保险,不当设计。
+
+## Hook 与 canUseTool 的分工
+
+两者都在权限评估链上(六步顺序与规则语法见[权限规则与 canUseTool](?path=/docs/permissions--docs)),站位不同:
+
+| | PreToolUse hook | canUseTool |
+| --- | --- | --- |
+| 链上位置 | 第 1 步,先于一切规则与模式 | 第 6 步,只兜前面没解决的调用 |
+| 触发面 | 每次工具调用,无论是否需要权限 | 仅"落到提示"的调用;被裸名 `allowedTools`、allow 规则或模式提前放行的调用永不触发 |
+| allow 语义 | 免提示放行,deny/ask 规则仍可否决 | 终审放行,第 6 步之后没有别的检查 |
+| 独有能力 | 改输入、改输出、注入上下文、defer 暂停 | `updatedPermissions` 把批准落成规则,免下次询问 |
+| 关键路径删除等例外 | allow 放不掉 | 同样放不掉 |
+| 遮蔽警告 | 不适用 | 配 `bypassPermissions` 或裸名 `allowedTools` 时触发 `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED` |
+
+回到导读的预测:hook 返回 `allow` 与 `Edit(./.env)` deny 规则并存时,写 `.env` 走到第 2 步被 deny 规则否决——hook 的 allow 过不了 deny 规则;反过来 hook 的 `deny` 能拦住任何模式下的调用。安全组合因此是:硬禁令用 hook deny 或 deny 规则,人审交互用 canUseTool;要覆盖每一次调用的强制检查只能写在 `PreToolUse` hook——官方权限页对 `CLAUDE_SDK_CAN_USE_TOOL_SHADOWED` 的处置建议正是"改用 PreToolUse hook"。
+
+下面的实例回放一次调用在评估链上的完整判定路径:换调用、换 hook 决策、开关 deny 规则与 canUseTool,看六步各自判了什么、评估在哪一步终止、回调是否被触发(演示数据,判定路径对应官方评估顺序,只覆盖正文讲到的分支):
+
+<Canvas of={HookControl.Interactive} />
+<Controls of={HookControl.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 观察默认场景 | hook 不表态,Write `.env` 走完全链,第 6 步 canUseTool 触发并放行 |
+| 「hook 决策」切到 allow | 第 1 步免提示放行,canUseTool 未触发——hook allow 让"本应提示"的调用直接执行 |
+| 切到 allow 并打开「deny 规则 Edit(./.env)」 | 第 2 步否决:deny 规则压过 hook 的 allow,任何模式下都拒绝 |
+| 「hook 决策」切到 defer | 评估在第 1 步结束,读数显示 query 以 tool_deferred 结束、等 resume |
+| 切到「Read: utils.py」 | 免批调用在第 5 步解决,hook 不表态时 canUseTool 也不触发 |
+
+选型收束:强制每次调用都过检查 → PreToolUse hook;需要人审、批准落规则 → canUseTool;固定的禁令与放行 → 规则,声明式、零运行时成本;代答权限请求 → `PermissionRequest` hook,`decision` 形态与 canUseTool 应答相同,allow 时同样可带 `updatedInput` 与 `updatedPermissions`。
+
+## 最佳实践
+
+- **按"谁必须被覆盖"选机制。** 强制检查写 PreToolUse(每次调用都触发,deny 在 `bypassPermissions` 下也生效);人审与"批准并记住"留给 canUseTool;能预先枚举的禁令写成规则。把检查放 canUseTool,就默认接受"提前放行的调用检查不到"。
+- **改写按方向分工,别混事件。** 出境输入在 `PreToolUse` 改(`updatedInput`),入境输出在 `PostToolUse` 改(`updatedToolOutput`);两个方向都要拦就注册两个回调,各自输出匹配自己事件的 `hookEventName`。
+- **Stop 循环必须自带出口。** block 循环里检查 `stop_hook_active` 与真实验收条件,给足 `timeout` 并响应 `signal`;SDK 的 8 次连续上限是防死循环的兜底,不是让循环跑满的配额。
+
+## 常见问题
+
+- 返回了 `updatedInput`,工具却按原输入执行。
+  检查三处:字段是否放在 `hookSpecificOutput` 里(顶层无效);是否与 `permissionDecision: "defer"` 同用(defer 丢弃改写);`hookEventName` 是否带上。省略 `permissionDecision` 不影响改写生效——改写后的调用继续走正常权限评估。
+
+- hook 返回了 `allow`,调用还是被拒绝或还是要确认。
+  hook 的 allow 过不了后面的 deny 与 ask 规则(第 2、3 步都压过 hook);关键路径的 `rm`/`rmdir` 删除任何 allow 都放不掉;交互型工具光 allow 不够——`AskUserQuestion` / `ExitPlanMode` 要把答案填进 `updatedInput`,`requiresUserInteraction` 的 MCP 工具则完全绕不过。
+
+- Stop 的 block 循环几轮后 agent 自己停了。
+  SDK 对连续继续有 8 次硬上限(环境变量 `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` 可调),这是防死循环的兜底而非 bug;回调里检查 `stop_hook_active`,把验收条件改成可收敛的判断,别用 block 当"永远继续"的开关。
+
+- defer 后 resume,报 `tool_deferred_unavailable`,或 defer 根本没生效。
+  前者是 resume 时被推迟的工具已不存在(常见于 MCP server 未连接),进程以 `is_error: true` 结束,resume 前先确认工具可用;后者是同一轮 Claude 并行发起了多个工具调用——defer 只对单工具调用轮生效,多调用轮被忽略并告警。
+
+## 总结回顾
+
+摘要:
+
+hook 回调的决策输出集中在 `hookSpecificOutput`:`PreToolUse` 用四种 `permissionDecision` 表态——`allow` 免提示放行但被 deny/ask 规则否决,`deny` 拦截并回传原因、任何模式生效,`ask` 转人工提示,`defer` 以 `tool_deferred` 暂停整个 query 等宿主 resume;`updatedInput` 在同一对象里改写工具输入,可与 allow/ask 搭配或省略决策单独生效,但不能配 defer。`PostToolUse` 用 `updatedToolOutput` 替换模型看到的输出、`additionalContext` 注入上下文、`classifierContext`(TS 独有)给 auto 分类器递话。`Stop` 用顶层 `decision: "block"` 让 agent 带着指令继续干,配合 `stop_hook_active` 与 8 次连续上限防死循环。与 canUseTool 的分工:hooks 站评估链第 1 步、每次调用都触发,allow 过不了规则;canUseTool 站第 6 步、只在落到提示时触发、能用 `updatedPermissions` 落规则;要覆盖每一次调用的强制检查只能写 PreToolUse hook。
+
+一句话:
+
+> hook 站在链首每次必到、能拦能改能暂停,canUseTool 兜在链尾只应答"落到提示"的调用——要覆盖每一次调用,把检查写进 PreToolUse。
+
+知识要点:
+
+- 四种 `permissionDecision` 各把调用引向哪里?hook 的 allow 会被什么否决?
+- `defer` 的完整往返是什么?`deferred_tool_use`、`stop_reason: "tool_deferred"`、resume 后同一次 hook 再触发,三条边界是什么?
+- `updatedInput` 放在哪里、与哪些决策字段搭配?哪三种情况让它失效?
+- `updatedToolOutput`、`additionalContext`、`systemMessage`、`classifierContext` 各自投递给谁?
+- `Stop` 怎么实现"验收不过不许停"?`stop_hook_active` 和 8 次上限各防什么?
+- hook 与 canUseTool 在触发面、allow 语义、独有能力上差在哪?什么场景必须用 hook、什么场景必须用回调?
+
+## 参考资料
+
+- [Intercept and control agent behavior with hooks(Agent SDK)](https://code.claude.com/docs/en/agent-sdk/hooks)(PreToolUse 决策与 defer、改写输入/输出示例、超时后果与常见问题)
+- [Configure permissions(Agent SDK)](https://code.claude.com/docs/en/agent-sdk/permissions)(六步评估链、遮蔽警告与"改用 PreToolUse hook"的处置建议)
+- [Agent SDK reference - TypeScript](https://code.claude.com/docs/en/agent-sdk/typescript)(SyncHookJSONOutput、各事件 hookSpecificOutput 与 PermissionRequest decision 类型)
+- [Hooks reference(Claude Code)](https://code.claude.com/docs/en/hooks)(PreToolUse/PostToolUse/Stop 的 decision control、defer 往返细节、8 次继续上限)

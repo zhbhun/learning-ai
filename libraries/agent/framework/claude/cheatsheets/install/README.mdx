@@ -1,0 +1,172 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="install" title="上手/安装与凭证" name="Docs" />
+
+# 安装与凭证
+
+跑通第一个 agent 脚本前,要把两件事准备到位:把 `@anthropic-ai/claude-agent-sdk` 装进项目,让运行脚本的进程能看到 `ANTHROPIC_API_KEY`。本课给出从零安装的完整命令、运行环境(Node.js 18+、ESM、tsx)与凭证的三条配置路径,最后用一个不发起模型请求的小脚本核对环境。看完导读与参考表,你应该能预测:`check-env.ts` 在"SDK 没装好"和"key 不可见"两种情况下会分别抛出哪句错误。
+
+| 项目 | 要求 / 默认 | 回查要点 |
+| --- | --- | --- |
+| SDK 包名 | `@anthropic-ai/claude-agent-sdk` | 旧包名 `@anthropic-ai/claude-code` 已弃用,甄别网络教程以此为准 |
+| Node.js | >= 18 | 用 `node -v` 核对 |
+| 模块格式 | ESM(`"type": "module"`) | CommonJS 项目把脚本后缀改为 `.mts` |
+| 运行 TypeScript | `tsx`(dev 依赖) | `npx tsx <脚本>` |
+| 凭证 | `ANTHROPIC_API_KEY` | 在 Claude Console(platform.claude.com)创建 |
+| CLI 运行时 | SDK 捆绑 | 随可选依赖安装平台原生二进制,一般无需单独装 Claude Code CLI |
+
+## 快速上手
+
+新建项目并安装依赖:
+
+```bash
+mkdir my-agent && cd my-agent
+npm init -y
+npm pkg set type=module                     # 声明 ESM
+npm install @anthropic-ai/claude-agent-sdk
+npm install --save-dev tsx
+```
+
+设置凭证(换成自己的 key;Windows PowerShell 用 `$env:ANTHROPIC_API_KEY = "your-api-key"`):
+
+```bash
+export ANTHROPIC_API_KEY=your-api-key
+```
+
+新建 `check-env.ts`,只核对安装与凭证可见性,不调用模型、不产生费用:
+
+```ts
+// 前置:已执行上面的安装命令,凭证已在当前 shell 设置。
+// 验证两点:SDK 可导入;ANTHROPIC_API_KEY 对本进程可见。
+// 预期:终端输出"环境就绪"一行;缺任何一项则抛出对应错误。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+if (typeof query !== "function") {
+  throw new Error("SDK 安装不完整:query 不可用");
+}
+if (!process.env.ANTHROPIC_API_KEY) {
+  throw new Error("凭证未生效:当前进程读不到 ANTHROPIC_API_KEY");
+}
+console.log("环境就绪:SDK 可导入,凭证可见");
+```
+
+运行并核对输出:
+
+```bash
+npx tsx check-env.ts
+```
+
+```text
+环境就绪:SDK 可导入,凭证可见
+```
+
+导入报错回到安装命令逐条检查;凭证报错对照下文配置小节与常见问题。
+
+## 安装 SDK
+
+`npm install` 装进来的不只是 TypeScript 封装:SDK 把 Claude Code CLI 的平台原生二进制作为可选依赖一起带入,`query()` 运行时实际驱动这个捆绑的 CLI 子进程。因此大多数机器不需要单独安装 Claude Code CLI。
+
+### 安装了什么
+
+- **SDK 本体:** `query()` 入口,以及 Options、SDKMessage 等类型定义。
+- **平台原生二进制:** 形如 `@anthropic-ai/claude-agent-sdk-darwin-arm64` 的可选依赖,即捆绑的 CLI 运行时,按操作系统与架构自动选择。
+- **版本耦合:** SDK 版本与捆绑 CLI 版本一一对应;升级 SDK 就同步升级 CLI 运行时,重跑安装命令取最新版即可。
+
+两个边界:
+
+- 包管理器跳过可选依赖(如 `npm ci --omit=optional`)时,运行会报 `Native CLI binary ... not found`,处理见常见问题。
+- 打包与容器部署对捆绑二进制的额外约束(不 bundle CLI、`/core` 入口)见[打包与托管](?path=/docs/hosting--docs)课程。
+
+### ESM 与 tsx
+
+官方流程以 ESM 运行 SDK:新项目用 `npm pkg set type=module` 声明;已有的 CommonJS 项目不必改模块格式,把脚本后缀改成 `.mts` 即可。TypeScript 脚本用 tsx 直接运行,装成 dev 依赖后执行 `npx tsx agent.ts`;前置只有 Node.js 18+。
+
+## 配置 ANTHROPIC_API_KEY
+
+SDK 从运行脚本的进程环境读凭证,不读配置文件。key 在 Claude Console(platform.claude.com)创建;订阅账号的登录态(Pro/Max 登录 Claude Code)不支持第三方 SDK 用途,走 SDK 必须用 API key。让 key 到达进程有三条路径,按场景选一条;除 API key 外 SDK 还支持 Bedrock、Vertex 等接入方式,本手册不展开。
+
+### Shell 环境变量
+
+推荐方式,也是 CI 与生产环境的可靠来源:
+
+```bash
+export ANTHROPIC_API_KEY=your-api-key
+```
+
+```powershell
+$env:ANTHROPIC_API_KEY = "your-api-key"
+```
+
+要长期生效,把 `export` 写入 shell 配置文件(如 `~/.zshrc`)后重新加载。边界:变量只属于设置它的那个 shell,新开终端、IDE 的运行配置、`sudo` 都可能看不到它,排查思路见常见问题。
+
+### .env 与 dotenv
+
+SDK 不自动加载 `.env`。想用 `.env` 管理本地 key,需要自己加载:
+
+```bash
+npm install dotenv
+```
+
+```ts
+// dotenv 要在调用 query() 之前生效,放在文件最前面最稳妥。
+import "dotenv/config";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+```
+
+`.env` 要加入 `.gitignore`,不提交真实 key。
+
+### options.env 注入
+
+`Options.env` 的默认值是 `process.env`;一旦显式设置,它替换而不是合并子进程环境,必须把 `process.env` 展开进去:
+
+```ts
+// 场景:key 不放在 shell 里,而是由 CI secret 或密钥管理服务在运行时提供。
+query({
+  prompt: "...",
+  options: {
+    // env 是替换式而非合并:漏掉 ...process.env 会连 PATH 一起丢掉,CLI 子进程将无法启动
+    env: { ...process.env, ANTHROPIC_API_KEY: apiKey },
+  },
+});
+```
+
+`query()` 本身的完整用法见"第一次运行"课程(?path=/docs/first-run--docs)。
+
+## 常见问题
+
+- 网上教程装的是 `@anthropic-ai/claude-code`,或装完导入不到 SDK。
+  旧包名已更名为 `@anthropic-ai/claude-agent-sdk`:换成新包名安装,并从新包名导入;甄别旧教程以官方文档为准。
+
+  ```bash
+  npm uninstall @anthropic-ai/claude-code
+  npm install @anthropic-ai/claude-agent-sdk
+  ```
+
+- 明明设置了 key,运行脚本仍报 `Not logged in` 或 `Invalid API key`。
+  先在运行脚本的同一个终端确认变量可见:`printenv ANTHROPIC_API_KEY`(PowerShell 用 `echo $env:ANTHROPIC_API_KEY`)。SDK 读的是运行进程的环境,新开终端、IDE 运行配置、`sudo` 都会换一套环境;key 若写在 `.env` 里,还需脚本自己加载(见上文 dotenv)。
+
+- 安装后运行报 `Native CLI binary ... not found`。
+  可选依赖被跳过了(常见于 `npm ci --omit=optional` 或个别 monorepo 配置):正常重新安装让平台二进制落地;确需跳过可选依赖时,单独安装 Claude Code CLI,并用 Options 的 `pathToClaudeCodeExecutable` 指向它。
+
+## 总结回顾
+
+摘要:
+
+本课把前置环境拆成装包与凭证两件事。`@anthropic-ai/claude-agent-sdk` 一条命令安装,自带按平台的 CLI 原生二进制,`query()` 实际驱动它;运行环境是 Node.js 18+、ESM(新项目 `"type": "module"`,CommonJS 项目用 `.mts`)加 tsx。凭证 `ANTHROPIC_API_KEY` 从 Claude Console 获取,订阅登录不支持 SDK 用途;它可经 shell 环境变量、`.env` 加 dotenv、`options.env` 注入三条路径到达进程,其中 `options.env` 是替换式,必须展开 `process.env`。最后用不调用模型的 `check-env.ts` 核对安装与凭证可见性,报错时按"进程环境"思路定位。
+
+一句话:
+
+> 装好 `@anthropic-ai/claude-agent-sdk`,让运行脚本的进程能看到 `ANTHROPIC_API_KEY`,环境即就绪。
+
+知识要点:
+
+- 从零新建项目并安装 SDK 与 tsx 的完整命令是什么?
+- 安装时除 JS 包外还装了什么?`Native CLI binary ... not found` 如何处理?
+- `ANTHROPIC_API_KEY` 在哪里创建?到达 SDK 的三条路径各适用什么场景?
+- 为什么 SDK 不自动读 `.env`?使用 `.env` 要自己做什么?
+- 设置了 key 仍报 `Not logged in` / `Invalid API key` 时,按什么顺序排查?
+
+## 参考资料
+
+- [Agent SDK Quickstart](https://code.claude.com/docs/en/agent-sdk/quickstart)
+- [TypeScript SDK Reference](https://code.claude.com/docs/en/agent-sdk/typescript)

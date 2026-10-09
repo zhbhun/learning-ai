@@ -1,0 +1,307 @@
+import { Canvas, Controls, Meta } from '@storybook/addon-docs/blocks';
+import * as Skills from './skills.stories';
+
+<Meta of={Skills} name="Docs" />
+
+# Agent Skills
+
+技能是磁盘上的 `SKILL.md` 目录:把反复使用的流程沉淀成模型可按需取用的指令包。SDK 没有注册技能的 API——发现、过滤、刷新全部围绕文件系统:`query()` 启动时按 `settingSources` 扫描技能目录,把每个技能的名称与 `description` 常驻进上下文,正文留到被调用时才载入(渐进披露);`skills` 选项决定模型能自动调用哪些;会话运行中新增或修改技能,要调 `reloadSkills()` 重扫磁盘。本课讲三件事:写出会被正确解析的 SKILL.md、让 SDK 发现并放行技能、运行中刷新。与相邻机制的分工:子代理是隔离上下文里的专职执行者(见[子代理](?path=/docs/subagents--docs)),插件可打包技能(见[插件](?path=/docs/plugins--docs)),本课聚焦主会话的技能本身。看完导读与参考表,你应该能预测:把 `settingSources` 设为 `[]` 后,init 消息的 `skills` 数组里项目与个人技能一个都不会出现。
+
+```mermaid
+flowchart LR
+  A["磁盘:每个技能一个目录<br/>SKILL.md + 支持文件"] -->|"query() 启动扫描<br/>范围由 settingSources 决定"| B["发现并解析 frontmatter"]
+  B -->|"skills 选项过滤<br/>Skill 工具自动入 allowedTools"| C["会话技能面<br/>名称 + description 常驻上下文"]
+  C -->|"模型按 description 自动调用<br/>或 /name dispatch"| D["正文载入对话<br/>持续到压缩"]
+  A -->|"运行中新增 / 修改<br/>reloadSkills() 重扫"| B
+```
+
+| 项 | 默认 / 位置 | 回查要点 |
+| --- | --- | --- |
+| 技能目录 | `~/.claude/skills/` 与 `.claude/skills/`,每技能一个目录 | `SKILL.md` 必需;首行必须是 `---` |
+| frontmatter | 字段全部可选,`description` 推荐必写 | `name` 默认取目录名;`description` 决定自动触发 |
+| `skills` 选项 | 省略 = 放行全部已发现技能 | `'all'` / 精确名列表 / `[]`;插件技能写 `plugin:skill` |
+| `Skill` 工具 | 设了 `skills` 后自动加入 `allowedTools` | 显式传 `tools` 时需含 `"Skill"` |
+| init `skills` 数组 | user-invocable 技能 + bundled 技能 | 内容不随 `skills` 列表变化 |
+| `reloadSkills()` | Query 方法;需 Agent SDK v0.3.163+ | 运行中重扫磁盘,返回 `SlashCommand[]` |
+
+## 快速上手
+
+写一个项目技能,用一条 `query()` 让 SDK 发现并放行,再从 init 消息核对。前置环境沿用[安装与凭证](?path=/docs/install--docs);真实运行会消耗额度,理解机制不要求跑通。先在仓库根放技能文件:
+
+```bash
+mkdir -p .claude/skills/security-check && cat > .claude/skills/security-check/SKILL.md <<'EOF'
+---
+name: security-check
+description: 扫描指定目录的代码安全隐患:SQL 注入、硬编码凭证、危险反序列化。用户要求安全审查或上线前检查时使用。
+---
+
+按严重程度扫描并输出问题清单与修复建议:
+1. 用 Grep 搜索硬编码凭证与密钥模式;
+2. 检查 SQL 拼接点与危险反序列化调用;
+3. 汇总为清单,标注文件位置与修复建议。
+EOF
+```
+
+再驱动会话:
+
+```ts
+// 预期:init 消息的 skills 含 security-check(另有 bundled 技能);
+//       结果消息输出安全隐患清单——技能正文在被调用后才载入。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+for await (const message of query({
+  prompt: "对 src/ 做一次安全审查",
+  options: {
+    cwd: process.cwd(), // .claude/skills/ 在这里或父目录
+    settingSources: ["user", "project"], // 技能从文件系统加载,对应来源必须开着
+    skills: "all", // 放行全部已发现技能;省略时行为相同
+    allowedTools: ["Read", "Grep", "Glob"], // 设了 skills,Skill 工具自动入列
+  },
+})) {
+  if (message.type === "system" && message.subtype === "init") {
+    console.log("已加载技能:", message.skills.join(", "));
+  }
+  if (message.type === "result" && message.subtype === "success") {
+    console.log(message.result);
+  }
+}
+```
+
+```text
+已加载技能: security-check, code-review, verify, ...
+(结果消息:按严重程度排序的安全隐患清单)
+```
+
+把 `prompt` 换成 `"/security-check"` 就是手动触发——user-invocable 技能名自动进入命令表面,机制见下文「触发与核对」。
+
+## 编写 SKILL.md
+
+技能解决"流程要反复给"的问题:某类任务每次都要贴同样的步骤、清单或规范时,把它沉淀成技能。与 CLAUDE.md 的取舍一句话:CLAUDE.md 每轮常驻,适合事实与约定;技能只有名称与 `description` 常驻、正文按需载入,适合大段流程与参考资料——完整取舍见「最佳实践」。
+
+### frontmatter 字段
+
+每个技能一个目录,`SKILL.md` 必需,支持文件同目录存放:
+
+```text
+.claude/skills/
+└── security-check/
+    ├── SKILL.md          # 必需:frontmatter + 正文
+    └── scripts/
+        └── scan.sh       # 支持脚本:按需执行,而非整份载入
+```
+
+frontmatter 字段全部可选,SDK 视角最常用的六个:
+
+| 字段 | 默认 | 回查要点 |
+| --- | --- | --- |
+| `name` | 目录名 | 命令名与 `skills` 列表的匹配名;frontmatter `name` 优先 |
+| `description` | 正文第一个非空行 | 模型判断"何时自动调用"的依据;与 `when_to_use` 合计截断于 1,536 字符 |
+| `when_to_use` | — | 补充触发语境(触发短语、示例请求) |
+| `disable-model-invocation` | `false` | `true` 时仅用户 `/<name>` 可调,描述不入上下文;有副作用的技能建议开启 |
+| `user-invocable` | `true` | `false` 时从命令表面隐藏,仅模型可调;不进 init 的 `skills` 数组 |
+| `allowed-tools` | — | 技能激活当轮的免审批工具(预批准而非限制),下一条消息失效 |
+
+`allowed-tools` 对项目与个人技能在 SDK 会话中生效;`argument-hint`、`model`、`context`、`paths` 等其余字段服务于交互体验与高级场景,完整清单见参考资料。
+
+解析规则两条:frontmatter 只在**文件第一行就是 `---`** 时解析,否则整个文件(含 `---`)都当正文;YAML 解析失败时技能照常加载,但所有字段为空——技能触发不了先查这里。
+
+### description 与正文
+
+`description` 决定自动触发,写"做什么 + 何时用",带上用户会自然说出的关键词。正文一旦被调用就整份进入对话并持续到压缩,每行都是持续的 token 成本:写"做什么"而非"为什么",重要指令放文件顶部(压缩时优先保留开头),长参考资料放同目录支持文件、正文用相对链接引用并说明何时读。捆绑脚本用 `${CLAUDE_SKILL_DIR}` 引用:
+
+````
+---
+name: security-check
+description: (见快速上手;写"做什么 + 何时用"与触发关键词)
+---
+
+输出修复建议前,读入详细规则对照表:[rules.md](rules.md)。
+
+运行捆绑扫描脚本,免手写命令:
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/scan.sh src/
+```
+````
+
+`${CLAUDE_SKILL_DIR}` 指技能所在目录,`${CLAUDE_PROJECT_DIR}` 指项目根;两者在正文与 `allowed-tools` 的 Bash 规则里都会被替换,例如 `allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/scan.sh *)` 可让捆绑脚本免审批运行。
+
+## 放置与发现
+
+SDK 启动会话时扫描技能,放对位置才会被发现:
+
+| 位置 | 随哪层加载 | 回查要点 |
+| --- | --- | --- |
+| `~/.claude/skills/<name>/` | user | 个人全局,本机所有项目可用 |
+| `<cwd>/.claude/skills/`,及 `<cwd>` 向上到仓库根的各级 | project | 团队共享,随仓库提交 |
+| `additionalDirectories` 各目录的 `.claude/skills/` | project | 等价 `--add-dir`,随 project 来源加载 |
+| `<子目录>/.claude/skills/` | project | 会话位于该子目录(或读过其中文件)后才可用 |
+| `<插件>/skills/<name>/` | plugins 选项 | 命令名 `/plugin:name`,加载与刷新见[插件](?path=/docs/plugins--docs) |
+
+`settingSources` 的依赖(取值语义见[设置来源](?path=/docs/settings-sources--docs)):省略时三层全开,`~/.claude` 与项目的技能都进来;显式设置时,`"user"` 保个人技能,`"project"` 保项目与 `additionalDirectories` 技能;`[]` 一个都不可见。
+
+```ts
+// 场景:~/.claude/skills/ 有个人技能,仓库根有项目技能。
+// 预期:["project"] 时 init 的 skills 只含项目技能;
+//       [] 时项目与个人技能都不出现。
+query({ prompt: "...", options: { cwd: repoRoot, settingSources: ["project"] } });
+query({ prompt: "...", options: { settingSources: [] } });
+```
+
+三个相邻边界:`.claude/commands/*.md` 旧式命令文件与技能同体系(`deploy.md` ≡ 技能 `deploy`,都产生 `/deploy`),命令视角见[Slash 命令](?path=/docs/slash-commands--docs);目录名不能用 `synced` 或 `anthropic-skills`,否则不加载;bundled 技能(如 `/code-review`、`/verify`)随 Claude Code 自带、也出现在 init 数组,不需要时在 settings 里设 `disableBundledSkills: true`(等价环境变量 `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1`;插件与 `.claude/skills/` 不受影响)。
+
+## skills 选项:放行面
+
+`skills` 选项决定"模型能自动调用哪些已发现技能":
+
+| 取值 | 行为 |
+| --- | --- |
+| 省略 | 放行全部已发现技能(与 CLI 一致) |
+| `'all'` | 同上,显式写法 |
+| `["pdf", "security-check"]` | 只放行列出的;只认精确名,匹配 SKILL.md 的 `name` 或目录名 |
+| `[]` | 全禁 |
+
+名称规则两条:插件技能用 `plugin:skill` 形式引用;无效名(空名、含括号/逗号/控制字符、首尾空白、通配符)在会话启动前被拒绝——Agent SDK v0.3.221 起 TypeScript 抛 `Error`,例如 `skills: ["docs:*"]` 报 `Invalid skill name "docs:*": wildcard-suffix names are not allowed; list each skill by its exact name.`。
+
+"限制"的真实边界易混,逐条记:未列出的技能,模型看不见;`Skill` 工具拒绝调用,报 `Skill <name> is not in this session's skills allowlist`;文件仍躺在磁盘上,`Read` / `Bash` 读得到;按名 dispatch 不受限——发送 `/<name>` 照样触发。init 的 `skills` 数组也不随列表变化(它报告"发现了什么",不是放行面)。要拦文件访问,走权限体系(见[权限规则与 canUseTool](?path=/docs/permissions--docs))。
+
+下面的实例回放同一组技能在不同取值下的技能面(全部为演示数据,不调用模型):
+
+<Canvas of={Skills.Interactive} />
+<Controls of={Skills.Interactive} />
+
+| 读者操作 | 可观察证据 |
+| --- | --- |
+| 切到「名称列表」 | commit-helper 默认未列入:卡片"模型可见"转 ✗,Skill 工具拒绝,dispatch 仍可触发 |
+| 打开「列表:commit-helper」 | 卡片转 ✓,Skill 工具改报"执行" |
+| 切到「[]」 | 三张卡全部 ✗,出现全禁横幅——init 数组读数仍是 3 个 |
+| 打开 Show code | 看到该 Canvas 实际执行的 `skills-allowlist-demo.ts`,上半部分即放行规则 |
+
+## 触发与核对
+
+两条触发路径,受不同的东西控制:
+
+- **模型自动调用**:按 `description` 匹配当前任务,经 `Skill` 工具调用——受 `skills` 选项与权限控制。
+- **手动 dispatch**:发一条 `/<name>` 消息;user-invocable 技能名自动进入命令表面,即使不在 `skills` 列表里。
+
+核对两处:
+
+- **init 消息的 `skills` 数组**(`string[]`):user-invocable 技能 + bundled;它报告"发现了什么",与放行面无关。
+- **`supportedCommands()`**:返回 `SlashCommand[]`(`name`、`description`、`argumentHint`、`aliases`、`builtin`),枚举当前会话的命令表面,含 bundled 与插件技能。
+
+```ts
+// 预期:init 的 skills 含 security-check 与 bundled 技能;
+//       supportedCommands() 的条目带 name、description,bundled 带 builtin: true。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+const conversation = query({
+  prompt: "你好",
+  options: { cwd: repoRoot, settingSources: ["project"], maxTurns: 1 },
+});
+for await (const message of conversation) {
+  if (message.type === "system" && message.subtype === "init") {
+    console.log("skills:", message.skills);
+    console.log(await conversation.supportedCommands());
+  }
+}
+```
+
+```text
+skills: [ 'security-check', 'code-review', 'verify', ... ]
+[
+  { name: 'security-check', description: '扫描…', argumentHint: '' },
+  { name: 'code-review', description: '…', argumentHint: '', builtin: true },
+  ...
+]
+```
+
+两个边界:匹配不到任何命令的 `/<name>` 不会让 query 失败,而是作为普通消息发给模型并消耗一个 turn;技能执行也可能顶到 `maxTurns` 上限产生 error result,建议调高限制或捕获处理。给子代理预载技能不用本节的 `skills` 选项,而是 `AgentDefinition.skills`(两者相互独立),见[子代理](?path=/docs/subagents--docs)。
+
+## 运行中刷新 reloadSkills
+
+技能在会话启动时发现——之后往技能目录写入新 SKILL.md 或修改现有文件,运行中的会话不会自动看到。`reloadSkills()` 让 CLI 重扫磁盘,新增与修改立即对当前会话生效。需要 Agent SDK v0.3.163+;刷新是 streaming 会话的活,one-shot(字符串 `prompt`)一轮就结束,没有刷新的时机。
+
+```ts
+// 前置:Agent SDK v0.3.163+;repoRoot 为仓库根;需要 streaming 输入模式。
+// 预期:第一轮结束后写入 .claude/skills/commit-helper/SKILL.md(写文件代码从略),
+//       reloadSkills() 返回的列表里出现 commit-helper;
+//       第二轮模型即可自动调用,或 /commit-helper dispatch。
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+let resume: () => void;
+const firstTurnDone = new Promise<void>((resolve) => {
+  resume = resolve;
+});
+
+async function* input() {
+  yield {
+    type: "user" as const,
+    message: { role: "user" as const, content: "总结当前未提交的改动" },
+  };
+  await firstTurnDone; // 等 reloadSkills 完成后再放行第二条
+  yield {
+    type: "user" as const,
+    message: { role: "user" as const, content: "用 commit-helper 起草提交信息" },
+  };
+}
+
+const conversation = query({
+  prompt: input(),
+  options: { cwd: repoRoot, settingSources: ["project"] },
+});
+
+for await (const message of conversation) {
+  if (message.type === "result" && message.subtype === "success") {
+    const refreshed = await conversation.reloadSkills();
+    console.log("刷新后的技能:", refreshed.skills.map((skill) => skill.name));
+    resume();
+  }
+}
+```
+
+```text
+刷新后的技能: [ 'commit-helper', 'security-check', ... ]
+```
+
+返回值 `{ skills: SlashCommand[] }` 与 `supportedCommands()` 同形,刷新后立刻能核对。命令表面只收 user-invocable 技能:`user-invocable: false` 或缺 `description` 的技能刷新后可用,但不出现在这个列表。相关行为:SessionStart hook 的输出可带 `reloadSkills: true`,让钩子安装的技能在同一个会话当场生效(见[Hook 事件](?path=/docs/hooks--docs))。
+
+## 最佳实践
+
+- **长流程与参考资料放技能,别塞 CLAUDE.md。** CLAUDE.md 每轮常驻;技能平时只占名称 + `description`,调用才载入正文。CLAUDE.md 里已长成"流程"的小节,迁去技能更省上下文。
+- **有副作用的技能关掉自动触发。** `deploy`、发消息这类操作加 `disable-model-invocation: true`,只留 `/<name>` 手动路径;纯参考类的保持默认,让模型自己按 `description` 调。
+- **服务端与 CI 显式收紧。** `settingSources` 按需最小化、`skills` 显式列表,技能面只由代码与仓库决定,结果可复现;执行机器上的 `~/.claude/skills` 不会跟着会话走。
+- **触发不了先查 `description`。** 自动调用按它匹配,写"做什么 + 何时用"并带自然关键词;设了 `disable-model-invocation: true` 的技能本来就不该自动触发,先用 `/<name>` 验证技能文件本身没问题。
+
+## 常见问题
+
+- 技能写好了,init 的 `skills` 数组里却没有。
+  按顺序排查:`settingSources` 显式设置时是否含 `"user"` / `"project"`(省略才全开);`cwd` 是否指向含 `.claude/skills/` 的目录或其子目录(可用 `ls .claude/skills/*/SKILL.md` 确认);SKILL.md 首行是否为 `---`(不是则整份当正文,frontmatter 全丢);是否 `user-invocable: false` 或漏写 `description` 与 `when_to_use`(不进数组但模型仍可调)。
+
+- 传了 `skills` 列表以为禁用了某技能,但它还能被 `/<name>` 触发,文件也还能读。
+  这不是漏网:列表只限制模型可见性与 `Skill` 工具,按名 dispatch 与文件读取设计如此、不受影响;要拦文件访问用 permissions 的 deny 规则(见[权限规则与 canUseTool](?path=/docs/permissions--docs))。
+
+- `skills: ["docs:*"]` 启动即报错。
+  Agent SDK v0.3.221 起在启动前校验名称,通配形式(裸 `*` 或 `:*` 后缀)与空名直接抛 `Error`;逐个列出精确名,插件技能用 `plugin:skill`。
+
+## 总结回顾
+
+摘要:
+
+技能是磁盘上的 SKILL.md 目录,SDK 没有编程注册 API:启动时按 `settingSources` 扫描 `~/.claude/skills/`、项目各级 `.claude/skills/`、`additionalDirectories` 与插件目录;frontmatter 首行必须是 `---`,字段全部可选、`description` 推荐必写;平时只有名称与 `description` 常驻上下文,正文在被调用时才载入。`skills` 选项控制放行面:省略或 `'all'` 放行全部,名称列表只放行精确名,`[]` 全禁;未列出的技能对模型不可见、`Skill` 工具拒绝,但文件仍可经 `Read` / `Bash` 访问、按名 `/<name>` dispatch 不受限,init 消息的 `skills` 数组也不随列表变化。触发两条路:模型按 `description` 自动调用,或用户发 `/<name>`;核对用 init 数组与 `supportedCommands()`。会话运行中新增或修改技能,调 `reloadSkills()`(v0.3.163+)重扫磁盘,返回与 `supportedCommands()` 同形的 `SlashCommand[]`。插件可打包技能,子代理预载走 `AgentDefinition.skills`。
+
+一句话:
+
+> 发现看 `settingSources`,放行看 `skills`,刷新看 `reloadSkills`;列表拦得住模型,拦不住 `/<name>` 与文件读取。
+
+知识要点:
+
+- SKILL.md 的目录结构与 frontmatter 解析规则是什么?哪些字段决定自动触发与手动调用?
+- 技能放哪些位置?显式设置 `settingSources` 时,各来源对应哪些技能?
+- `skills` 选项四档取值各是什么行为?"限制列表"放过了哪些路径?
+- 两条触发路径分别受什么控制?怎么用 init 数组与 `supportedCommands()` 核对?
+- `reloadSkills()` 什么时候需要?签名、返回值与版本要求是什么?
+
+## 参考资料
+
+- [Agent SDK skills](https://code.claude.com/docs/en/agent-sdk/skills)(发现位置、skills 选项、限制边界与 dispatch 行为)
+- [Agent Skills](https://code.claude.com/docs/en/skills)(SKILL.md 格式、frontmatter 字段、技能位置与渐进披露)
+- [TypeScript SDK reference](https://code.claude.com/docs/en/agent-sdk/typescript)(reloadSkills、Options.skills、supportedCommands 与 SlashCommand 类型)
