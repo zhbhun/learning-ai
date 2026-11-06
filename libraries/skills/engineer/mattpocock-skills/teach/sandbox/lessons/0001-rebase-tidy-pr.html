@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>git rebase 第一课：squash、reword、重排</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<article class="wrap">
+  <p class="eyebrow">Git Rebase 课程 · 第 1 课</p>
+  <h1>把碎提交整理成干净的历史</h1>
+  <p class="meta">
+    <span><b>目标</b> 学会 <code>git rebase -i</code> 的三个整理动作</span>
+    <span><b>用时</b> 约 25 分钟</span>
+    <span><b>前提</b> 会 commit、push、看 log</span>
+  </p>
+
+  <p>你的 mission 是<b>提给团队的 PR 历史干净可读</b>。这一课只解决其中最常见的一种乱：一个 PR 里躺着一串 <code>wip</code>、<code>fix</code>、<code>fix typo</code>。学完你能在自己的分支上把它们压成一个有完整描述的提交，改错 message，把顺序摆正——并且全程有后悔药。</p>
+  <p>遇到任何一步不清楚，回对话里问你的老师（我）。</p>
+
+  <div class="box note">
+    <h3>安全声明</h3>
+    <p>本课所有操作都只对你<b>自己的、还没合并的</b>分支做。整理这种分支是 rebase 最安全的使用场景。铁律只有一条：<strong>永远不要 rebase 已经推到 <code>main</code> 或别人也在用的提交</strong>。为什么，下一课讲。</p>
+  </div>
+
+  <h2>一、rebase 到底做了什么（30 秒心智模型）</h2>
+  <p><code>git rebase -i</code> 的真相不是"修改历史"，而是：<strong>把提交复制一份，按你的指示重放一遍</strong>。 originals（原提交）不会被删掉，只是不再有分支指着它们。</p>
+
+  <div class="commits">
+    <div class="c keep"><span class="dot"></span><span class="hash">17b7cb8</span><span class="msg">docs: 报告框架和目录</span><span class="tag">重放为新 hash</span></div>
+    <div class="c drop"><span class="dot"></span><span class="hash">27faa82</span><span class="msg">fix typo</span><span class="tag">可被 drop 丢弃</span></div>
+  </div>
+
+  <p>两个直接推论：</p>
+  <p><strong>推论 1：改动几乎不会丢。</strong>原提交在仓库里躺 30 天，<code>git reflog</code> 随时能捞回来（第三部分教）。</p>
+  <p><strong>推论 2：hash 会变。</strong>重放生成的提交拿的是新 hash——所以别人基于你旧 hash 的提交会断掉。这就是"不要 rebase 共享提交"的根本原因。</p>
+
+  <h2>二、第一次 git rebase -i（在真仓库里做）</h2>
+  <p>练习仓库已经建好：<code>/Users/zhanghuabin/Projects/learning/ai/practice-repo</code>。它模拟了一个真实场景——一份调研报告的提交历史，前两个提交是正经的，后面五个是开发时的碎提交：</p>
+
+  <div class="commits">
+    <div class="c keep"><span class="dot"></span><span class="hash">9e65b6c</span><span class="msg">aha 2</span><span class="tag">最新</span></div>
+    <div class="c keep"><span class="dot"></span><span class="hash">9288f76</span><span class="msg">aha</span></div>
+    <div class="c pick"><span class="dot"></span><span class="hash">27faa82</span><span class="msg">fix typo</span><span class="tag">要整理的</span></div>
+    <div class="c pick"><span class="dot"></span><span class="hash">949c6f4</span><span class="msg">wip</span><span class="tag">要整理的</span></div>
+    <div class="c pick"><span class="dot"></span><span class="hash">d028cc3</span><span class="msg">fix</span><span class="tag">要整理的</span></div>
+    <div class="c pick"><span class="dot"></span><span class="hash">4e13e67</span><span class="msg">wip 调研结果</span><span class="tag">要整理的</span></div>
+    <div class="c keep"><span class="dot"></span><span class="hash">bdf140d</span><span class="msg">docs: 团队分工页</span><span class="tag">保留</span></div>
+    <div class="c keep"><span class="dot"></span><span class="hash">17b7cb8</span><span class="msg">docs: 报告框架和目录</span><span class="tag">最旧</span></div>
+  </div>
+
+  <p>目标：把这 8 个变成 4 个——</p>
+
+  <div class="commits">
+    <div class="c keep"><span class="dot"></span><span class="hash">?</span><span class="msg">docs: 报告框架和目录</span><span class="tag">不动</span></div>
+    <div class="c keep"><span class="dot"></span><span class="hash">?</span><span class="msg">docs: 团队分工页</span><span class="tag">不动</span></div>
+    <div class="c keep"><span class="dot"></span><span class="hash">?</span><span class="msg">docs: 调研结果（初稿）</span><span class="tag">4 个碎提交压成 1 个</span></div>
+    <div class="c keep"><span class="dot"></span><span class="hash">?</span><span class="msg">docs: 补充调研发现的第二个结论</span><span class="tag">2 个 aha 合成 1 个</span></div>
+  </div>
+
+  <div class="steps">
+    <ol>
+      <li>打开终端 <code>cd /Users/zhanghuabin/Projects/learning/ai/practice-repo</code></li>
+      <li>跑 <code>git log --oneline</code>，确认你看到的 8 个 hash 和上面一致</li>
+      <li>跑 <code>git rebase -i HEAD~6</code>（往前数 6 个提交 = 从 <code>wip 调研结果</code> 开始整理；<code>HEAD~6</code> 表示“从当前往回数 6 个提交”）
+      </li>
+    </ol>
+  </div>
+
+  <p>编辑器会打开这样的 todo 列表（<strong>旧在上、新在下，和 log 相反</strong>）：</p>
+
+  <div class="term">
+    <div class="term-bar"><i></i><i></i><i></i><span>todo 列表</span></div>
+    <pre><span class="dim">pick 4e13e67 wip 调研结果</span>
+<span class="dim">pick d028cc3 fix</span>
+<span class="dim">pick 949c6f4 wip</span>
+<span class="dim">pick 27faa82 fix typo</span>
+<span class="dim">pick 9288f76 aha</span>
+<span class="dim">pick 9e65b6c aha 2</span>
+<span class="dim">
+# Commands:
+# p, pick &lt;commit&gt; = use commit
+# r, reword &lt;commit&gt; = use commit, but edit the commit message
+# s, squash &lt;commit&gt; = use commit, but meld into previous commit
+# f, fixup &lt;commit&gt; = like "squash", but discard this commit's log message
+# d, drop &lt;commit&gt; = remove commit</span></pre>
+  </div>
+
+  <p>改三处，保存关闭编辑器：</p>
+
+  <div class="term">
+    <div class="term-bar"><i></i><i></i><i></i><span>改完的 todo</span></div>
+    <pre><span class="acc">reword 4e13e67</span> <span class="out">wip 调研结果</span>      <span class="dim">→ 改 message 为「docs: 调研结果（初稿）」</span>
+<span class="acc">fixup d028cc3</span> <span class="out">fix</span>
+<span class="acc">fixup 949c6f4</span> <span class="out">wip</span>
+<span class="acc">fixup 27faa82</span> <span class="out">fix typo</span>
+<span class="acc">reword 9288f76</span> <span class="out">aha</span>           <span class="dim">→ 改 message 为「docs: 补充调研发现的第二个结论」</span>
+<span class="acc">fixup 9e65b6c</span> <span class="out">aha 2</span></pre>
+  </div>
+
+  <p>注意这里没有 drop——四个碎提交不是被扔掉，而是被 <code>fixup</code> <strong>吸进了上一条</strong>。它们的改动保留，message 丢弃。存盘退出后 git 会依次弹出编辑器让你为两条 reword 输入新 message，然后自动走完。</p>
+
+  <p>完成后跑 <code>git log --oneline</code> 验收，应该恰好 4 条，且旧提交 hash <code>17b7cb8</code>、<code>bdf140d</code> 不变（它们没被重放），其余全部换成了新 hash。</p>
+
+  <div class="box ok">
+    <h3>验收标准</h3>
+    <p><code>git log --oneline</code> 输出恰好 4 行，最后两行的 hash 是 <code>bdf140d</code> 和 <code>17b7cb8</code>（从旧到新）。做到即过关。</p>
+  </div>
+
+  <h2>三、浏览器模拟器（零风险试错）</h2>
+  <p>如果你还没在终端里做过第二部分，或想先无成本试错——下面的模拟器行为和真 git 一致（drop 会真丢弃、squash 需要上一行活着、reword 弹输入框）。目标同样是 8 → 4。</p>
+
+  <div id="sim"></div>
+
+  <h2>四、安全出口：两个救命命令</h2>
+
+  <h3><code>git rebase --abort</code></h3>
+  <p>rebase 进行中任何时候反悔——冲突解不动、todo 写错、单纯心慌——跑这一句，<strong>一步回到 rebase 开始前</strong>，无任何残留。这是你唯一的"退出键"，比试图"修好"靠谱得多。</p>
+
+  <h3><code>git reflog</code></h3>
+  <p>rebase 已经走完才发现错了呢？用 reflog。它是 HEAD 的移动日志：</p>
+
+  <div class="term">
+    <div class="term-bar"><i></i><i></i><i></i><span>终端</span></div>
+    <pre><span class="cmd">git reflog</span>
+<span class="out">9e65b6c (HEAD -&gt; main) HEAD@{0}: rebase (finish): returning to refs/heads/main</span>
+<span class="out">...</span>
+<span class="out">e3f4a5b HEAD@{5}: rebase (start): checkout HEAD~6</span>
+<span class="out">9e65b6c HEAD@{6}: commit: aha 2</span>
+<span class="out">9288f76 HEAD@{7}: commit: aha</span></pre>
+  </div>
+
+  <p>找到 <code>rebase (start)</code> <strong>前面</strong>那条（例中 <code>HEAD@{6}</code> 的 <code>9e65b6c</code>，即 rebase 开始前 HEAD 所在的提交），然后：</p>
+
+  <div class="term">
+    <div class="term-bar"><i></i><i></i><i></i><span>终端</span></div>
+    <pre><span class="cmd">git reset --hard 9e65b6c</span>
+<span class="out">HEAD is now at 9e65b6c aha 2</span></pre>
+  </div>
+
+  <p>整个分支回到出事之前，仿佛什么都没发生。详细原理与更多事故急救见 <a href="../reference/rebase-cheatsheet.html">速查手册 · 自救章节</a>。</p>
+
+  <h2>五、测验（3 题）</h2>
+  <p>不看上文，凭记忆答。答错没关系——解析就在下面。</p>
+  <div id="quiz"></div>
+
+  <h2>下一步</h2>
+  <p><strong>主资源</strong>（本课内容的主要出处，值得通读一遍）：<a href="https://git-scm.com/book/zh/v2/Git-%E5%B7%A5%E5%85%B7-%E9%87%8D%E5%86%99%E5%8E%86%E5%8F%B2" rel="noopener">Pro Git 中文版 · 重写历史</a>。</p>
+  <p>速查手册：<a href="../reference/rebase-cheatsheet.html">rebase-cheatsheet.html</a>（可打印）。疑问随时回对话里问我。</p>
+
+  <div class="lesson-foot">
+    <span>下一课预告：rebase 与 main 的相遇（rebase main、冲突、黄金法则）——等你把这一课练完</span>
+  </div>
+</article>
+
+</body>
+</html>
+
+<script src="../assets/sandbox.js"></script>
+<script src="../assets/quiz.js"></script>
+<script>
+  Sandbox.rebaseSim(document.getElementById('sim'));
+  Quiz.render(document.getElementById('quiz'), [
+    {
+      q: 'git rebase -i 走完之后，你原来那几个提交去哪了？',
+      opts: [
+        '被 git 从仓库数据库里物理删除，彻底没了',
+        '还在仓库里，只是没有分支指着，reflog 能找回',
+        '被转移到了 stash 里，git stash pop 可恢复'
+      ],
+      answer: 1,
+      why: 'rebase 是复制重放，原提交仍留在仓库中约 30 天，期间 git reflog + git reset --hard 随时可捞回。'
+    },
+    {
+      q: 'todo 列表里把某行的 pick 改成 fixup，git 会做什么？',
+      opts: [
+        '把这条提交并入上一个提交，并丢弃这条的 message',
+        '把上一条提交并入这条，message 保留这条的',
+        '跳过这条提交，改动从历史中彻底删除'
+      ],
+      answer: 0,
+      why: 'fixup = squash 的"不问 message"版：改动吸进上一条，message 直接扔掉，适合 wip/fix 这类碎提交。'
+    },
+    {
+      q: '昨天推到自己的 feature 分支的 5 个提交，今天可以 rebase 它们吗？',
+      opts: [
+        '可以，推过了就不能碰是针对 main 的规矩',
+        '不行，任何推送过的提交都绝对不能 rebase',
+        '可以，但要先删掉远端分支再本地整理'
+      ],
+      answer: 0,
+      why: '自己的 feature 分支即使推过也能 rebase，整理后 force-with-lease 更新远端即可。绝对不能碰的是已进 main 或他人正在协作的提交——他们的本地历史会因此断掉。'
+    }
+  ]);
+</script>

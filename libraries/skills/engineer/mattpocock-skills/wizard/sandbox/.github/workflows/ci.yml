@@ -1,0 +1,12 @@
+name: CI
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

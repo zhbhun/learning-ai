@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todolist UI 原型</title>
+<!--
+  PROTOTYPE - 一次性原型，不是生产代码。
+  问题：一个 todolist 页面应该长什么样？
+  假设：sandbox 里没有既有页面/工程，按 UI 分支 sub-shape B 处理（独立原型页）。
+  方案：3 个结构不同的变体，?variant= 切换（A/B/C），底部悬浮条 + ←/→ 键循环。
+  状态：纯内存，刷新即重置。无持久化、无测试、无错误处理。
+-->
+<style>
+  :root {
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1f2937;
+    --ink-dim: #6b7280;
+    --line: #e5e7eb;
+    --done: #16a34a;
+    --doing: #d97706;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+    padding-bottom: 96px;
+  }
+  header { max-width: 760px; margin: 0 auto; padding: 32px 16px 8px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header .q { margin: 0; font-weight: 600; }
+  header .note { margin: 4px 0 0; font-size: 13px; color: var(--ink-dim); }
+
+  main { max-width: 760px; margin: 16px auto 0; padding: 0 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 14px; color: var(--ink-dim); margin: 0 0 12px; font-weight: 600; }
+
+  form.add { display: flex; gap: 8px; margin-bottom: 12px; }
+  form.add input[type=text] {
+    flex: 1; padding: 8px 10px; font: inherit;
+    border: 1px solid var(--line); border-radius: 8px;
+  }
+  form.add select { padding: 8px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  button {
+    font: inherit; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink);
+    padding: 6px 12px;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.icon { padding: 2px 8px; color: var(--ink-dim); }
+  button.icon:hover { color: var(--ink); }
+
+  /* 变体 A：清单 */
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+  ul.list li:last-child { border-bottom: none; }
+  ul.list li.done .title { color: var(--ink-dim); text-decoration: line-through; }
+  ul.list .title { flex: 1; }
+  .pill {
+    font-size: 12px; padding: 1px 8px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); white-space: nowrap;
+  }
+  .counts { font-size: 13px; color: var(--ink-dim); margin-top: 10px; }
+
+  /* 变体 B：看板 */
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .col { background: var(--bg); border-radius: 8px; padding: 10px; min-height: 120px; }
+  .col h3 { margin: 0 0 8px; font-size: 13px; color: var(--ink-dim); }
+  .colcard { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+  .colcard .row { display: flex; align-items: center; gap: 6px; }
+  .colcard .t { flex: 1; font-size: 14px; }
+  .colcard.done .t { color: var(--ink-dim); text-decoration: line-through; }
+  .empty { font-size: 13px; color: var(--ink-dim); text-align: center; padding: 12px 0; }
+  .moveline { display: flex; gap: 6px; margin-top: 6px; }
+
+  /* 变体 C：按天时间线 */
+  .daygroup h3 { font-size: 14px; margin: 16px 0 6px; }
+  .daygroup:first-child h3 { margin-top: 0; }
+  .trow { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+  .trow:last-child { border-bottom: none; }
+  .trow .title { flex: 1; }
+  .trow.done .title { color: var(--ink-dim); text-decoration: line-through; }
+  .status {
+    font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid transparent; cursor: pointer;
+  }
+  .status.todo   { background: var(--accent-soft); color: var(--accent); }
+  .status.doing  { background: #fef3c7; color: var(--doing); }
+  .status.done   { background: #dcfce7; color: var(--done); }
+
+  /* 底部悬浮切换条 */
+  #switcher {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    background: #111827; color: #f9fafb;
+    border-radius: 999px; padding: 8px 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    user-select: none;
+  }
+  #switcher button {
+    background: transparent; border: none; color: #f9fafb;
+    font-size: 18px; padding: 0 6px; line-height: 1;
+  }
+  #switcher .label { font-size: 13px; min-width: 140px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Todolist — UI 原型（PROTOTYPE，用完即弃）</h1>
+  <p class="q">问题：一个 todolist 页面应该长什么样？</p>
+  <p class="note">3 个结构不同的变体，底部悬浮条或 ←/→ 键切换，URL ?variant= 可分享。状态纯内存，刷新重置。</p>
+</header>
+
+<main id="app"></main>
+
+<div id="switcher">
+  <button id="prev" title="上一个变体">‹</button>
+  <span class="label" id="label"></span>
+  <button id="next" title="下一个变体">›</button>
+</div>
+
+<script>
+// ---------- 共享内存状态 ----------
+let tasks = [
+  { id: 1, title: '写周报',       status: 'doing', day: '今天' },
+  { id: 2, title: '回复客户邮件', status: 'todo',  day: '今天' },
+  { id: 3, title: '准备 demo 数据', status: 'todo', day: '明天' },
+  { id: 4, title: '预约体检',     status: 'done',  day: '以后' },
+];
+let nextId = 5;
+const DAYS = ['今天', '明天', '以后'];
+const STATUSES = ['todo', 'doing', 'done'];
+const STATUS_CN = { todo: '待办', doing: '进行中', done: '完成' };
+
+function addTask(title, day) {
+  tasks.push({ id: nextId++, title, status: 'todo', day });
+}
+function toggle(id) {
+  const t = tasks.find(t => t.id === Number(id));
+  if (t) t.status = t.status === 'done' ? 'todo' : 'done';
+}
+function remove(id) {
+  tasks = tasks.filter(t => t.id !== Number(id));
+}
+function move(id, dir) {
+  const t = tasks.find(t => t.id === Number(id));
+  if (!t) return;
+  const i = STATUSES.indexOf(t.status);
+  const j = i + (dir === 'fwd' ? 1 : -1);
+  if (j >= 0 && j < STATUSES.length) t.status = STATUSES[j];
+}
+function cycle(id) {
+  const t = tasks.find(t => t.id === Number(id));
+  if (t) t.status = STATUSES[(STATUSES.indexOf(t.status) + 1) % STATUSES.length];
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- 变体 ----------
+function addFormHTML(placeholder, withDay) {
+  const daySel = withDay
+    ? '<select name="day">' + DAYS.map(d => '<option>' + d + '</option>').join('') + '</select>'
+    : '';
+  return '<form class="add" data-form="add">'
+    + '<input type="text" name="title" placeholder="' + placeholder + '">'
+    + daySel
+    + '<button class="primary" type="submit">添加</button>'
+    + '</form>';
+}
+
+// 变体 A：经典清单（线性列表 + 勾选完成）
+function renderA(el) {
+  const rows = tasks.map(t =>
+    '<li class="' + (t.status === 'done' ? 'done' : '') + '">'
+    + '<input type="checkbox" data-action="toggle" data-id="' + t.id + '"' + (t.status === 'done' ? ' checked' : '') + '>'
+    + '<span class="title">' + esc(t.title) + '</span>'
+    + '<span class="pill">' + t.day + '</span>'
+    + '<button class="icon" data-action="delete" data-id="' + t.id + '" title="删除">✕</button>'
+    + '</li>'
+  ).join('');
+  const left = tasks.filter(t => t.status !== 'done').length;
+  el.innerHTML =
+    '<div class="card"><h2>变体 A · 清单列表（勾选完成）</h2>'
+    + addFormHTML('新任务…', false)
+    + '<ul class="list">' + rows + '</ul>'
+    + '<div class="counts">剩余 ' + left + ' 项 · 已完成 ' + (tasks.length - left) + ' 项</div>'
+    + '</div>';
+}
+
+// 变体 B：看板（三列，手动在列间移动）
+function renderB(el) {
+  const cols = STATUSES.map((s, i) => {
+    const cards = tasks.filter(t => t.status === s).map(t => {
+      const buttons = []
+        + (i > 0 ? '<button class="icon" data-action="move" data-id="' + t.id + '" data-dir="back" title="后退">◀</button>' : '')
+        + (i < STATUSES.length - 1 ? '<button class="icon" data-action="move" data-id="' + t.id + '" data-dir="fwd" title="前进">▶</button>' : '');
+      return '<div class="colcard ' + s + '">'
+        + '<div class="row"><span class="t">' + esc(t.title) + '</span><span class="pill">' + t.day + '</span></div>'
+        + (buttons ? '<div class="moveline">' + buttons + '</div>' : '')
+        + '</div>';
+    }).join('');
+    return '<div class="col"><h3>' + STATUS_CN[s] + '（' + tasks.filter(t => t.status === s).length + '）</h3>'
+      + (cards || '<div class="empty">空</div>') + '</div>';
+  }).join('');
+  el.innerHTML =
+    '<div class="card"><h2>变体 B · 看板（三列，用 ◀/▶ 在列间移动）</h2>'
+    + addFormHTML('新任务（进「待办」）…', false)
+    + '<div class="board">' + cols + '</div>'
+    + '</div>';
+}
+
+// 变体 C：按天时间线（点击状态标签循环切换）
+function renderC(el) {
+  const groups = DAYS.map(d => {
+    const rows = tasks.filter(t => t.day === d).map(t =>
+      '<div class="trow ' + (t.status === 'done' ? 'done' : '') + '">'
+      + '<span class="title">' + esc(t.title) + '</span>'
+      + '<button class="status ' + t.status + '" data-action="cycle" data-id="' + t.id + '" title="点击切换状态">' + STATUS_CN[t.status] + '</button>'
+      + '<button class="icon" data-action="delete" data-id="' + t.id + '" title="删除">✕</button>'
+      + '</div>'
+    ).join('');
+    return '<div class="daygroup"><h3>' + d + '</h3>'
+      + (rows || '<div class="empty">无任务</div>') + '</div>';
+  }).join('');
+  el.innerHTML =
+    '<div class="card"><h2>变体 C · 按天时间线（点状态标签循环：待办→进行中→完成）</h2>'
+    + addFormHTML('新任务…', true)
+    + groups
+    + '</div>';
+}
+
+const variants = {
+  A: { name: '清单列表', render: renderA },
+  B: { name: '看板',     render: renderB },
+  C: { name: '按天时间线', render: renderC },
+};
+const KEYS = Object.keys(variants);
+
+// ---------- 渲染 ----------
+function getVariant() {
+  const v = (new URLSearchParams(location.search).get('variant') || 'A').toUpperCase();
+  return variants[v] ? v : 'A';
+}
+function setVariant(v) {
+  history.replaceState(null, '', '?variant=' + v);
+  render();
+}
+function render() {
+  const v = getVariant();
+  variants[v].render(document.getElementById('app'));
+  document.getElementById('label').textContent = v + ' · ' + variants[v].name;
+}
+
+// ---------- 交互（事件委托，动作后重渲染当前变体） ----------
+document.getElementById('app').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const { action, id, dir } = btn.dataset;
+  if (action === 'toggle') toggle(id);
+  if (action === 'delete') remove(id);
+  if (action === 'move') move(id, dir);
+  if (action === 'cycle') cycle(id);
+  render();
+});
+document.getElementById('app').addEventListener('submit', e => {
+  e.preventDefault();
+  if (e.target.dataset.form !== 'add') return;
+  const title = e.target.querySelector('input[name=title]').value.trim();
+  if (!title) return;
+  const daySel = e.target.querySelector('select[name=day]');
+  addTask(title, daySel ? daySel.value : '今天');
+  render();
+});
+
+// ---------- 悬浮切换条 + 键盘 ----------
+document.getElementById('prev').onclick = () => cycleVariant(-1);
+document.getElementById('next').onclick = () => cycleVariant(1);
+function cycleVariant(d) {
+  const i = KEYS.indexOf(getVariant());
+  setVariant(KEYS[(i + d + KEYS.length) % KEYS.length]);
+}
+document.addEventListener('keydown', e => {
+  const a = document.activeElement;
+  if (a && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return;
+  if (e.key === 'ArrowLeft') cycleVariant(-1);
+  if (e.key === 'ArrowRight') cycleVariant(1);
+});
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>git rebase 速查手册</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+<article class="wrap">
+  <p class="eyebrow">Reference · 可打印</p>
+  <h1>Git 提交整理速查（rebase -i）</h1>
+  <p class="meta">
+    <span><b>用途</b> 整理自己 feature 分支上的提交</span>
+    <span><b>配套</b> <a href="../lessons/0001-rebase-tidy-pr.html">第 1 课</a></span>
+  </p>
+
+  <h2>一分钟心智模型</h2>
+  <p>Rebase 整理提交 = 复制一份提交序列，按 todo 列表里的指示重放。原提交不会消失，只是不再有分支指着它们（约 30 天内可用 <code>git reflog</code> 找回）。</p>
+  <div class="box warn">
+    <h3>唯一铁律</h3>
+    <p>不要 rebase 已经推送到 <code>main</code> 或别人也在用的提交。你自己的 feature 分支随便折腾。</p>
+  </div>
+
+  <h2>todo 列表动词表</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>想做什么</th><th>todo 里写</th><th>效果</th></tr></thead>
+      <tbody>
+        <tr><td>保留（默认）</td><td><code>pick</code> / <code>p</code></td><td>原样保留该提交</td></tr>
+        <tr><td>合并提交</td><td><code>squash</code> / <code>s</code></td><td>并入上一个提交，合并两条 message</td></tr>
+        <tr><td>合并且丢弃 message</td><td><code>fixup</code> / <code>f</code></td><td>并入上一个提交，message 直接扔掉</td></tr>
+        <tr><td>修改 message</td><td><code>reword</code> / <code>r</code></td><td>保留改动，打开编辑器改 message</td></tr>
+        <tr><td>调整顺序</td><td>上下移动整行</td><td>按列表顺序重放提交</td></tr>
+        <tr><td>删除提交</td><td>删行 / <code>drop</code> / <code>d</code></td><td>该提交消失（改动也没了）</td></tr>
+        <tr><td>停下来改内容</td><td><code>edit</code> / <code>e</code></td><td>重放到该提交时暂停，改完 <code>git commit --amend</code> + <code>git rebase --continue</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>列表顺序 = 提交先后，<strong>最旧在上，最新在下</strong>——和 <code>git log</code> 正好相反。</p>
+
+  <h2>标准操作流</h2>
+  <div class="term">
+    <div class="term-bar"><i></i><i></i><i></i><span>终端</span></div>
+    <pre><span class="cmd">git rebase -i HEAD~5</span>        <span class="dim"># 整理最近 5 个提交（数字 = 向前数几个）</span>
+<span class="dim">#   编辑器打开 todo 列表 → 改动词 / 挪行 / 删行 → 保存关闭</span>
+<span class="dim">#   git 逐条重放 → 全部完成后自动结束</span>
+<span class="cmd">git push --force-with-lease</span> <span class="dim"># 分支已推送过才需要；比裸 -f 安全</span>
+<span class="cmd">git log --oneline</span>           <span class="dim"># 验收</span></pre>
+  </div>
+
+  <h2>安全出口</h2>
+  <div class="term">
+    <div class="term-bar"><i></i><i></i><i></i><span>终端</span></div>
+    <pre><span class="cmd">git rebase --abort</span>          <span class="dim"># rebase 进行中随时反悔，一步回滚，无残留</span>
+
+<span class="cmd">git reflog</span>                  <span class="dim"># rebase 已完成才发现错——HEAD 移动日志</span>
+<span class="dim"># 找到 rebase (start) 前面的那条 hash：</span>
+<span class="cmd">git reset --hard &lt;hash&gt;</span>     <span class="dim"># 分支回到出事之前</span></pre>
+  </div>
+  <p>更多事故急救（错 amend、错 reset、顶掉同事的提交……）：<a href="https://ohshitgit.com/zh" rel="noopener">Oh Shit, Git 中文版</a>。</p>
+
+  <h2>安全规则（Julia Evans 实践总结）</h2>
+  <ol>
+    <li>一次 rebase 只做一件事——全 squash 就全 squash，改 message 就改 message，混着来最容易翻车</li>
+    <li>rebase 开始后感觉不对 → 立刻 <code>--abort</code>，别硬着头皮走完</li>
+    <li>push 已推过的分支用 <code>--force-with-lease</code>，别用裸 <code>-f</code></li>
+    <li>永远不 rebase 已推到 <code>main</code> / 共享分支的提交</li>
+    <li>整理一大串碎提交：先 squash 压扁，再做其他 rebase（减少重放次数）</li>
+  </ol>
+
+  <h2>术语</h2>
+  <div class="tablewrap">
+    <table>
+      <tbody>
+        <tr><td><strong>todo 列表</strong></td><td><code>rebase -i</code> 打开的编辑清单，一行一个提交，前缀动词指示动作</td></tr>
+        <tr><td><strong>squash / fixup</strong></td><td>把一个提交并入上一个提交（fixup 丢弃 message）</td></tr>
+        <tr><td><strong>reword</strong></td><td>只改 message，不改内容</td></tr>
+        <tr><td><strong>reflog</strong></td><td>HEAD 的移动日志，找回“丢失”提交的钥匙</td></tr>
+        <tr><td><strong>force-with-lease</strong></td><td>带检查的 force push——远端若被别人更新过则拒绝</td></tr>
+        <tr><td><strong>重放</strong></td><td>rebase 把提交逐条复制重演，生成全新 hash 的新提交链</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>延伸阅读</h2>
+  <ul>
+    <li>Pro Git · <a href="https://git-scm.com/book/zh/v2/Git-%E5%B7%A5%E5%85%B7-%E9%87%8D%E5%86%99%E5%8E%86%E5%8F%B2" rel="noopener">重写历史</a>（<a href="https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History" rel="noopener">英文原版</a>）</li>
+    <li>Julia Evans · <a href="https://jvns.ca/blog/2023/11/06/rebasing-what-can-go-wrong-/" rel="noopener">git rebase: what can go wrong?</a></li>
+    <li>git 官方手册 · <a href="https://git-scm.com/docs/git-rebase" rel="noopener">git-rebase</a></li>
+  </ul>
+</article>
+</body>
+</html>
