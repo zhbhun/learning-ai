@@ -1,0 +1,35 @@
+{
+  "qlog_format": "JSON",
+  "qlog_version": "0.3",
+  "traces": [
+    {
+      "vantage_point": { "name": "aioquic-client", "type": "client" },
+      "events": [
+        {
+          "time": 1760947200000,
+          "name": "transport:connection_started",
+          "data": { "protocol": "QUICv1" }
+        },
+        {
+          "time": 1760947200005,
+          "name": "transport:packet_sent",
+          "data": {
+            "header": {
+              "packet_type": "1RTT",
+              "packet_number": 0,
+              "dcid": "1011121314151617"
+            },
+            "frames": [
+              { "frame_type": "stream", "stream_id": 0, "offset": 0, "length": 11, "fin": true, "payload_length": 11 }
+            ]
+          }
+        },
+        {
+          "time": 1760947200010,
+          "name": "recovery:packet_lost",
+          "data": { "header": { "packet_type": "1RTT", "packet_number": 1 } }
+        }
+      ]
+    }
+  ]
+}

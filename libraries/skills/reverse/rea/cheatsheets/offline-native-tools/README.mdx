@@ -1,0 +1,207 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="offline-native-tools" title="原生二进制/动态分析/离线工具链" name="Docs" />
+
+# 离线工具链
+
+REA 的原生 provider 能力（反编译、交叉引用、函数分析）由外装引擎支撑，一个 provider 都没装时，这条路线走不通——但基础调查不必停：REA 把 GNU objdump、GDB、Rizin、Cutter 四个外部命令行工具集成为辅助能力，不依赖任何 provider 就能看结构、查符号、把目标跑起来。这四个工具与 provider 的关键区别在调用模型：provider 的结果是被绑定引擎的规范化观察，而离线工具的原始 stdout/stderr 不经转换直接进 Evidence，输出长什么样由工具本身决定。REA 只负责调用与捕获——不安装、不更新这些工具，还可用 `REA_*_COMMAND` 环境变量换成自选的可执行文件。本课讲清四个工具各自的调用方式、输出判读与能力边界；provider 的机制与选择见「Provider 体系」。
+
+```mermaid
+flowchart LR
+  CALL["rea 命令 / MCP 工具"] --> TOOL["本机自备的外部工具<br/>objdump · GDB · Rizin · Cutter"]
+  TOOL -->|"原始 stdout / stderr"| EV["Evidence 留档（不规范化）"]
+```
+
+| 条目 | 默认行为或取值 | 回查 |
+| --- | --- | --- |
+| objdump | 静态检视：头部、符号、重定位、DWARF、反汇编；`rea inspect-with-objdump`，MCP `inspect_with_objdump` | objdump：静态检视 |
+| GDB | 动态调试，仅 Linux；`rea debug-with-gdb`，MCP `start_gdb_session` 等四个会话工具 | GDB：动态调试 |
+| Rizin | 一次性命令跨平台，调试会话仅 Linux；`rea execute-rizin-command` / `rea debug-with-rizin`，MCP 三个工具 | Rizin：命令与调试会话 |
+| Cutter 桥 | 图形界面侧的命令通道；`rea cutter-command`，MCP `cutter_command`，要求 v2 握手 | Cutter：桥接命令 |
+| 工具来源 | 调用方自备，REA 不安装不更新；`REA_OBJDUMP_COMMAND` / `REA_GDB_COMMAND` / `REA_RIZIN_COMMAND` 可换可执行文件 | 共同规则 |
+| 输出形态 | 原始输出直接进 Evidence，不规范化；捕获上限常见为合并 16 MiB，截断以 `output_truncated` 标记 | 共同规则 |
+| 共享 MCP | 不受限的 Rizin/Cutter/GDB 命令会退休活动分析会话，事后需显式 `open_binary` | 共同规则 |
+
+## 快速上手
+
+前置：REA 已安装（见「安装与设置」），手边有一个本机可执行文件 `./program`；不需要任何 provider。
+
+第一步，确认辅助能力在位——objdump、GDB、Rizin、Cutter 桥接会出现在 capabilities 输出里（该命令的完整语义见「Provider 体系」）：
+
+```bash
+rea capabilities --json
+```
+
+第二步，不碰 provider，直接对目标反汇编一个符号（`main` 换成目标里实际存在的符号；若输出为空，先跑一次不带 `--symbol` 的整体反汇编核对符号名）：
+
+```bash
+rea inspect-with-objdump ./program disassemble --symbol main
+```
+
+第三步，读结果：返回的是 objdump 的原始反汇编文本，外面套着 REA 的 Evidence 包装——原始 stdout/stderr 留档、执行前后各记一次目标 SHA-256。要程序化处理就加 `--json` 选择 CLI 的 JSON 表示：
+
+```bash
+rea inspect-with-objdump ./program disassemble --symbol main --json
+```
+
+到这里就完成了「无 provider 基础调查」的最小闭环：工具在位、原始输出可读、证据已留档。下面先看四个工具共享的调用规则，再逐个展开完整调用面。
+
+## 共同规则
+
+四个工具共享同一套调用约定，先记住四条，再看各成员：
+
+- **工具自备。** REA 不安装、不更新这四个工具，只调用调用方提供的可执行文件；某个工具不在位，对应命令直接失败。工具的真实版本与能力只有实际运行一次才能确认，REA 不预设。
+- **配置换可执行文件。** `REA_OBJDUMP_COMMAND`、`REA_GDB_COMMAND`、`REA_RIZIN_COMMAND` 指定可执行名或绝对路径，未设置时按 PATH 查找。取值直接传给进程生成，不按 shell 命令行展开——不能在值里附带额外参数。Cutter 桥不在这三个变量之列，它通过本地 REA Python 桥与经认证的 loopback 消息连接 Cutter。
+- **两层输出限额。** 工具捕获限额（常见为合并 16 MiB）先约束 Evidence；结果再受 MCP 默认 10 MiB 响应预算约束，超出时 MCP 调用在 transport 层以 `resource_constraint` 失败——即使 CLI 同一条命令能给出完整结果。需要更大响应时调大 `REA_MCP_MAX_RESPONSE_BYTES`，或改用保留的 Evidence 导出与 CLI 完整 JSON。
+- **不受限命令退休分析会话。** 在共享 MCP 服务器里，Rizin、Cutter、GDB 的不受限命令会退休当前活动的二进制分析会话；之后要继续 provider 分析，必须显式 `open_binary`。活动的 Ghidra 会话必须先显式关闭，外部 mutation 才能运行。
+
+## objdump：静态检视
+
+objdump 回答「这个文件里有什么」：文件头、节头、符号表、重定位、DWARF 调试信息与反汇编，全部是纯静态读取，不需要 provider，也不执行目标。
+
+CLI 按子命令组织：
+
+```bash
+# 反汇编（对应 objdump -d）
+rea inspect-with-objdump ./program disassemble
+
+# 只反汇编一个符号：REA 把它变成 --disassemble=my_function 传给 objdump
+rea inspect-with-objdump ./program disassemble --symbol my_function
+
+# 读 DWARF 调试信息；--follow-debug-links 追随 debug-link 指向的外部调试文件（启用 -WK）
+rea inspect-with-objdump ./program dwarf
+rea inspect-with-objdump ./program dwarf --follow-debug-links
+
+# 列出本机 objdump 支持的架构（对应 -i），不需要目标文件，产出不绑定目标的能力清单 Evidence
+rea list-objdump-architectures
+```
+
+MCP 侧是 `inspect_with_objdump`，一次调用执行一个 operation：
+
+| operation | 内容 |
+| --- | --- |
+| `file_headers` | 文件头 |
+| `section_headers` | 节头 |
+| `symbols` | 符号表 |
+| `relocations` | 重定位 |
+| `dwarf` | DWARF 调试信息 |
+| `disassemble` | 反汇编，对应 objdump `-d` |
+| `disassemble_all` | 全量反汇编，对应 `-D`，符号边界语义与 `-d` 不同 |
+
+输出判读：返回的就是 objdump 的原始文本，REA 不做规范化——它权威但朴素，指令之外的语义要自己读。Evidence 记录合并上限 16 MiB 的 stdout/stderr，超出以 `output_truncated` 标记；执行前后各记一次目标的 SHA-256，但若工件在执行期间被改动，这不能证明实际消费的字节。
+
+边界：
+
+- **符号选择发生在调用侧。** `--symbol` 直接拼成 `--disassemble=my_function` 传给 objdump，不是事后过滤；名称必须非空、不含 NUL、是合法 Unicode，REA 在读目标之前就拒绝非法值。
+- **空匹配不证明缺席。** 反汇编某个符号得到空输出，不能据此断言二进制里没有它。
+- **debug-link 默认不追随。** 关闭用 `--no-follow-debug-links` 或 `--follow-debug-links=false`；注意 flag 后面单独的 `true`/`false` 单词不会被当作它的值——写成 `--follow-debug-links true` 并不会关闭追随。追随外部调试文件时，其身份不绑定 Evidence；REA 同时清空子进程环境的 `DEBUGINFOD_URLS`，阻断 debuginfod 的网络访问。
+
+## GDB：动态调试
+
+GDB 把目标真正跑起来，回答「运行时发生了什么」。持久调试会话与 CLI 命令仅支持 Linux：macOS 缺少基于 `/proc` 的描述符验证，Windows 则因 Job Object 清理会终止被调试进程而不受支持。
+
+前置：调用方自备一个持久的 TTY（如 `/dev/pts/7`），并在会话期间保持可用——被分离的 inferior 还要往里写输出。
+
+一次性 CLI，直接带一条 GDB 命令：
+
+```bash
+rea debug-with-gdb --inferior-tty /dev/pts/7 'file ./program'
+```
+
+MCP 侧用四个工具维护会话：
+
+| 工具 | 职责 |
+| --- | --- |
+| `start_gdb_session` | 启动会话，传入 `inferior_tty` |
+| `gdb_console` | 向会话发送任意 GDB 命令，如 `file ./program` |
+| `gdb_session_status` | 查询 TTY 路径与验证状态 |
+| `close_gdb_session` | 关闭会话 |
+
+启动行为：GDB 以 `--nx --quiet --interpreter=mi3` 启动，初始化失败时回退 MI2；auto-loading 被禁用。持久会话的生命周期跟随 REA MCP 服务器进程，进程结束会话即消失。
+
+输出判读：MI 记录与 console/target/log 流原样保留，上限 16 MiB、截断有标记；`gdb_session_status` 报告 TTY 路径、验证状态，以及 `mi_invalid_utf8` / `stderr_invalid_utf8` 标志（对应输出流里出现了无法解码的字节）。
+
+安全边界——GDB 控制台完全不受限：它能在 REA 进程用户的权限下运行 shell 命令、改变目标状态、访问文件与网络。三条硬规则：
+
+- 发出重定向 TTY 的 GDB 命令，会永久撤销该会话的 TTY 验证。
+- `close_gdb_session` 只在存在验证过的持久 TTY 时才分离仍在运行的 inferior，分离可能让它恢复执行。
+- REA 绝不从 PID 或路径推断目标所有权——目标是调用方声明并负责的。
+
+## Rizin：命令与调试会话
+
+Rizin 提供两种形态：一次性命令（查询一条、返回一条，不限平台）与持久调试会话（仅 Linux，`--inferior-tty` 必需）。
+
+```bash
+# 一次性：执行一条 Rizin 命令（iI 输出二进制基本信息）
+rea execute-rizin-command ./program iI
+
+# 持久调试会话：启动目标并执行命令（dr 打印寄存器）
+rea debug-with-rizin --inferior-tty /dev/pts/7 ./program dr
+```
+
+一次性命令运行在固定档案下：`-N -q -e scr.color=0 -c`——跳过用户配置与脚本，插件保持可用。颜色默认关闭；要在输出里保留颜色，在命令里显式带 `e scr.color=1`。MCP 侧三个工具：`execute_rizin_command`（一次性）、`start_rizin_debug_session` 与 `rizin_debug_session_status`（会话）。
+
+输出判读：原始输出逐字保留，包括字面 ANSI 字节；没有统一 JSON schema，按 Rizin 自身的输出格式读。会话状态保留最近 64 帧输出（每帧最多 16 KiB 的 UTF-8 前缀），超界由 `recent_output_truncated` 标记；单命令 Evidence 自有 16 MiB 预算与 `output_truncated`；输出含无法解码的字节时以 `output_invalid_utf8` 提示有损解码。`launch_provenance` 只证明启动路径——执行过不受限命令之后，它不再代表目标的当前状态。
+
+边界：
+
+- **目标以 `dbg.exitkills=false` 启动：** REA 关闭调试器后，目标进程可能还活着继续跑。这是文档明示的效果，不是故障，收尾由调用方负责。
+- **关闭会话的验证是严格的：** 通过 `olj` 描述符解析、唯一的 `ptrace://` 分离、`/proc/<pid>/fd/1` 与 `/proc/<pid>/fd/2` 的设备/inode 比对确认 TTY 身份。
+- **命令与插件不受限运行：** 它们在 REA 用户的权限上下文中执行——发给 Rizin 的每条命令，都要当作以 REA 身份直接执行来对待。
+
+## Cutter：桥接命令
+
+Cutter 桥把运行中的 Cutter 图形界面接进 REA：命令经本地 REA Python 桥与经认证的 loopback 消息派发，CLI 命令是 `cutter-command`，MCP 工具是 `cutter_command`。前提是客户端与插件都支持当前的 v2 握手，旧版本 peer 在派发前即被拒绝。
+
+命令严格串行：必须先取回上一条命令的终结回执才能派发下一条，换一个新的 CLI 调用也不例外；恢复流程与状态探测都不会替你重试原命令；失败的确认保持 pending，阻塞后续所有命令。状态证明失败时，诊断会指向 `cutter_command`，辅助操作记录在 `details.diagnostics.auxiliary_operation`。
+
+容量与限额：命令帧上限 16 MiB，派发前检查——超限命令不会保留清理所有者；桥发现最多扫 256 个描述符候选、最多 8 个并发探测，超出容量报 `bridge_directory_capacity_exceeded`。在共享 MCP 服务器里，不受限的 Cutter 命令同样退休活动分析会话。
+
+CLI 侧的 JSON 语义容易与全局输出选项混淆，单独说明：
+
+- `cutter-command` 的 `--json-output` 在 Cutter 支持时请求命令自身的 JSON，与选择 CLI 结果表示的 `--format json`、全局 `--json` 相互独立。
+- Cutter 仍接受弃用的兼容值 `--json=true` 与 `--json=false`。
+- 两种形式同时出现时 `--json-output` 优先，与参数顺序无关；裸 `--json` 保持全局含义（选择 JSON 的 CLI 输出表示）。
+
+## 最佳实践
+
+- **按问题选通道。** 只看结构、符号与反汇编，用 objdump 一次性命令，任何平台可用；要对目标跑一条查询命令，Rizin 一次性命令最轻；要断点、单步、寄存器级控制，用 GDB 或 Rizin 调试会话（仅 Linux）；已经工作在 Cutter 图形界面里，走 `cutter-command` 桥。
+- **离线工具与 provider 互补，不互斥。** 没有 provider 时，objdump 足以建立「文件里有什么」的静态事实；provider 的增值在规范化模型——反编译、xrefs、调用图。装好 Ghidra 后两者可在同一台机器并存，但活动的 Ghidra 会话必须先显式关闭，外部 mutation 才能运行。
+- **共享 MCP 里先安排会话，再动不受限命令。** Rizin、Cutter、GDB 的不受限命令会退休当前分析会话；把这类命令安排在分析会话工作的间隙，跑完显式 `open_binary` 再继续 provider 分析。
+- **大输出别挤 MCP 响应。** 工具捕获限额之上还有 MCP 默认 10 MiB 响应预算；批量调查优先走 CLI 完整 JSON 或 Evidence 导出，确需 MCP 时调大 `REA_MCP_MAX_RESPONSE_BYTES`。
+- **调试目标的生命周期自己收尾。** Rizin 以 `dbg.exitkills=false` 启动目标，关闭调试器后进程可能还在跑；关闭 GDB 会话在验证 TTY 存在时会分离 inferior 并可能让它恢复执行。调查结束前确认目标进程的最终状态。
+
+## 常见问题
+
+- 在共享 MCP 服务器里执行过 Rizin、Cutter 或 GDB 命令后，原先打开的二进制分析会话失效，后续分析操作报错
+  显式 `open_binary` 重新打开目标再继续；不受限命令按设计退休活动分析会话，这不是故障，重新打开即可。
+- MCP 调用返回 `resource_constraint`，同一命令在 CLI 却有完整输出
+  两层限额不同：结果通过了工具捕获限额（如合并 16 MiB），但超出 MCP 默认 10 MiB 响应预算。调大 `REA_MCP_MAX_RESPONSE_BYTES`，或改用保留的 Evidence 导出、CLI 完整 JSON 输出。
+- macOS 上无法使用 `debug-with-gdb` 或 Rizin 调试会话
+  两者都仅支持 Linux：macOS 缺少基于 `/proc` 的描述符验证，Windows 会因 Job Object 清理终止被调试进程。在 macOS 用 objdump 静态检视与 Rizin 一次性命令，确需动态调试就移到 Linux 环境。
+
+## 总结回顾
+
+摘要：
+
+provider 缺席不会让原生调查停摆：REA 把 objdump、GDB、Rizin、Cutter 四个自备工具集成为辅助能力，原始输出不经规范化直接进 Evidence。objdump 用 `inspect-with-objdump` 覆盖头部、符号、重定位、DWARF 与反汇编；GDB 与 Rizin 调试会话在 Linux 上把目标跑起来，Rizin 一次性命令跨平台可用；Cutter 桥把图形界面里的分析接进 REA，命令严格串行且要求 v2 握手。共同规则贯穿四个工具：REA 不安装不更新、`REA_*_COMMAND` 可换可执行文件、16 MiB 捕获限额与 MCP 10 MiB 响应预算两层独立、共享 MCP 里不受限命令退休分析会话。
+
+一句话：
+
+> 离线工具链是「自备工具、原始证据」的通道：静态事实找 objdump，运行时事实找 GDB/Rizin，REA 负责调用与留证——不装工具，也不替你收拾目标进程。
+
+知识要点：
+
+- 没有 provider 时，四个离线工具各自回答什么问题？CLI 与 MCP 入口分别是什么？
+- `inspect_with_objdump` 的七种 operation 分别对应什么？`--symbol` 是怎样传给 objdump 的？
+- `--follow-debug-links` 的开关写法有什么陷阱？debuginfod 的网络访问为什么不可能发生？
+- GDB 会话为什么要求调用方自备 TTY？控制台的权限边界是什么？
+- Rizin 一次性命令运行在什么档案下？关闭调试器后目标进程为什么可能还在运行？
+- `cutter-command` 的 `--json-output` 与全局 `--json` 有什么区别？
+- 输出会在哪一层限额失败？失败后有哪些替代通道？
+
+## 参考资料
+
+- [逆向工程工具集成（objdump、GDB、Rizin、Cutter 桥的调用约定、限额与边界）](https://github.com/morluto/rea/blob/main/docs/reverse-engineering-tools.md)
+- [REA CLI 文档（cutter-command 的 --json-output 与全局输出选项）](https://github.com/morluto/rea/blob/main/docs/cli.md)
+- [REA 原生二进制调查指南（provider 通道与 --provider 边界）](https://github.com/morluto/rea/blob/main/docs/native-investigation.md)

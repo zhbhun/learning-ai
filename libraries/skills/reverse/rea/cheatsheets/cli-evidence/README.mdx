@@ -1,0 +1,312 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="cli-evidence" title="入门/CLI 与 Evidence" name="Docs" />
+
+# CLI 与 Evidence
+
+`rea` 命令行与 REA 的 MCP 服务器使用同一套工作流和证据契约。本课讲所有命令共用的两条规则：输出怎么控制，结论以什么形式交付。记住三个判断：输出选项只决定结果"怎么呈现、怎么裁剪"，不改变操作本身的成败；退出码与结构化结果是两个独立信号，脚本要分开检查；CLI 每次调用都是独立进程，大结果必须先存文件、再投影小视图。具体分析命令的用法由各自课程承载，本课不展开。
+
+| 选项 | 默认 | 用途与关键影响 |
+| --- | --- | --- |
+| `--format` | `toon` | 选输出格式，可选 `toon`、`json`、`yaml`、`md`、`jsonl` |
+| `--json` | 关 | 等价于 `--format json`；终端上缩进，管道或重定向时紧凑 |
+| `--filter-output` | 无 | 按键路径裁剪输出字段 |
+| `--token-limit` | 无 | 只输出前 n 个 token；只能配 `toon` 或 `md` |
+| `--token-offset` | `0` | 跳过前 n 个 token，与 `--token-limit` 配合翻页 |
+| `--token-count` | 关 | 只打印 token 估算数，不输出结果本身 |
+| `--full-output` | 关 | 用 `ok` / `data` / `meta` 信封包住结果 |
+
+带值的输出选项（`--format`、`--filter-output`、`--token-limit`、`--token-offset`）接受 `--flag value` 和 `--flag=value` 两种写法；缺值在命令运行前就报 `MISSING_OUTPUT_VALUE` 并退出 1。
+
+其余全局选项只服务查库与会话，不参与结果呈现：
+
+| 选项 | 作用 |
+| --- | --- |
+| `--help` | 查看命令的实参与选项 |
+| `--schema` | 打印命令的 JSON Schema |
+| `--llms`、`--llms-full` | 打印 LLM 可读的命令清单 |
+| `--mcp` | 以 MCP stdio 服务器启动（接入方式见 MCP 接入一课） |
+| `--version`、`--update` | 查看版本、更新安装 |
+
+## 快速上手
+
+三步走完本课主线：把完整 Evidence 存进文件，从存档投影一份摘要视图，再用字段过滤只看统计。进度与日志行走 `stderr`，重定向只接住 `stdout` 上的结构化结果。
+
+```bash
+# 1. 完整分析写入文件（--json 在重定向时输出紧凑 JSON）
+rea analyze-javascript-application /absolute/path/to/app --json > evidence.json
+
+# 2. 用 jq 从保存的 Evidence 构造一份 summary 视图
+jq -c '{source: {kind: "inline", evidence: .}, view: {kind: "summary"}}' evidence.json > view.json
+
+# 3. 查看视图，只取统计字段
+rea inspect-analysis-view view.json --filter-output normalized_result.summary.statistics
+```
+
+第 3 步的真实输出（目标是只有两个源文件的迷你应用）：
+
+```text
+normalized_result:
+  summary:
+    statistics:
+      relevant_files: 2
+      nested_asar_containers: 0
+      text_bytes_read: 275
+      invalid_utf8_files: 0
+      parsed_javascript_files: 2
+      skipped_javascript_files: 0
+      visited_ast_nodes: 65
+      findings: 4
+      modules: 0
+      parse_failures: 0
+```
+
+这个闭环是全课的预演：第 1 步交付 Evidence，第 2、3 步是输出控制。目标换成任何 JS 应用目录或 `.asar` 都成立。
+
+## 输出选项
+
+所有输出选项只作用于呈现层：换格式、裁字段、截断 token 都不会让失败变成成功，也不改变退出码——"输出选择与格式化不改变操作状态"。唯一的例外是输出选项自身写错：它们在命令运行前就被拒绝，打印一条结构化错误并退出 1。
+
+### 输出格式与 --json
+
+默认格式是 TOON：无引号、无括号的键值布局，人能直接读，agent 解析省 token。`--json` 选择 JSON 渲染，同一份结果两种视角：
+
+```text
+# rea analyze-javascript-application /tmp/rea-demo-app   （默认 TOON，节选）
+evidence_id: ev_a35c3902d79ed287e14caf0f8d27d05bfd9b66179575a6ce45ccaf5bd2aed1a3
+subject:
+  name: rea-demo-app
+  digest:
+    sha256: fd133ddd0d9870a0119302fcdbe52761a33c5fa529ad367c2bece0f7873e2b5a
+```
+
+```json
+// rea analyze-javascript-application /tmp/rea-demo-app --json   （管道时紧凑，节选）
+{"evidence_id":"ev_a35c3902d79ed287e14caf0f8d27d05bfd9b66179575a6ce45ccaf5bd2aed1a3","subject":{"name":"rea-demo-app","digest":{"sha256":"fd133ddd0d9870a0119302fcdbe52761a33c5fa529ad367c2bece0f7873e2b5a"} …
+```
+
+格式影响 token 消耗：上面同一份分析结果，JSON 渲染约 29449 个 token（`--json --token-count` 实测），TOON 渲染约 24437 个。
+
+- 保存给 JSON 消费方（脚本、`jq`）时用 `--json`。管道与重定向时输出是紧凑单行；想要缩进文件就补一道格式化：`rea inspect-artifact ./app.asar --json | jq . > inspection.json`。
+- `yaml`、`md`、`jsonl` 按各自格式渲染同一份结果，按下游需要选择。
+- 个别命令有专属的输出旗标（如 `cutter-command` 的 `--json-output`），与全局格式无关，见对应课程。
+
+### 字段过滤 --filter-output
+
+用键路径从结果里只取需要的字段：逗号分隔多条路径，点号进入嵌套，`[0,3]` 取数组切片（`foo,bar.baz,a[0,3]`）。官方示例的形状：
+
+```bash
+rea analyze-javascript-application /tmp/rea-demo-app --json --filter-output evidence_id,subject.digest
+```
+
+```json
+{"evidence_id":"ev_a35c3902d79ed287e14caf0f8d27d05bfd9b66179575a6ce45ccaf5bd2aed1a3","subject":{"digest":{"sha256":"fd133ddd0d9870a0119302fcdbe52761a33c5fa529ad367c2bece0f7873e2b5a"}}}
+```
+
+三条边界：
+
+- 过滤发生在结果完整生成之后。它不让分析少做工作——构造应用图所需的内存与时间照旧，只是少打印。
+- 所选路径都不存在时，JSON 得到空文档 `{}`。
+- 未闭合的切片在运行前被拒：`--filter-output 'capabilities[0'` 报 `INVALID_OUTPUT_FILTER`，退出 1：
+
+```json
+{"ok":false,"error":{"code":"INVALID_OUTPUT_FILTER","message":"The --filter-output expression has a slice without a closing ]. Close the slice or remove --filter-output."}}
+```
+
+### token 窗口与计数
+
+三个选项解决"结果比上下文窗口还大"：
+
+- `--token-count`：只打印 token 估算数，不输出结果。先量后裁。
+- `--token-limit 25`：只输出前 25 个 token，尾部带截断标记：
+
+```text
+evidence_id: ev_a35c3902d79ed287e14caf0f8d27d05bfd9b66179575a6ce45ccaf5bd2aed1a3
+subject:
+  name: rea-
+[truncated: showing tokens 0–25 of 24437]
+```
+
+- `--token-offset 25 --token-limit 25`：跳过前 25 个 token 再取 25 个，按标记里的总数手工翻页：
+
+```text
+demo-app
+  digest:
+    sha256: fd133ddd0d9870a0119302fcdbe52761a33c5fa529ad367c2bece0f7873e2b5a
+  local_path: /private
+[truncated: showing tokens 25–50 of 24437]
+```
+
+硬约束：token 窗口会破坏结构化格式，与 `json`、`jsonl`、`yaml` 组合直接报 `UNSUPPORTED_OUTPUT_COMBINATION`，退出 1；窗口只配 `toon` 或 `md`：
+
+```json
+{"ok":false,"error":{"code":"UNSUPPORTED_OUTPUT_COMBINATION","message":"Token windows cannot preserve structured output. Remove --token-limit/--token-offset and use --filter-output or command pagination."}}
+```
+
+token 数是按 LLM 分词规则的估算值，不是精确计数。
+
+### 完整信封 --full-output
+
+`--full-output` 把结果包进统一信封：成功是 `ok: true` 加 `data` 与 `meta`，失败是 `ok: false` 加 `error` 与 `meta`。想让脚本只读一个布尔字段时用它：
+
+```text
+# rea capabilities --full-output --filter-output open,meta
+ok: true
+data:
+  open: false
+meta:
+  command: capabilities
+  duration: 1464ms
+```
+
+个别命令给这个旗标附加了专属含义（如 `rea mcp doctor --full-output` 在报告里保留子进程诊断），见对应课程。
+
+## 退出码
+
+| 退出码 | 含义 |
+| --- | --- |
+| `0` | 操作完成。结果仍可能携带部分证据、警告或未解决的问题 |
+| `1` | 操作未能完成。可得时结构化输出会指明无效输入、权限、取消、超时等原因 |
+| `128 + N` | 信号衍生的状态。命令可能已处理信号、等操作与清理落定后给出同值（`130` 对应 SIGINT，`143` 对应 SIGTERM），也可能打印结构化的 `cancelled` 结果 |
+
+还有一个容易踩的状态：管道下游提前关闭读取（`rea ... | head` 就会这样）时，CLI 停止写入、不打印任何错误、以 `141`（`128 + 13`，SIGPIPE 终止写端的状态）退出。操作本身可能已经完成，只是输出被拒收。下游退出码会掩盖它，用 `pipefail` 保住 REA 的失败状态：
+
+```bash
+set -o pipefail
+rea inspect-artifact ./app.asar --json | jq . > inspection.json
+```
+
+被信号取消时，"结果里有没有 `cancelled`"和"退出码是几"由命令的信号处理分别决定，脚本要当成两个信号分开检查：
+
+| 命令 | 取消时的退出码 |
+| --- | --- |
+| 走共享取消处理的大多数命令（进程捕获、JS 应用分析、浏览器与 Electron 捕获、各平台与 provider 命令族、`environment-serve` 等） | `130` / `143`，可能先打印结构化 `cancelled` |
+| `inspect-artifact` | `1`（返回结构化 `cancelled`，但不上信号状态） |
+| `setup` | `0`；`setup --dry-run` 返回 `planned` 也是 `0`；`needs_confirmation` / `needs_human` 才是 `1` |
+| `doctor` | 必需检查失败时 `1`；可选 provider 不可用只作提示 |
+| `rea mcp --http` | 关闭监听与会话后 `130` / `143`，清理失败 `1`；全程不打印结构化结果 |
+| `rea environment-serve` | 打印 `{"status":"stopped", …}` 后 `130` / `143`；绑定前的拒绝为 `1` |
+
+## 错误契约
+
+失败时 `stdout` 上是一条结构化错误，字段固定：
+
+| 字段 | 说明 |
+| --- | --- |
+| `code` | 机器可读错误码，共 20 个 |
+| `category` | 十类之一：`invalid_input`、`unsupported_provider`、`unsupported_target`、`integrity_mismatch`、`truncated`、`cancelled`、`timeout`、`resource_constraint`、`unavailable`、`execution_failure` |
+| `message` | 单句人读原因 |
+| `retryable` | 原样重试是否可能成功 |
+| `remediation.action` | 必有的下一步动作 |
+| `details` | 可选；按 `code` 携带结构化细节 |
+
+真实样例——分析一个不存在的路径，退出 1：
+
+```json
+{"error":"JavaScript application analysis failed","code":"invalid_request","category":"invalid_input","message":"Analysis input is invalid. Check the arguments and try again.","retryable":true,"remediation":{"action":"Correct the listed arguments and retry."},"details":{"operation":"analyze_javascript_application","issues":[{"path":["input_path"],"reason":"invalid_value","message":"No file or directory exists at the selected input path (ENOENT): /tmp/does-not-exist"}]}}
+```
+
+错误也按当前输出格式渲染。默认 TOON 下，一个 `JAVA_HOME` 配置错误长这样（`details` 按行带约束）：
+
+```text
+error:
+  code: configuration_invalid
+  category: invalid_input
+  message: "REA configuration is invalid: JAVA_HOME: Too small: expected string to have >=1 characters; JAVA_HOME must be absolute."
+  retryable: false
+  remediation:
+    action: "Correct JAVA_HOME in the environment that starts REA (your shell or the MCP client's registration), then rerun."
+  details:
+    settings[2]{setting,constraint}:
+      JAVA_HOME,"Too small: expected string to have >=1 characters"
+      JAVA_HOME,JAVA_HOME must be absolute
+```
+
+常见错误码的判断与下一步：
+
+| `code` | 典型原因与处理 |
+| --- | --- |
+| `invalid_request` | 输入不合法；逐条读 `details.issues` 里的 `path` / `reason` / `message` |
+| `configuration_invalid` | 配置无效；按 `remediation.action` 修正环境或设置，必要时跑 `rea doctor` |
+| `provider_unavailable` | 分析引擎不可用；按 `remediation.action` 处理；候选不唯一看 `details.candidate_ids`，被拒原因在 `details.rejections` |
+| `capability_unavailable` | 当前目标不支持该分析；换分析或换目标 |
+| `cancelled` | 操作已取消；退出码由命令的信号处理决定（见退出码一节） |
+| `MISSING_OUTPUT_VALUE`、`INVALID_OUTPUT_FILTER`、`UNSUPPORTED_OUTPUT_COMBINATION` | 输出选项写错；命令运行前报出，按 `message` 修正旗标 |
+
+全部 20 个错误码与其 `category` 的权威清单见错误契约 schema（见参考资料）。
+
+## Evidence
+
+Evidence 是 REA 结论的交付物：一条记录保留被观察工件的身份、源位置、观察结果、推断和未解决的发现。上文快速上手存下的 `evidence.json` 就是一条完整记录，字段与真实取值：
+
+| 字段 | 迷你应用分析中的值 | 含义 |
+| --- | --- | --- |
+| `evidence_id` | `ev_a35c3902…daed1a3` | 内容寻址的语义 ID |
+| `subject` | name、digest、local_path、format | 被观察工件的身份与摘要 |
+| `provider` | `rea-javascript-application` | 谁做了这次观察 |
+| `operation`、`parameters` | `analyze_javascript_application` 与入参 | 做了什么、用什么参数 |
+| `normalized_result` | 应用图与统计 | 归一化结果 |
+| `raw_result` | `null` | 原始结果 |
+| `confidence` | `derived` | `observed` / `derived` / `inferred` 三档 |
+| `authority` | `shipped-artifact` | 证据来源：`shipped-artifact` / `controlled-replay` / `historical-reference` / `external-service` / `analyst-inference` |
+| `limitations` | 16 条边界声明 | 本次观察不覆盖什么 |
+| `locations` | `artifact-path` 指向目标目录 | 证据指向的源位置 |
+| `evidence_links` | 指向父记录的 ID | 与其他 Evidence 的引用关系 |
+
+`evidence_id` 的形状是 `ev_` 前缀加 64 位小写十六进制——记录内容的 SHA-256 摘要。相同内容得到相同 ID，所以它既能当引用（投影视图、MCP retained 引用都靠它指认记录），也能当身份校验（内容与 ID 对不上会被判为不完整记录）。
+
+体积是 Evidence 的常态约束：真实应用的完整 Evidence 可达数百 MB（官方数据：334 MB 的 Obsidian 应用 Evidence 投影成约 10 KB 的 summary 视图）；两个文件的迷你应用也有约 100 KB。CLI 每次调用都是独立进程，结果不会留在会话里，要用就必须先存文件。存下之后有三条复用路径：
+
+- **投影视图**：用 `jq` 构造视图 JSON 再交给 `rea inspect-analysis-view`。视图两种：`summary`（快速上手演示）和分页视图，如 `{"kind": "page", "collection": "modules", "offset": 0, "limit": 32}`。投影从存档出发，不重新运行分析。
+- **边分析边分流**：`inspect-artifact`、`inspect-il2cpp-metadata` 等命令支持 `--detail summary --evidence_output evidence.json`——终端只回紧凑概览，完整 Evidence 落到指定文件。
+- **规范包交换**：`evidence-import`、`evidence-export`、`compare` 校验、导出和比较规范 Evidence 包，详见 Evidence 包管理一课。
+
+边界：MCP 服务器在连接内保留 Evidence，工具之间用 `{"kind": "retained-evidence", "evidence_id": "ev_…"}` 这样的引用传递；CLI 没有会话保留，消费的总是完整存档记录。MCP 侧的机制见 MCP 接入一课。
+
+## 最佳实践
+
+- **脚本管道四件套**：`set -o pipefail` 保住失败状态，`--json` 选机器格式，重定向存全量文件，`jq` 投影喂下游。判断成败看退出码与错误对象，不靠肉眼扫输出。
+- **先量后裁**：大结果先 `--token-count` 估规模。人要看——`toon` 加 token 窗口分页读；程序要解析——`--json` 存全量文件后用 `--filter-output` 取字段，不要用 token 窗口截断要解析的 JSON。
+- **结论挂着 ID 走**：引用一条结论时带上它的 `evidence_id`；对比、追踪、建视图都复用同一份存档文件——每次 CLI 调用都是一次全新重算，重复跑既慢又可能拿到不同快照。
+
+## 常见问题
+
+- `rea ... | head` 之后脚本继续往下跑，没发现 REA 中途被掐断？
+  在管道前加 `set -o pipefail`。下游提前关闭读取会让 REA 以 `141` 静默退出；`141` 只说明输出被拒收，操作本身可能已经完成，需要时重跑拿完整输出。
+- 给 `--json` 加了 `--token-limit`，命令直接报错不让跑？
+  这是硬约束：token 窗口与 `json` / `jsonl` / `yaml` 不兼容（`UNSUPPORTED_OUTPUT_COMBINATION`）。结构化输出改用 `--filter-output` 裁字段，token 窗口只配 `toon` / `md`。
+- 退出码是 `0`，但结果里带 warnings 和 unresolved questions，结论能用吗？
+  能跑完不代表结论完整。`0` 只表示操作完成；证据的完整性读记录里的 `limitations`、`unknowns` 与 coverage 字段，不要拿退出码当结论质量分。
+- `--filter-output` 写的路径看起来没错，拿到的却是 `{}`？
+  所选路径在结果里不存在，过滤后只剩空文档。先 `--format json` 打出完整结果确认顶层字段名，再逐级写点路径。
+
+## 总结回顾
+
+摘要：
+
+REA 命令行与 MCP 服务器共享工作流和证据契约。输出侧，默认 TOON、`--json` 选 JSON、`--filter-output` 按键路径裁剪、token 三选项量与裁、`--full-output` 加信封；这些选项只作用于呈现层，写错会在命令运行前报三种输出错误并退出 1。成败侧，退出码 `0` / `1` / `128 + N`（含 SIGPIPE 的 `141`）与结构化的 `cancelled`、错误对象是各自独立的信号，错误对象固定携带 `code`、`category`、`message`、`retryable`、`remediation.action` 与可选 `details`。结论侧，每次操作交付带内容寻址 `evidence_id` 的 Evidence 记录；CLI 进程即用即走，大 Evidence 先存文件，再经投影视图、`--evidence_output` 分流或规范包三条路径复用。
+
+一句话：
+
+> 输出选项决定结果怎么呈现，Evidence 决定结论凭什么成立——脚本里用退出码和错误契约判断成败，用保存的 Evidence 支撑结论。
+
+知识要点：
+
+- 五种输出格式各用于什么场合，`--json` 在终端与管道下行为有何差异？
+- `--filter-output` 的路径语法是什么，有哪三条边界？
+- token 窗口为什么不能配结构化格式，正确替代是什么？
+- 退出码 `0`、`1`、`128 + N`、`141` 分别说明什么，`pipefail` 解决什么问题？
+- 错误对象有哪六个字段，`invalid_request` 与 `configuration_invalid` 分别怎么处理？
+- `evidence_id` 的形状与用途是什么，`confidence` 与 `authority` 各分几档？
+- 大 Evidence 的"保存、投影、查看"闭环怎么走，`--evidence_output` 用在哪类命令上？
+
+## 参考资料
+
+- [REA CLI and Evidence guide（docs/cli.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/cli.md)
+  本课主文档：全局输出选项、退出码表、取消处理、Evidence 保存与投影流程。
+- [REA error contract schema（docs/error-contract.schema.json）](https://raw.githubusercontent.com/morluto/rea/main/docs/error-contract.schema.json)
+  错误对象的字段定义、`category` 枚举与全部 20 个错误码。
+- [JavaScript artifact reconstruction（docs/javascript-artifact-reconstruction.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/javascript-artifact-reconstruction.md)
+  `--filter-output` 官方示例，以及"过滤不减少分析工作量"边界的出处。
+- [MCP contracts（docs/mcp-contracts.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/mcp-contracts.md)
+  `evidence_id` 形状与 retained-evidence 引用格式的出处。

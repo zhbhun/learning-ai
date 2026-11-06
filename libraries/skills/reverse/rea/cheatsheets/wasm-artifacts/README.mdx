@@ -1,0 +1,155 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="wasm-artifacts" title="托管代码与字节码/WASM 构件" name="Docs" />
+
+# WASM 构件
+
+REA 把 WebAssembly 构件当纯字节做静态检查：不运行模块、不要求活动的二进制目标，靠调用方自备的 WABT 工具链完成校验、节报告和 WAT 解码，抽出模块结构与类型化导入导出接口。两个入口各答一个问题——`inspect-wasm-artifact` 回答"这个模块是什么、暴露什么能力"，`compare-wasm-interfaces` 回答"两个模块的接口差在哪"。REA 不安装工具、不抓取构件、不执行 WASM，结论落在 Evidence 记录里供回读。
+
+先记住两条命令和它们的硬边界：
+
+| 事项 | 回查要点 |
+| --- | --- |
+| 检查命令 | `rea inspect-wasm-artifact <path> --format json`（MCP 工具 `inspect_wasm_artifact`） |
+| 比较命令 | `rea compare-wasm-interfaces input.json --json`（MCP 工具 `compare_wasm_interfaces`） |
+| 工具链前置 | `REA_WABT_BIN_DIRECTORY` 指向含可执行 `wasm-validate`、`wasm-objdump`、`wasm2wat` 的绝对目录（WABT 1.0.42）；比较不读文件、不需要 WABT |
+| 检查输入 | 单个常规文件，识别 WASM v1 头；symlink、检查中变化的文件、超过 8 MiB 一律失败 |
+| 子进程预算 | 每个工具 30 秒时限、32 MiB 合并输出预算、每流最多保留 4,096 字节 |
+| 输出格式 | 终端默认 TOON；`--json` 或 `--format json` 得到 JSON |
+
+## 快速上手
+
+REA 不安装工具链，WABT 1.0.42 要自备。macOS 上用 Homebrew 装一份，并把 `REA_WABT_BIN_DIRECTORY` 指到它的可执行目录：
+
+```bash
+brew install wabt
+export REA_WABT_BIN_DIRECTORY="$(brew --prefix)/bin"
+```
+
+然后检查一个本地 `.wasm` 文件：
+
+```bash
+rea inspect-wasm-artifact /path/to/module.wasm --format json
+```
+
+结果直接回答三个问题：字节身份（selected byte SHA-256 与 size）、模块结构（节 payload 范围与完整 header/detail 输出）、能力面（精确转义的导入/导出 WAT 形式，以及解码后的完整 WAT 及其 UTF-8 SHA-256）。把这份结果存成 Evidence，就能进入下文的「接口比较」。
+
+## 模块检查
+
+`inspect-wasm-artifact` 的检查是一条固定流水线：识别 WASM v1 头 → 把字节复制进私有工作区（只读 `module.wasm`，每次工具前后复核 digest）→ `wasm-validate --enable-all` 校验 → `wasm-objdump -h -x` 报告节 → `wasm2wat --enable-all` 解码 → 汇成结构化结果与 Evidence。三个 WABT 命令都由 REA 调用，读者不直接执行。官方等价写法：
+
+```bash
+REA_WABT_BIN_DIRECTORY=/absolute/wabt/bin rea inspect-wasm-artifact \
+  /artifacts/module.wasm --glue_paths /artifacts/glue.js \
+  --candidate_paths /artifacts/other/module.wasm --format json
+```
+
+MCP 输入同名不同形：
+
+```json
+{
+  "name": "inspect_wasm_artifact",
+  "arguments": {
+    "path": "/artifacts/module.wasm",
+    "glue_paths": ["/artifacts/glue.js"],
+    "candidate_paths": ["/artifacts/other/module.wasm"]
+  }
+}
+```
+
+### 工具链与输入规则
+
+- `REA_WABT_BIN_DIRECTORY` 必须是绝对目录，包含可执行的 `wasm-validate`、`wasm-objdump`、`wasm2wat`（Windows 加 `.exe`）。缺可执行文件、版本横幅不受支持、工具不可访问都会给出可操作的 unavailable 诊断。配置是否可用可查 `binary_session`。
+- 输入只能是单个常规文件：symlink、检查期间变化的文件、超过 8 MiB 的文件一律失败。超限返回 `resource_constraint`（resource 为 `file-size`），`reported_limits.maximum_input_bytes` 给出固定字节上限；重试未变的文件不会放宽。
+- 无效或截断的模块是失败结果：带校验诊断和部分 Evidence，其中保留字节身份与工具来源。
+- 工具来源被完整记录：上游 release/source 身份、解析出的可执行路径、可执行 digest、精确横幅与参数，每个命令后还复核一次可执行 digest。调用方提供的工具是受信任程序——记录版本与 digest 不是发布者认证，也不是操作系统沙箱。
+- 真实工具链 profile 只在 macOS arm64 上验证过；其他主机需要自行验证。
+
+### 模块结构与 WAT
+
+- 结果保留：selected byte SHA-256 与 size、节 payload 范围、完整 header/detail 输出（含 module-name 前导）、解码后的 WAT 及其 UTF-8 SHA-256。
+- 识别头部不等于校验完整模块：头部识别只说明这是 WASM，完整校验由 `wasm-validate` 承担；缺 WABT 会作为 unavailable capability 单独报告，不是缺原生引擎支持。
+- 边界：WAT 是解码表示，不是原始源码，也不证明运行时行为。自定义注解可以保留 payload，但 WAT 不确立原始二进制布局或往返字节一致——原始字节身份和 objdump 输出承担这个区分。
+
+### 导入与导出接口
+
+检查在保留精确 WAT 形式的同时补充生产者拥有的类型化 `interface` 事实：
+
+- 函数与标签签名解析类型索引；table/memory 限制、内存页大小、全局值类型与可变性保持显式。
+- 导入/导出 WAT 形式保留精确转义名；未转义的 objdump 显示名不会被解析成无歧义标识符。精确解码名保留转义、空名、BOM 与标点。
+- 边界：未接纳类型（包括 GC 引用签名）的签名为 null 并附带 issues；没有检查过类型化接口的历史 Evidence 缺这个 facet。
+
+### 关联 JS 胶水
+
+`--glue_paths` 把 `.wasm` 和加载它的 JavaScript 联系起来。胶水文件走现有 Babel 解析器与 AST 遍历，结果保留 `.wasm` 字符串字面量与字面量模板及其源码坐标、胶水字节身份与解析器状态。
+
+- 相对文件系统匹配成为本地路径候选；URL、query/fragment 变体与未匹配路径保留 basename 候选（可能多个），或保持未解析。
+- 边界：这些是字面关联，不证明数据流、运行时加载或 URL 到文件的同一性。计算字符串、别名与动态 import 需要更多证据；候选文件是调用方选的，其身份不等于已校验。
+
+## 接口比较
+
+`compare_wasm_interfaces` 接受两份完整的 `inspect_wasm_artifact` Evidence 记录，或当前 MCP 会话中的精确 retained 引用；`scope` 必填，取 `imports`、`exports` 或 `both`。它不读任何文件，也不需要 WABT 工具链。CLI 把内联 Evidence 写进一份 JSON 文档：
+
+```bash
+rea compare-wasm-interfaces comparison-input.json --json
+```
+
+```json
+{
+  "left": { "kind": "retained-evidence", "evidence_id": "ev_<left-digest>" },
+  "right": { "kind": "retained-evidence", "evidence_id": "ev_<right-digest>" },
+  "scope": "both"
+}
+```
+
+注意：上面的 retained-evidence 引用形式仅限 MCP；CLI 输入里要放完整 Evidence 对象。拿到的是 summary 投影时，先解析回其保留的完整父记录再比较。
+
+结果保留双方输入 Evidence ID、artifact 路径/digest/长度与每个选中项，差异语义如下：
+
+- 唯一名分为 added、removed、changed、unchanged；重复名与不支持的签名记为 unknown。
+- 导入按 module/name 分组、导出按 name 分组，所以同类不同名的 kind 变化可见；输出顺序是确定的。
+- 不完整或历史清单永远不能确立"不存在"——没比较出的差异不代表没有。
+
+边界：静态类型相等不建立运行时兼容、ABI 兼容或链接成功。比较只覆盖 core modules；WebAssembly components 与 canonical ABI 关系属于单独的检查工作流。
+
+构建之后可以用官方脚本做原模块回归验证——它通过编译好的 CLI 与 stdio MCP 比较原始模块，使用自有 fixtures 与 WABT 1.0.42，不实例化、不执行任何 WASM 模块：
+
+```bash
+REA_WABT_BIN_DIRECTORY=/absolute/wabt/bin node scripts/verify-wasm-interface-comparison.mjs
+```
+
+## 常见问题
+
+- 用 `open_binary` 或通用构件检查读 `.wasm`，返回 `target_unavailable`（category `unsupported_target`，约束 `wasm_requires_static_inspection`）。
+  改用目标无关的 `inspect_wasm_artifact` 或 `rea inspect-wasm-artifact <path> --format json`。WASM 只走静态检查路线；把模块改名成 `.hop` 也躲不开——头部检查先于数据库路由。
+- 检查报 WASM 能力不可用。
+  核对 `REA_WABT_BIN_DIRECTORY`：必须是包含可执行 `wasm-validate`、`wasm-objdump`、`wasm2wat` 的绝对目录。缺 WABT 单独报告为 unavailable capability，不是缺原生引擎支持；头部识别本身不受影响。
+- 大文件返回 `resource_constraint`（`file-size`），重试仍然失败。
+  8 MiB 上限固定，`reported_limits.maximum_input_bytes` 给出具体字节数；重试未变的文件不会放宽额度。换更小的构件或裁剪后再检查。
+- 比较结果里出现 `unknown`。
+  重复名与不支持的签名记为 unknown，不要当作相等或不相等来用；同时记住不完整清单不能证明缺席，需要更强的结论就补完整的检查。
+- 保留的诊断文本结尾出现 U+FFFD。
+  32 MiB 合并输出预算在多字节字符中间截断所致；超预算本身会以 `resource_constraint` 失败。以 digest、size 与完整 Evidence 为准，不把截断文本当完整 WAT。
+
+## 总结回顾
+
+摘要：
+
+REA 对 WASM 构件的检查是字节驱动的静态接口检查：配置 `REA_WABT_BIN_DIRECTORY` 后，`inspect-wasm-artifact` 用 WABT 三件套校验模块、报告节并解码 WAT，保留字节身份、结构输出与类型化导入导出接口，还能通过 `--glue_paths` 把模块和 JS 胶水的字面引用关联起来；`compare-wasm-interfaces` 拿两份检查 Evidence 按 `scope` 比较接口差异。输入限单个常规文件且不超过 8 MiB，子进程有 30 秒时限与 32 MiB 输出预算。WAT 是解码表示而非源码，静态类型相等不等于运行时或 ABI 兼容，比较只覆盖 core modules。
+
+一句话：
+
+> REA 能告诉你 WASM 模块长什么样、暴露什么、两个版本接口差在哪；运行时行为和 ABI 兼容性必须靠别的证据。
+
+知识要点：
+
+- 检查 `.wasm` 前必须配置什么？`REA_WABT_BIN_DIRECTORY` 指向含 `wasm-validate`、`wasm-objdump`、`wasm2wat` 的绝对目录。
+- 超 8 MiB 的文件重试会放宽吗？不会，上限固定在 `reported_limits.maximum_input_bytes`。
+- 结果里靠什么确认模块字节身份？selected byte SHA-256 与 size，且 digest 在每个工具前后复核。
+- 接口比较吃什么输入？两份完整 `inspect_wasm_artifact` Evidence（CLI 内联 JSON）或 MCP retained 引用，`scope` 必填。
+- 哪些判断超出本课工具的能力？运行时行为证明、ABI/链接兼容、components 与 canonical ABI、胶水的数据流证明。
+
+## 参考资料
+
+- [Offline WebAssembly artifacts（morluto/rea 仓库 docs）](https://github.com/morluto/rea/blob/main/docs/wasm-artifacts.md)
+- [REA CLI 参考（输出格式与退出状态，morluto/rea 仓库 docs）](https://github.com/morluto/rea/blob/main/docs/cli.md)

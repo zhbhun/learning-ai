@@ -1,0 +1,55 @@
+/* 长课程滚动时保留页内目录。 */
+.sbdocs-wrapper .toc-wrapper {
+  position: sticky;
+  top: 28px;
+}
+
+/* 保留列表项源码中的软换行，适合“问题 / 解决方案”两行表达。 */
+.sbdocs-content li {
+  white-space: pre-line;
+}
+
+/* 宽表格在窄窗口中横向滚动，不挤坏 Docs 布局。 */
+.sbdocs-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+pre.mermaid {
+  display: grid;
+  min-height: 180px;
+  margin: 24px 0;
+  padding: 28px;
+  overflow-x: auto;
+  place-items: center;
+  white-space: normal;
+  background:
+    radial-gradient(circle at top left, rgb(79 124 255 / 10%), transparent 38%),
+    #f8fafc;
+  border: 1px solid #dbe3f0;
+  border-radius: 12px;
+}
+
+pre.mermaid.mermaid-diagram svg {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+pre.mermaid.mermaid-diagram-error {
+  display: block;
+  min-height: 0;
+  color: #991b1b;
+  white-space: pre-wrap;
+  background: #fff7f7;
+  border-color: #fecaca;
+}
+
+pre.mermaid.mermaid-diagram-error::before {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 700;
+  content: 'Mermaid 图表渲染失败：' attr(data-mermaid-error);
+}

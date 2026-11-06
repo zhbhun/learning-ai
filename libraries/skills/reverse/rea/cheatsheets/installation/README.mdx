@@ -1,0 +1,266 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="installation" title="入门/安装与设置" name="Docs" />
+
+# 安装与设置
+
+REA 以 npm 包 `rea-agents` 发布，一份包里装着三样东西：终端里可用的 `rea` 命令行、一个本地 MCP 服务器，以及一份给代理的工作流说明（skill）。分析全程在本地运行。"安装"因此分两层：先把包装进主机，再用 `setup` 把 MCP 服务器注册进你的 AI 代理。`setup` 是一次"先审核、后写入"的事务——它检测已安装的代理客户端，给出精确到路径的改动计划，批准后才写文件，并为原配置保留备份。
+
+本课覆盖：确认运行环境 → 选择安装方式 → 运行 `setup` 接入代理 → 用 `rea doctor` 验证 → 更新与卸载。原生分析引擎（Hopper、Ghidra、IDA）的配置、MCP 契约与客户端深度排查由后续课程承载，本课只到"接通并验证"为止。
+
+| 任务 | 命令或值 |
+| --- | --- |
+| 运行时要求 | Node.js `22.x (>=22.19)`、`24.x (>=24.11)` 或 `26+`，使用与之配对的 npm；Node.js 23、25 与预发布版不受支持 |
+| 一次性运行 setup | `npx rea-agents setup`（显式最新发布版：`npx rea-agents@latest setup`） |
+| 全局安装 | `npm install --global rea-agents` |
+| 查看已发布版本 | `npm view rea-agents dist-tags.latest` |
+| 健康诊断 | `rea doctor`（只读；结构化输出：`rea doctor --json`） |
+| 更新 | `rea update`（npx 用户改为重跑 `npx rea-agents@latest setup`） |
+| 卸载 | `rea uninstall`（连缓存与状态一起删除：`rea uninstall --purge-data`） |
+
+## 快速上手
+
+```bash
+# 1. 确认运行时
+node --version          # 需要 v22.19+、v24.11+ 或 v26+
+
+# 2. 运行 setup
+#    npm 会先询问是否下载包；这是 npm 的批准，与 REA setup 的批准相互独立
+npx rea-agents setup
+
+# 3. 在多选列表勾选要配置的代理，
+#    核对计划中的确切路径与改动，批准后 setup 才写入
+
+# 4. 重启完成消息里点名的代理
+
+# 5. 验证安装
+rea doctor
+```
+
+setup 结束时会报告哪些代理、分析工具和工作流文件通过了最终检查；`rea doctor` 只读审计检测到的注册、已装 skill 与可选分析引擎。尚未全局安装时，第 5 步用 `npx rea-agents@latest doctor` 执行同样的诊断。看到失败项先不要改配置：失败步骤与诊断保留在终端历史里，按提示修复后重跑 `setup` 即可。
+
+## 安装方式
+
+安装途径决定两件事：`rea` 命令是否出现在 shell 的 `PATH` 上，以及 `setup` 往代理注册里写的启动命令是什么形状。
+
+### 运行环境要求
+
+- REA 支持 Node.js `22.x (>=22.19)`、`24.x (>=24.11)` 和 `26+`，使用与该运行时配对的 npm；Node.js 23、25 与预发布版不受支持。REA 从不升级 Node.js、npm 或 Homebrew。
+- 检查方式：`node --version` 与 `npm --version`。
+- Linux 主机还需要 procps 兼容的 `ps` 在 `PATH` 上——Ghidra、JADX、固件工具与静态 JS/Electron 分析的进程归属检查依赖它；macOS 无此项要求。
+
+### 用 npx 直接运行
+
+```bash
+npx rea-agents setup          # 交互式 setup，版本由 npm 选择
+npx rea-agents@latest setup   # 显式请求最新发布版
+```
+
+- npm 在下载包前会请求批准；无人值守时把 `-y` 加在包名之前（`npx -y rea-agents@latest ...`）——这只批准下载，不批准 setup 的改动。
+- 通过 `npx` 运行的 setup 把注册固定为 `npx -y rea-agents@<版本> mcp`，`<版本>` 是执行 setup 的那个精确版本；Bun 的等价入口是 `bunx rea-agents setup`，注册形状为 `bunx rea-agents@<版本> mcp`。
+- 版本固定意味着：安装更新的说明不会自动更新正在运行的注册；刷新注册必须重跑当前版本的 setup。一次性 CLI 命令同理，用 `npx -y rea-agents@latest` 加命令名。
+- 仓库 main 分支的文档描述当前代码，能力可能尚未进入 npm 发布版；`@latest` 只指向 npm 最新发布。
+
+### 全局安装
+
+```bash
+npm install --global rea-agents
+rea --help
+```
+
+- 全局安装让 `rea` 出现在 shell `PATH` 上；此时运行 `rea setup` 会直接注册已安装的入口，之后用 `rea update` 跟随更新。
+- 不带 `--global` 的 `npm install rea-agents` 只把可执行文件放进当前项目的 `node_modules/.bin`，shell 里不会有 `rea` 命令。
+- 需要同时运行多个代理会话时优先全局安装：直接注册避免了每个 MCP 连接各挂一个 npm 启动器进程。
+- 只装全局包不会替换已有的 `npx` 注册；要换注册形状，重跑一次 setup。
+
+### 其他获取途径
+
+curl 安装脚本只安装全局 npm 包，并在有控制终端时自动进入 `rea setup`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/morluto/rea/main/install.sh | bash
+```
+
+选项用 `bash -s --` 传入，支持 `--version`、`--dry-run`、`--no-setup`、`--no-prompt` 和 `--verbose`；`--no-prompt` 或非交互 shell 都不会获得安装外部依赖的许可。
+
+只装工作流说明、不注册 MCP 服务器也不装分析引擎：
+
+```bash
+npx skills add morluto/rea --skill reverse-engineer-anything
+```
+
+这条路线装的是代理指令与捆绑参考资料，已有的可用工具可以直接用；会话里缺工具时，用 `rea doctor --client <id> --json` 检查注册，再用 `rea setup --client <id> --dry-run --json` 规划修复。
+
+支持 MCP Registry 发现的客户端可以搜索 `io.github.morluto/rea`；需要手动配置的客户端使用下面的注册（持久注册应写死一个确切版本）：
+
+```json
+{
+  "mcpServers": {
+    "rea": {
+      "command": "npx",
+      "args": ["-y", "rea-agents@6.5.0", "mcp"]
+    }
+  }
+}
+```
+
+## setup 接入代理
+
+`setup` 是官方推荐的接入路径：检测客户端 → 生成精确到路径的计划 → 批准后写入。写入保证可预期：保留配置里无关的条目与注释、写前创建备份、原子替换、写后校验；格式错误或不安全的现有配置会在写任何文件之前阻塞整个事务；拒绝或 Ctrl-C 不会留下任何改动。
+
+setup 可以配置以下客户端的本地 MCP 服务器：
+
+| 客户端 | `--client` 值 | 客户端 | `--client` 值 |
+| --- | --- | --- | --- |
+| Claude Code | `claude_code` | Kimi Code | `kimi` |
+| Claude Desktop | `claude_desktop` | VS Code | `vscode` |
+| Codex | `codex` | Grok Build | `grok_build` |
+| Cursor | `cursor` | OMP | `omp` |
+| Gemini CLI | `gemini_cli` | Pi | `pi` |
+| Windsurf | `windsurf` | Hermes | `hermes` |
+| Devin | `devin` | Qoder | `qoder` |
+| OpenCode | `opencode` | Factory Droid | `droid` |
+| Antigravity | `antigravity` | Trae | `trae` |
+| GitHub Copilot CLI | `copilot_cli` | WorkBuddy | `workbuddy` |
+| Command Code | `commandcode` | ZCode | `zcode` |
+| Qwen Code | `qwen_code` | DeepSeek Harness | `dsh` |
+
+`droid`、`dsh`、`kimi`、`qoder`、`trae`、`workbuddy`、`zcode` 需要 `rea-agents@6.5.0` 或更高版本。Grok Bot 使用托管连接器，由手动步骤在账户中添加，不经 setup 注册。
+
+### 交互流程
+
+```bash
+npx rea-agents setup
+```
+
+1. **选择客户端。** 多选列表里已有的 REA 注册默认选中；新检测到的客户端保持不选——检测只是提供上下文，不等于授权添加注册。显式 `--client` 参数会跳过这道题。
+2. **选择组件。** setup 默认为所选客户端注册 MCP 服务器，并同时把捆绑工作流 skill 安装到各客户端的个人 skill 目录；`--skill=false` 表示只注册、不装 skill。没有选中任何代理时，setup 会单独询问是否只为 CLI 安装工作流，默认 No。
+3. **Hopper 是独立可选项。** setup 单独展示它的安装或连接方案，并要求单独批准；也可以为已有的 Ghidra 安装保存验证过的路径。原生分析引擎的完整配置不在本课展开。
+4. **审核并批准计划。** 计划列出：已安装的 Hopper、已验证的 Ghidra，或将安装的官方 Hopper 包；每个检测到的客户端配置路径；每个选中的 skill 目标目录；外部软件、网络来源、完整性证据与包管理器命令。确认路径与改动后才发生写入，每一步都可以取消。
+5. **重启并验证。** setup 最后报告哪些代理、分析工具、工作流文件通过了最终检查；重启完成消息里点名的代理，然后开始调查。
+
+Claude Desktop 注意：批准前先完全退出应用——运行中的实例会把注册覆盖回去。
+
+### 注册写到哪里
+
+setup 在用户级为整个客户端注册，不是单个项目。落点因客户端而异，例如：
+
+- Claude Code：注册写入 `~/.claude.json` 的 `mcpServers.rea`，skill 安装到 `~/.claude/skills`；
+- Codex：`~/.codex`（`CODEX_HOME` 未设或为空时的默认位置）；
+- ZCode：注册写入 `~/.zcode/cli/config.json` 的 `mcp.servers` 表，skill 安装到 `~/.zcode/skills`；
+- 只选 skill 不选客户端时，skill 装到 `~/.agents/skills`。
+
+各客户端的完整路径、home 覆盖变量、信任策略与 schema 限制见 [MCP 接入](?path=/docs/mcp-integration--docs) 课程与官方 client-configuration 文档。
+
+### 限定作用范围
+
+默认注册会把 REA 提供给该客户端打开的每一个项目。只想给一个独立 profile 或一个项目用时，有两条收窄路线（以 Claude Code 为例）：
+
+```bash
+# 路线一：独立 profile —— 注册与 skill 都写进 CLAUDE_CONFIG_DIR 指定的目录
+CLAUDE_CONFIG_DIR=~/.claude-rea npx rea-agents setup --client claude_code
+CLAUDE_CONFIG_DIR=~/.claude-rea claude
+```
+
+```bash
+# 路线二：项目 local scope —— 只在当前项目目录注册，不装 skill
+claude mcp add --scope local rea -- npx -y rea-agents@6.5.0 mcp
+```
+
+- 路线一：setup、启动、检查与移除都要保持同一个变量前缀；把 `CLAUDE_CONFIG_DIR` 设为空值等同于未设置。
+- 路线二：local scope 条目存在 `~/.claude.json` 中该项目的路径之下，其他项目不加载；`rea doctor`、`rea update` 与 `rea uninstall` 都不管理 local scope，移除要在同一目录执行 `claude mcp remove --scope local rea`。避免 `--scope project`——它会把 `.mcp.json` 写进仓库，容易被提交或复制。
+- 两条路线都只控制"谁会发现 REA 的服务器与 skill"；同一 OS 账户下的代理仍然可以运行 `rea`、读取其他 profile 与分析输出。要完全隔离，需要带文件系统与网络限制的单独账户或容器。
+
+### 脚本化与非交互
+
+```bash
+# 只读计划：返回状态 planned、退出码 0，不写任何文件
+rea setup --client codex --client cursor --skill=false --dry-run
+
+# 结构化计划 + 精简的 doctor 就绪投影，不应用
+rea setup --client codex --json
+
+# 无人值守：--yes 必须配合明确范围；非交互安装缺失的 Hopper 还要 --install-hopper
+rea setup --yes --all-detected --install-hopper --json
+```
+
+- 显式 `--client`（可重复）逐个指定客户端并跳过交互多选；`--all-detected` 只在确实想配置所有检测到的客户端时使用。
+- 提示与进度走 stderr，stdout 留给结构化结果与管道；`NO_COLOR=1` 关闭颜色，`--accessible` 使用逐行垂直渲染的是非题。
+- stdin、stdout、stderr 任意一个被重定向时，setup 保持非交互；拒绝或取消返回状态 `cancelled`，退出码 0。
+- `--yes` 不带范围标志时只作用于已有的 REA 注册，不会选中所有检测到的客户端；未获批准就实际写入会报告 `needs_confirmation` 并以退出码 1 结束。
+
+## 验证安装
+
+`rea doctor` 是只读诊断：不带选项时审计所有检测到的注册、已安装的 skill 与可选分析引擎。总体 `healthy` 为 `false` 不代表你的工作流不可用——它汇总了全部集成，包括你没在用的那些。
+
+按任务收窄检查范围：
+
+| 要确认的事 | 命令 |
+| --- | --- |
+| 静态 JS/Electron 分析可用 | 直接运行 `rea analyze-javascript-application PATH --json` |
+| 某个分析引擎 | `rea doctor --provider ghidra --json`（或 `hopper`、`ida`） |
+| 某个代理注册 | `rea doctor --client codex --json` |
+| 已装工作流说明 | `rea doctor --skill --json` |
+
+带范围选项的报告 `scope.mode` 为 `"explicit"`：由 `scope_checks` 决定 `healthy` 与退出状态，其余检查进入 `informational_checks`，`environment_healthy` 概括全量审计。按失败项给出的修复指引处理后重跑即可。
+
+两个边界值得记住：
+
+- `doctor` 检查文件与主机前置条件，不检查代理的活连接。注册对齐但会话里看不到 REA 工具，重启或重连代理即可。
+- `doctor` 也不保证某个具体输入会被接受；MCP 侧的逐操作可用性看 `binary_session` 返回的 `result.tool_availability`（详见 [MCP 接入](?path=/docs/mcp-integration--docs)）。
+
+## 更新与卸载
+
+REA 迭代很快，新版本常带修复；遇到问题先更新再排查。
+
+```bash
+rea update                    # 更新拥有当前 CLI 的 npm/Bun 全局安装
+rea uninstall                 # 移除 REA 拥有的注册与 skill 文件
+rea uninstall --purge-data    # 额外删除 ~/.rea 下的缓存与状态
+```
+
+- `rea update` 只更新拥有正在运行的 CLI 的那份 npm 或 Bun 全局安装，不会重新进入 onboarding；Bun 全局更新要求 Bun `1.2.17` 或更高。更新会给出一条限定范围的 setup 命令用于刷新注册与 skill：审核、批准，然后重启受影响的代理。
+- 通过 `npx` 使用时，用 `npx rea-agents@latest setup` 刷新注册（审核计划、批准、重启代理）；一次性命令用 `npx -y rea-agents@latest` 加命令名。`rea --update` 是 `rea update` 的别名。
+- `rea uninstall` 只移除 REA 自己写入的代理注册与 skill 文件，保留 Hopper、Node.js、Evidence 文件、抓包数据、无关 skill 与其他 MCP 服务器；`--purge-data` 只额外删除 `~/.rea` 下的缓存与状态。客户端配置格式错误、不可读或处于不安全路径时，操作在删除任何内容之前停止。
+
+## 最佳实践
+
+- **npx 还是全局安装。** 偶尔试用、不想动配置：`npx rea-agents setup`，一次性命令加 `-y`；日常使用 CLI 或多代理并发：`npm install --global rea-agents` 后从全局安装运行 `rea setup`——注册直接跟随已安装入口，由 `rea update` 维护。注册形状由执行 setup 的方式决定，想换形状就重跑 setup。
+- **先看计划，再应用。** 交互式流程的每一步都可取消；自动化里先用 `--dry-run`（状态 `planned`，退出码 0）或 `--json` 预览，确认后去掉 `--dry-run` 重跑并批准同样的改动。`--yes` 永远配合 `--client` 或 `--all-detected` 使用。
+- **缩小生效面。** 默认注册对整个客户端生效；只想给一个项目或一个 profile 用 REA 时，用 `CLAUDE_CONFIG_DIR` 独立 profile 或项目 local scope，并让 setup、检查与移除始终停留在同一作用域内。
+
+## 常见问题
+
+- **setup 完成后，代理会话里看不到 REA 工具。**
+  重启完成消息里点名的代理再试；注册与 skill 在代理启动时加载。Claude Desktop 必须在批准前完全退出——运行中的实例会把注册覆盖回去。
+- **`rea doctor` 报 `healthy: false`，但我的用法一切正常。**
+  不带选项的 doctor 审计所有检测到的注册、skill 和分析引擎，包括你没在用的；总体 `healthy` 为假不代表当前工作流不可用。按任务加 `--client`、`--provider` 或 `--skill` 收窄范围，以 `scope_checks` 为准。
+- **`npm install rea-agents` 之后 shell 里没有 `rea` 命令。**
+  不带 `--global` 的安装只把可执行文件放进当前项目的 `node_modules/.bin`。改用全局安装（`npm install --global rea-agents`），或临时用 `npx -y rea-agents@latest` 执行命令。
+- **setup 提示现有客户端配置格式错误或不安全。**
+  这是写文件前的保护性阻塞，整个事务都不会发生。按提示修复被点名的设置后重跑 setup；REA 不会静默丢弃配置里的其余内容。
+
+## 总结回顾
+
+摘要：
+
+REA 的安装分两层。第一层把 npm 包 `rea-agents` 弄进主机：`npx` 一次性运行、`npm install --global` 全局安装，或 curl 脚本；运行时要求 Node.js `22.x (>=22.19)`、`24.x (>=24.11)` 或 `26+`。第二层用 `npx rea-agents setup` 把本地 MCP 服务器与工作流说明注册进 AI 代理：setup 是审核后写入的事务——多选客户端、核对精确路径、批准后原子写入并保留备份，注册被固定到执行 setup 的精确版本。更新因此意味着 `rea update` 或重跑最新版 setup 并重启代理；验证交给只读的 `rea doctor`，并按任务用 `--client`、`--provider`、`--skill` 收窄范围。
+
+一句话：
+
+> 安装分两层——包装进主机、注册进代理；setup 先审核后写入，验证交给只读的 `rea doctor`。
+
+知识要点：
+
+- REA 对 Node.js 的版本要求是什么？哪些版本明确不受支持？
+- 用 `npx rea-agents setup` 和先 `npm install --global rea-agents` 再 `rea setup`，写入代理的注册形状有什么区别？
+- setup 的多选列表里，新检测到的客户端为什么默认不选中？
+- `--dry-run`、`--yes`、`--install-hopper` 分别改变 setup 的什么行为？各自的输出状态与退出码是什么？
+- `rea doctor` 的总体 `healthy` 为 `false` 时，如何判断当前任务是否可用？
+- `rea uninstall` 保留哪些东西？`--purge-data` 额外删除什么？
+
+## 参考资料
+
+- [Installation and setup（docs/installation.md）](https://github.com/morluto/rea/blob/main/docs/installation.md)
+- [Client configuration and troubleshooting（docs/client-configuration.md）](https://github.com/morluto/rea/blob/main/docs/client-configuration.md)
+- [REA README — Quick start](https://github.com/morluto/rea/blob/main/README.md)

@@ -1,0 +1,303 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="ghidra-platforms" title="原生二进制/语言与平台/Ghidra 平台专题" name="Docs" />
+
+# Ghidra 平台专题
+
+REA 的 Ghidra provider 有一条开箱即用的通用通道：Windows PE x86/x86-64。越过这条边界，六个常见目标——DOS、MIPS、PowerPC、PSP、RISC-V、NativeAOT——各有一条专题通道。每条通道都是同一个套路：一组严格的准入条件、一个钉死的 Ghidra 语言、一套明确的证据语义；头部声明对不上就给出指名道姓的拒绝，绝不静默降级。
+
+本课讲这些通道的共同规则，以及每个成员的接纳条件、特殊前提与边界。Ghidra 的安装、JDK 配置与 provider 管理归 [4.3.2 Ghidra 接入](?path=/docs/ghidra-provider--docs)；`analyze`、`function`、`decompile` 等通用命令的语义归 [4.1.1 原生调查](?path=/docs/native-investigation--docs)；本课只讲平台差异。
+
+看完导读你应该能预测：拿到一个目标，先读它的头部声明（class、字节序、`e_type`、`e_flags`、ABI 记录），再决定走哪条通道；命令返回的 JSON 与 Evidence 会带回通道身份和固定语言，拒绝时也会指明具体是哪个字段不满足。
+
+## 快速上手
+
+前提：Ghidra provider 已就绪（见 4.3.2）。然后用一条命令触发通道准入，以 RISC-V 为例：
+
+```bash
+rea analyze /absolute/path/to/rv64.elf --provider ghidra --json
+```
+
+在返回的 JSON 与 Evidence 里核对两件事：
+
+- **通道身份**：lane 标识（如 RISC-V 的 `elf64-exec-le-double-float-generic-v1`）或家族名（`mips`、`powerpc`、`riscv`）；
+- **固定语言**：`language_selection` 记为 `provider-pinned-v1`，并写明语言与编译器规格（如 `RISCV:LE:64:default` 加 `gcc`）。
+
+被拒绝时，拒绝原因会指名具体头部字段（如 `EF_RISCV_RVE`、大端、`ET_REL`）。按字段改判通道或换目标，比反复试跑快。
+
+## 共同规则与选型
+
+每条专题通道由四层组成，六个成员全都一样：
+
+1. **准入边界：** 逐项核对头部声明——class、字节序、`e_type`、`e_flags`、ABI 记录；范围外、缺失或互相矛盾的声明都会被拒绝。
+2. **固定语言：** 通道以 `provider-pinned-v1` 钉死 Ghidra 语言，导入后再核对 Ghidra 实际报告的语言，防止自动选择选错变体。
+3. **证据语义：** Evidence、快照与生命周期输出保留中立家族名（`mips`、`powerpc`、`riscv`），lane 身份独立版本化。
+4. **验证通道：** 每条通道有可选的真实验证脚本，需要调用方自备交叉工具链，不随普通分析运行。
+
+六条通道还共享这些行为：
+
+- **拒绝优于猜测。** 头部声明不支持时返回类型化拒绝并指名字段；损坏的头部不会被“纠正”成另一种格式（损坏的 Windows 头部不会静默变成 DOS）。
+- **只做静态分析。** 没有一条通道会执行目标代码或启动模拟器。
+- **不自动安装、不回退。** 缺扩展或缺工具时报错并附补救说明（如 `PSP_EXTENSION_UNAVAILABLE`），没有隐式 fallback。
+- **其他 provider 不继承。** Hopper 与 IDA 适配器不会隐式获得 MIPS、PowerPC 等支持；Windows Ghidra P0 只服务 PE x86/x86-64，不接受这些平台目标（NativeAOT 只读解析器是唯一例外，见其成员节）。
+- **语言覆盖走统一入口。** 环境变量 `REA_GHIDRA_LANGUAGE_ID` 与 `REA_GHIDRA_COMPILER_SPEC_ID` 可以替换通道默认语言：MIPS 里覆盖优先于 pin，pin 与覆盖同时出现是类型化拒绝；RISC-V 里匹配的覆盖记为 `configured-v1`，不匹配的拒绝；PowerPC 用覆盖指向真正的 e500。覆盖只在确认目标真实变体后使用。
+
+选型入口——先按目标头部对号入座，再到下面各成员节核对细节：
+
+| 目标 | 接纳的核心形态 | 固定语言/加载器 | 一票否决项 |
+| --- | --- | --- | --- |
+| DOS MZ | 16 位 MZ 加载模块 | `MzLoader`，`x86:LE:16:Real Mode`，加载段 `0x1000` | NE/LE/LX、PE、DOS 扩展器 |
+| DOS COM | 显式 `--target-format dos-com`，1 到 65280 字节 | 实模式 `BinaryLoader`，偏移 0 映射到线性 `0x10100` | 后缀推断、隐式解释、超大小 |
+| MIPS | ELF32 `ET_EXEC`/`ET_REL`，双字节序，o32 加 `EF_MIPS_ARCH_32R2` | `MIPS:LE:32:default` 或 `MIPS:BE:32:default` | ELF64、n32/n64、microMIPS、`EF_MIPS_FP64` |
+| PowerPC | ELF32 `ET_EXEC` 大端 | `PowerPC:BE:32:default` | `EM_PPC64`、小端、`ET_REL`/`ET_DYN`、`EF_PPC_EMB` |
+| PSP | 小端 ELF32 `ET_EXEC`，`e_flags=0x10a23001`，ABI 记录完整 | `PspElfLoader`，`Allegrex:LE:32:default` | PRX、PBP/ISO/CSO、扩展缺失 |
+| RISC-V | 小端 ELF32/ELF64 `ET_EXEC`，`EF_RISCV_FLOAT_ABI_DOUBLE` | `RISCV:LE:32:default` 或 `RISCV:LE:64:default` 加 `gcc` | 大端、`EF_RISCV_RVE`、`EF_RISCV_TSO`、软浮点 ABI |
+| NativeAOT | x64 PE32+ 加 .NET 8 RTR 9.1 | 只读解析器，可选 JAR 适配器 | 其他 RTR 版本、其他架构 |
+
+### DOS MZ 与 COM
+
+DOS 目标分两种：带 MZ 头部的加载模块，和没有头部的 COM 映像。REA 借助“自带 Ghidra 适配器”完成真正的 16 位反汇编与反编译，不需要 DOS 模拟器或交叉编译器；验证通道是 Linux x64 与 macOS arm64，Ghidra 版本按 12.1.x 及其声明的 JDK 范围接受，通道本身用 Ghidra 12.1.4 加 JDK 21。
+
+**接纳条件：**
+
+- MZ：分类器核对 MZ 页数、已初始化模块长度、头部与重定位表边界、重定位目标和入口点；PE 保持 PE，NE、LE、LX 明确不支持，损坏的 Windows 头部不会静默变成 DOS。入口函数未命名为 `entry` 时，用发现到的地址或名称查询。
+- COM：没有标识头部，必须显式给 `--target-format dos-com`；该解释作用于整个文件，大小须在 1 到 65280 字节之间（64 KiB 段减 256 字节 PSP），后缀和“未知原始字节”都不足以判定格式。
+
+**固定语言与加载：** MZ 用 `MzLoader`，语言 `x86:LE:16:Real Mode`，固定加载段 `0x1000`；COM 用实模式 `BinaryLoader`，文件偏移 0 映射到 `1000:0100`（线性 `0x10100`），预分析脚本把 CS/DS/ES/SS 上下文预置为 `0x1000`。地址是线性字节坐标：线性值 = 段 × 16 + 偏移，后续查找直接复用返回的线性地址；区间结尾一律是包含（inclusive）的。
+
+**使用：**
+
+```bash
+rea inspect /absolute/path/to/legacy.exe --provider ghidra --json
+rea search /absolute/path/to/legacy.exe entry --kind procedures --provider ghidra --json
+rea function /absolute/path/to/legacy.exe entry --provider ghidra --json
+rea inspect-native-load-image /absolute/path/to/legacy.com --target-format dos-com --provider ghidra --json
+rea annotate-native-function /absolute/path/to/program.com 0x10100 --target-format dos-com --provider ghidra --name entry --comment 'Recovered startup role' --json
+```
+
+**可观察证据：** `inspect-native-load-image` 独立核对会话快照与加载映像（原始与修改字节摘要、源映射、重定位记录、入口点），结果为 `verified`、`mismatch` 或 `unsupported`；函数主体证据给出不相交的地址区间集合：
+
+```json
+{
+  "available": true,
+  "provenance": "ghidra-function-body-address-set",
+  "ranges": [
+    { "start": "0x10000", "end": "0x1000d" },
+    { "start": "0x10060", "end": "0x10065" }
+  ],
+  "total_bytes": 20,
+  "span_bytes": 102,
+  "non_contiguous": true,
+  "contains_entry": true
+}
+```
+
+**边界：** 无执行与模拟（BIOS/DOS 中断、设备端口、自修改代码、PC-98 硬件均不建模）；加壳二进制只分析解壳 stub，解壳副本要单独准备且 REA 不会静默替换目标；DOS 扩展器不支持；`annotate-native-function` 只改数据库、不保存项目，Windows P0 不允许该操作。验证脚本：
+
+```bash
+npm run verify:ghidra:dos
+```
+
+### MIPS ELF
+
+通用 MIPS 通道覆盖标准 o32 代码，是本课里形态最宽的一条：只做静态 ELF 分析，不执行 MIPS 代码。
+
+**接纳条件：**
+
+- 标准 lane：ELF32 `ET_EXEC` 与 `ET_REL`，大端或小端，显式 o32 加 `EF_MIPS_ARCH_32R2`，无机器专属或 ASE flags。
+- recordless legacy 准入（issue #1620）：`ET_EXEC` 声明 `EF_MIPS_ARCH_32` 或 `EF_MIPS_ARCH_32R2`、ABI 字段未指定、`EF_MIPS_ABI2` 清零，且经检查确认无 ABI flags 记录时也可准入；o32 只是分析假设，以 `mips_abi_basis` 写入 Evidence 限制。
+- ABI 事实从 24 字节 ABI flags 记录（`PT_MIPS_ABIFLAGS`/`SHT_MIPS_ABIFLAGS`）和 GNU attributes（`SHT_GNU_ATTRIBUTES`，最多读 4096 字节，只认 `Tag_GNU_MIPS_ABI_FP` (4) 与 `Tag_GNU_MIPS_ABI_MSA` (8)）读取；程序头与 section 声明必须一致，重复、冲突、截断、越界记录拒绝。
+- 拒绝项：ELF64、n32/n64、microMIPS、PSP PRX、扩展编号 section header、显式 `EF_MIPS_FP64` 与 `EF_MIPS_NAN2008`。标准 lane 只认 `EF_MIPS_ARCH_32R2`——`EF_MIPS_ARCH_32` 一旦检出 ABI 记录就变成拒绝。
+
+**固定语言：** `MIPS:LE:32:default` 或 `MIPS:BE:32:default`（`provider-pinned-v1`），导入后校验 `language_id`；环境变量覆盖优先于 pin，pin 与覆盖组合是类型化拒绝。
+
+**soft-float：** Ghidra 的 MIPS32 编译规范只建模 hard-float o32（参数在 `$f12`/`$f14`，返回在 `$f0`）。soft-float 目标由脚本 `ReaGhidraMipsSoftFloat.java` 安装 `__rea_soft_float` 原型（提交 `mips_soft_float_storage: o32-soft-float-prototype-v1`）；派生失败或不交报告时 REA 拒绝会话。hard-float profile 不受影响。
+
+**使用：**
+
+```bash
+rea analyze /absolute/path/to/mips.elf --provider ghidra --json
+rea function /absolute/path/to/mips.elf function_name --provider ghidra --json
+```
+
+**受限成员 lane：**
+
+- MIPS16 shared images：ELF32 `ET_DYN`，任意字节序，o32 加 32R2 加恰好 MIPS16 ASE；Ghidra 可能把 MIPS16 函数指针归一化为偶地址、丢失模式位，REA 拒绝该形态而非改写。混合代码靠 per-address `ISA_MODE` 保留，不用全局 `16e` 变体。
+- `ET_REL`（如内核模块 `.ko`）：lane `elf32-rel-o32-arch32r2-standard-v1`；HI16 重定位报 `PARTIAL`（与 LO16 成对应用）；内核模块多为 soft-float，同样套用 `__rea_soft_float` 原型。
+
+**验证：**
+
+```bash
+GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra npm run verify:ghidra:mips
+GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra npm run verify:ghidra:mips-relocatable
+```
+
+需要调用方自备带 MIPS 目标的 Clang、LLD 与 GNU readelf，用 `REA_MIPS_CLANG`、`REA_MIPS_READELF` 指定路径；MIPS16 通道是 `npm run verify:ghidra:mips-shared`，另需 GNU 交叉 binutils（`REA_MIPS_AS`、`REA_MIPS_LD`）。
+
+### PowerPC ELF
+
+PowerPC 通道是“固定语言为什么重要”的典型样本：头部无法区分 750 家族和 e500，钉错语言就会误读浮点代码。
+
+**接纳条件：** 只认 `EM_PPC` (20)，`EM_PPC64` (21) 不在该家族；仅 ELF32 `ET_EXEC` 大端。ELF64、小端、`ET_REL`、共享对象、`EF_PPC_EMB`（嵌入式变体声明）全部拒绝；其余 `e_flags` 位只声明重定位约定，不影响指令解码。
+
+**固定语言：** Ghidra ELF 加载器对 `e_flags=0` 的普通 `EM_PPC` 默认选择是 `PowerPC:BE:32:e500:default`——e500 是嵌入式 Book-E 变体，SPE 单元取代经典 FPU，会误读 750 家族的普通代码。REA 因此改为 pin `PowerPC:BE:32:default` 加编译器规格 `default`，并在分析配置中提交 `language_selection: "provider-pinned-v1"`。真正的 e500 代码用覆盖切换：
+
+```bash
+REA_GHIDRA_LANGUAGE_ID=PowerPC:BE:32:e500 rea analyze /absolute/path/to/ppc.elf --provider ghidra --json
+```
+
+**使用：**
+
+```bash
+rea analyze /absolute/path/to/ppc.elf --provider ghidra --json
+rea function /absolute/path/to/ppc.elf function_name --provider ghidra --json
+```
+
+MCP 侧用现有工具（`open_binary` 加 `provider_id: "ghidra"`），没有 PowerPC 专用工具或模拟器。
+
+**边界与验证：** 不执行 PowerPC 代码；GameCube/Wii DOL、PPC64 及其他变体是后续工作（issue #1741 的第一个里程碑）。验证通道按 `-mcpu=750` 编译夹具，e500 导入会让通道直接失败：
+
+```bash
+GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra npm run verify:ghidra:ppc
+```
+
+需要 `REA_PPC_CLANG` 与 `REA_PPC_READELF` 指向带 PowerPC 目标的 Clang 与 GNU readelf；GNU readelf 独立提供头部事实与符号地址，在生产解析器启动前比对。
+
+### PSP ELF
+
+PSP 通道构建在通用 MIPS 通道之上（issue #1330）：Allegrex 指令、PSP 加载与调用约定由第三方扩展 ghidra-allegrex（kotcrab）提供，REA 只负责接纳判断、指纹校验和证据语义，从不下载、安装、重建或 vendor 该扩展。
+
+**接纳条件（比通用 MIPS 更窄）：**
+
+- Linux x64 主机；小端 ELF32 `ET_EXEC`，`EM_MIPS`，`e_flags=0x10a23001`——这些位声明 MIPS II、Allegrex、EABI32、NOREORDER，但不证明每条指令语义。
+- 必须有可检视的 version-0 MIPS ABI flags 记录：ISA level 2/revision 0、32 位 GPR 与 CPR1、无 CPR2、单精度硬浮点（`fpAbi=2`）、无 ISA 扩展或 ASE、`flags1=1`、`flags2=0`；声明须与 PSPDEV v20261001 的 GNU readelf 2.44 及 24 字节 section dump 独立一致。缺失、未检视、矛盾或其他生产者的声明一律拒绝——PSP 不是通用 MIPS32r2/o32 策略的例外。
+
+**特殊前提——自装扩展：** 把 ghidra-allegrex 放到 `$GHIDRA_INSTALL_DIR/Ghidra/Extensions/ghidra-allegrex`，须含 `Module.manifest`、`extension.properties`、language 文件与 loader JAR；扩展 `version` 属性声明的是兼容的 Ghidra 版本（非发布 tag），必须与所选安装匹配。维护的兼容组合：Ghidra 12.1.3、扩展 v21.4、PSPDEV v20261001、JDK 21。REA 解析 profile 前对扩展文件做指纹、启动前再校验（限额 1024 个条目、16 层目录、64 MiB）；symlink、非常规文件、组件缺失、元数据不兼容都拒绝。缺前置条件时返回 `PSP_EXTENSION_UNAVAILABLE` 并附安装说明，无 provider 回退、无自动安装。
+
+**使用：** 加载器显式为 `PspElfLoader`，语言 `Allegrex:LE:32:default`；握手须先确认语言与编译器才返回观测。
+
+```bash
+rea analyze /absolute/path/to/psp.elf --provider ghidra --json
+rea function /absolute/path/to/psp.elf function_name --provider ghidra --json
+```
+
+**边界：** PRX、可重定位/共享镜像、PBP/ISO/CSO 容器、运行时模拟、live overlays 均不支持；文件名不能标识 PSP 目标；扩展未完整建模 VFPU prefix 效果，非空反编译代码不证明向量行为正确。
+
+**验证：**
+
+```bash
+npm run build:cached
+node scripts/verify-real-ghidra-mips.mjs --psp
+node scripts/verify-real-ghidra-mips.mjs --psp-missing-extension
+npm run verify:ghidra:mips
+```
+
+`--psp-missing-extension` 在无 Allegrex 的临时安装中测试公开拒绝路径；最后一条确认装了 Allegrex 之后 generic MIPS 通道仍保持 generic。需要调用方提供 `make`、`psp-config`、`psp-gcc`、`psp-readelf`、`psp-objdump` 及环境变量 `PSPDEV`、`GHIDRA_INSTALL_DIR`、兼容的 `JAVA_HOME`。
+
+### RISC-V ELF
+
+RISC-V 通道与通用 MIPS 采用相同 lane 结构（issue #2063），钉语言的原因在 32 位上最直观：Ghidra 的自动 opinion 会选错。
+
+**接纳条件：** 小端 ELF32 或 ELF64 `ET_EXEC`，声明 `EF_RISCV_FLOAT_ABI_DOUBLE`；`EF_RISCV_RVC` 可以与浮点 ABI 组合出现，但出现 `EF_RISCV_RVE`、`EF_RISCV_TSO` 或任何保留、未知位即拒绝。大端拒绝（Ghidra 12.1.4 没有大端 RISC-V 语言）；`ET_REL`、`ET_DYN` 拒绝；软浮点、单精度、四精度 ABI 拒绝（固定规范只建模双精度）。`e_type` 是唯一读取的加载形状声明：不检查 `PT_INTERP` 与动态依赖，也不据此推断静态链接。无头输入走 raw-binary 边界（见 [4.1.2 原始二进制与诊断](?path=/docs/raw-binary-diagnostics--docs)），不支持 raw RISC-V 镜像。
+
+**固定语言：** 12.1.4 的 `riscv.opinion` 只固定了 64 位 variant；实测 RV32 ELF（`e_flags 0x5`，无 Andes 声明）会被自动选成 `RISCV:LE:32:AndeStar_v5:gcc`。REA 固定 `RISCV:LE:32:default` 或 `RISCV:LE:64:default` 加 `gcc`，记录 `language_selection: provider-pinned-v1`；匹配的 `REA_GHIDRA_LANGUAGE_ID`/`REA_GHIDRA_COMPILER_SPEC_ID` 覆盖记为 `configured-v1`，不匹配的覆盖被拒绝且不修改请求值。
+
+**使用与证据：** lane 标识为 `elf32-exec-le-double-float-generic-v1` 或 `elf64-exec-le-double-float-generic-v1`；`riscv_elf` 保留 `elf_class`、`byte_order`、`type`、原始 `flags`，另有只读布尔 `float_abi_double`、`rvc_declared`、`rve_declared`、`tso_declared`——这些只是头部声明，不证明编译器来源。
+
+```bash
+rea analyze /absolute/path/to/rv64.elf --provider ghidra --json
+rea function /absolute/path/to/rv64.elf function_name --provider ghidra --json
+```
+
+**环境与验证：** Ghidra 12.1.4 PUBLIC 加 64 位 JDK 21+；macOS 没有宿主反编译器二进制，需自建 `Decompiler/os/<platform>/decompile` 与 `sleigh`。验证脚本用 LLVM readelf 独立观察声明与符号地址，环境变量默认取 PATH：
+
+```sh
+GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC \
+JAVA_HOME=/path/to/jdk-21 \
+REA_RISCV_CLANG=/path/to/llvm/bin/clang \
+REA_RISCV_LLD=/path/to/lld/bin/ld.lld \
+REA_RISCV_READELF=/path/to/llvm/bin/llvm-readelf \
+npm run verify:ghidra:riscv
+```
+
+未覆盖：调用图完整性、字符串清单、动态链接、Andes/RVE/TSO 镜像、大端目标；`.riscv.attributes` 的 ISA 扩展不检查，通用语言固定只是分析约定。
+
+### NativeAOT 元数据恢复
+
+这条成员不是 CPU 平台，而是一条可选的元数据恢复 lane：内置只读解析器针对 x64 PE32+ 加 .NET 8 ReadyToRun（RTR）9.1，从采集的 Ghidra 会话快照解析再水化（rehydrated）元数据。解析器不定义 Ghidra DataTypes、labels、functions，不改内存字节——再水化字节只存在于解析器自有覆盖层；只有可选的 headless 适配器（JAR）才把注解写进数据库。
+
+**接纳条件：** 仅 x64 PE32+ 与 RTR 9.1；要求已初始化的非可执行 PE 签名扫描、唯一 RTR 9.1 头、恰好一行 `DEHYDRATED_DATA`；其他 RTR 版本与其他架构报告 `unsupported` 或 `partial`。分流判断：PE/CLI 或普通 ReadyToRun 程序集应走托管分析入口 `inspect_managed_artifact`（见 [5.1 .NET 程序集](?path=/docs/managed-assemblies--docs)），不走本 lane。
+
+**特殊前提——可选适配器（仅数据库注解需要）：**
+
+```sh
+git submodule update --init third_party/ghidra-nativeaot
+npm run build:ghidra:nativeaot
+export REA_GHIDRA_NATIVEAOT_JAR="$PWD/_reference/nativeaot-integration/extension/rea-ghidra-nativeaot.jar"
+```
+
+`REA_NATIVEAOT_BUILD_ROOT` 与 `REA_NATIVEAOT_SOURCE` 可选覆盖输出目录与源码 checkout；构建要求干净的 pinned 上游 checkout。有界加载器接受最大 8 MiB 的常规 JAR；REA 把 JAR 的 SHA-256 提交进分析 profile 并在加载前重检，会话关闭时关闭 classloader 与 project。适配器在临时 Program 事务里注解，可改分析内存字节，绝不改原始可执行文件；Windows P0 无数据库写权限，适配器不可用。
+
+**使用（无适配器也能用解析器）：**
+
+```sh
+rea inspect-native-load-image ./NativeAotFixture --provider ghidra --json
+rea inspect-native-data-type ./NativeAotFixture --address 0xMETHODTABLE_ADDRESS --provider ghidra --json
+rea function ./NativeAotFixture 0xADDRESS --provider ghidra --json
+```
+
+- `inspect-native-load-image` 内联返回 `observations.metadata_recovery`：RTR 头、MethodTable 地址、冻结字符串、派生覆盖层身份、examined/recovered 计数。外层 `unsupported` 只表示未做独立 PE load-image 校验，不代表解析器或加载失败。
+- `inspect-native-data-type` 直接吃 MethodTable 地址，不要求先调 load-image；无适配器时数据库结果为 `unavailable`，来源标 `read-only-derived-overlay`，按 `address` 选择即可。
+- 冻结字符串不进数据库字符串清单：`search_strings` 看不到，要读 `metadata_recovery.frozen_strings`。
+- `analyze_function` 与 `rea function` 跟随虚槽位（virtual slots）目标反编译，可配合普通交叉引用。
+
+**资源上限与边界：** 采集的 PE 字节 128 MiB、解析器工作量 64 MiB 等价、覆盖层/索引 Buffer 64 MiB、报告 JSON 4 MiB；超出报告预算的行被省略并带显式 partial 状态与覆盖率。恢复的伪代码是原生逻辑，不是原始 C# 源码；原始类/成员名与自定义字段布局未知，参数与方法原型是推断，需对照指令与调用点验证；覆盖计数不覆盖所有运行时类型。恢复不支持时报告阶段与原因，不代表普通原生反汇编/反编译不可行。
+
+## 最佳实践
+
+- **先读头部，再选通道。** 用独立的 readelf 工具核对 class、字节序、`e_type`、`e_flags` 与 ABI 记录，再决定走哪条通道；每个拒绝都会指名具体字段，按字段改判比反复试跑快。PSP 更进一步，要求声明与 PSPDEV 的 readelf 独立一致。
+- **语言覆盖只在确认真变体后使用。** pin 的存在就是因为 Ghidra 自动选择会错：PowerPC 的 e500 opinion、RISC-V 的 AndeStar 误选、MIPS 的语言漂移握手拒绝。`REA_GHIDRA_LANGUAGE_ID`/`REA_GHIDRA_COMPILER_SPEC_ID` 适合“我确知这是 e500”这类场景；不匹配的覆盖会被类型化拒绝，不会悄悄生效。
+- **装了 Allegrex 之后复查 generic MIPS。** PSP 通道要求安装 ghidra-allegrex，但它不应改变 generic MIPS 通道的边界；安装后跑一次 `npm run verify:ghidra:mips`，确认 generic 仍是 generic。
+- **托管与原生分流。** .NET 的 IL 程序集、PE/CLI 或普通 ReadyToRun 构件走托管分析入口 `inspect_managed_artifact`；NativeAOT lane 只服务 x64 PE 上的 RTR 9.1 元数据恢复，不支持的场景会显式报告 `unsupported`，不代表原生反汇编不可行。
+
+## 常见问题
+
+- MIPS 二进制里没有 ABI flags 记录，能按 o32 直接分析吗？
+  只有 ELF32 `ET_EXEC`、声明 `EF_MIPS_ARCH_32` 或 `EF_MIPS_ARCH_32R2`、`EF_MIPS_ABI2` 清零且经检查确认无记录时，才走 recordless legacy 准入，o32 只是写入 Evidence 限制的分析假设；`ET_REL` 或声明了 ABI 的文件不在其列。缺记录不等于允许：Clang 对 FP32、FP64、soft-float 可以生成完全相同的 `e_flags`，缺了记录就无从判断浮点 ABI。
+- 普通 PowerPC（750 家族）程序反编译结果可疑，是不是语言选错了？
+  先核对导入语言。Ghidra 对 `e_flags=0` 的默认 opinion 是 `PowerPC:BE:32:e500:default`，e500 的 SPE 单元取代经典 FPU，会误读 750 代码；REA 默认已改为 pin `PowerPC:BE:32:default`。只有确知目标真是 e500 时，才用 `REA_GHIDRA_LANGUAGE_ID=PowerPC:BE:32:e500` 覆盖；错误覆盖会让验证通道直接失败。
+- 同一个 RV32 文件换个环境分析，结果会漂移吗？
+  会，如果依赖 Ghidra 自动选择：12.1.4 的 `riscv.opinion` 只固定了 64 位 variant，无 Andes 声明的 RV32 ELF（`e_flags 0x5`）会被选成 `RISCV:LE:32:AndeStar_v5:gcc`。用 REA 的通道则固定为 `RISCV:LE:32:default` 加 `gcc`，不要依赖自动 opinion。
+- PSP 目标一打开就报 `PSP_EXTENSION_UNAVAILABLE` 怎么办？
+  ghidra-allegrex 扩展没装、装错位置或版本不匹配。把扩展放到 `$GHIDRA_INSTALL_DIR/Ghidra/Extensions/ghidra-allegrex`，确认其 `version` 属性声明的 Ghidra 版本与当前安装一致（维护的组合是 Ghidra 12.1.3 加扩展 v21.4）；REA 不会自动下载安装，也没有 provider 回退。
+- `.com` 文件直接 `analyze` 被拒绝了。
+  COM 没有标识头部，后缀不足以判定格式。必须显式给 `--target-format dos-com`，且文件大小在 1 到 65280 字节之间；该解释作用于整个文件，不接受隐式推断。
+- NativeAOT 目标在 `search_strings` 里找不到已知的冻结字符串。
+  冻结字符串不进数据库字符串清单。改读 `inspect-native-load-image` 返回的 `metadata_recovery.frozen_strings`；解析器不会把它们合并进 Ghidra 字符串列表。
+
+## 总结回顾
+
+摘要：
+
+REA 的 Ghidra provider 在 Windows PE 通用通道之外维护六条平台专题通道：DOS（MZ 与 COM）、MIPS、PowerPC、PSP、RISC-V 和 NativeAOT 元数据恢复。每条通道都由准入边界、固定语言、证据语义和可选验证通道四层组成：头部声明逐项核对，范围外即指名拒绝；Ghidra 语言以 `provider-pinned-v1` 钉死，防住 e500、AndeStar 这类自动选择错误；Evidence 与快照保留家族与 lane 身份；六条通道都只做静态分析，不执行、不模拟、不自动安装缺失组件。成员各有额外前提：PSP 需要自装 ghidra-allegrex 扩展并通过指纹校验，NativeAOT 的数据库注解依赖可选 JAR 适配器，MIPS 的 soft-float 与 MIPS16 走独立受限 lane，recordless 准入则把 o32 假设显式写进 Evidence 限制。
+
+一句话：
+
+> 专题通道的本质是“窄准入加固定语言”：头部声明决定通道，匹配不上就指名拒绝，绝不静默降级。
+
+知识要点：
+
+- 六条通道各自接纳什么头部形态、固定什么 Ghidra 语言与加载器？
+- PowerPC 与 RISC-V 的语言为什么要 pin？`REA_GHIDRA_LANGUAGE_ID` 覆盖在什么条件下生效、什么条件下被拒？
+- MIPS 缺 ABI 记录时的 recordless 准入条件是什么，代价写在哪里？
+- PSP 需要哪些自备前提？缺扩展时报什么错、怎么补救？
+- NativeAOT lane 与托管分析路径如何分流？冻结字符串要去哪里读？
+
+## 参考资料
+
+- [使用 Ghidra 进行 DOS MZ 和 COM 分析](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-dos.md)
+- [MIPS ELF analysis through Ghidra](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-mips.md)
+- [PowerPC ELF analysis through Ghidra](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-ppc.md)
+- [PSP static ELF analysis through Ghidra](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-psp.md)
+- [RISC-V ELF analysis through Ghidra](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-riscv.md)
+- [Optional NativeAOT metadata recovery](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-nativeaot.md)

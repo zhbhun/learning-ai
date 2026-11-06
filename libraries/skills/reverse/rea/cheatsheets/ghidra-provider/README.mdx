@@ -1,0 +1,238 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="ghidra-provider" title="原生二进制/反汇编 Provider/Ghidra 接入" name="Docs" />
+
+# Ghidra 接入
+
+Ghidra provider 让 REA 用本机已安装的 Ghidra 12.1.x 完成原生二进制的反汇编与反编译。接入模型只有三步：把 Ghidra 与 JDK 的安装位置通过环境变量指给 REA，用 `rea doctor --provider ghidra` 验证就绪，然后照常用 `--provider ghidra` 发起分析。REA 从不安装 Ghidra、Java 或 Python——"接入"的本质是给你已有的安装指路，并让配置错误显形而不是被悄悄绕过。
+
+首次查询会启动一次 headless `analyzeHeadless` 导入：临时 project、只读、不碰已有用户项目，bridge socket 要等默认自动分析完成后才就绪——所以首次查询最慢，且受启动预算（默认 330 秒）约束；之后同一目标的查询复用会话，毫秒级返回。Windows 上只有实验性的只读 P0 边界，有独立的准入条件与自检规则。
+
+| 输入 | 环境变量 | 默认行为或取值 |
+| --- | --- | --- |
+| Ghidra 安装目录 | `GHIDRA_INSTALL_DIR` | 未设置时从 `PATH` 发现 `ghidra`/`ghidraRun`，仅接受完整 Ghidra 树 |
+| JDK 位置 | `JAVA_HOME` | 可省；`java`/`javac` 已在 `PATH` 上即可 |
+| 分析引擎偏好 | `REA_ANALYSIS_PROVIDER` | 未设置；多引擎支持同一目标时必须显式选择 |
+| headless 启动预算 | `REA_GHIDRA_STARTUP_TIMEOUT_MS` | 默认 `330000` ms，取 1 到 2147483647 的整数 |
+| JVM 最大堆 | `GHIDRA_HEADLESS_MAXMEM` > `GHIDRA_MAXMEM` | 都未设置时默认 `2G` |
+| 禁用分析器 | `REA_GHIDRA_DISABLED_ANALYZERS` | 未设置；逗号分隔精确名，最多 32 个 |
+| 导入语言覆盖 | `REA_GHIDRA_LANGUAGE_ID` + `REA_GHIDRA_COMPILER_SPEC_ID` | 未设置；DOS 导入拒绝覆盖 |
+| 分析种子 | `REA_GHIDRA_SEED_FILE` | 未设置；TSV 文件，先于自动分析应用 |
+
+## 快速上手
+
+macOS/Linux 上的最小闭环：指路、验证、发起分析。
+
+```bash
+# 1. 指路：Ghidra 安装与 JDK（java/javac 已在 PATH 上时 JAVA_HOME 可省）
+export GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra_12.1.4_PUBLIC
+export JAVA_HOME=/absolute/path/to/jdk-21
+
+# 2. 验证就绪：退出码 0 表示 Ghidra 就绪范围内的必需检查全部通过
+rea doctor --provider ghidra --json
+
+# 3. 发起分析：首次查询启动 headless 导入，可能耗时数十秒到数分钟
+rea analyze /absolute/path/to/program --provider ghidra --json
+```
+
+doctor 失败时按输出中的失败项修复后重跑；首次查询报 `provider_timeout` 表示启动预算不足而不是安装坏了——处理方式见下方"就绪诊断"。Windows PowerShell 的等价配置见下方"Windows 平台边界"。
+
+## 前置条件
+
+全部由用户自备，REA 不代装任何一环：
+
+- **Ghidra 12.1.x**：以 Ghidra 12.1.4 加 JDK 21 验证。安装必须自带 `support/analyzeHeadless`（或 `analyzeHeadless.bat`）与 `javac`（或 `javac.exe`）。
+- **64 位完整 JDK**：JVM 21 或更新（无上限），且在该 Ghidra 安装声明的 Java 范围内；JVM 报告的平台必须映射到与主机相同的反编译器目录——模拟运行的 JDK 或报告非主机 `os.name` 的 JDK 会被 doctor 拒绝。
+- **本机架构的反编译器组件**：Ghidra 安装需在 `Ghidra/Features/Decompiler/os/<platform>/` 或 `build/os/<platform>/` 内含本机架构的反编译器；Linux ARM64 对应目录 `linux_arm_64`，官方压缩包可能需要自行编译该组件。
+- **Linux 主机**：`PATH` 上要有 procps 兼容的 `ps`——进程监督器用它做所有权检查，缺失或不兼容会在启动子进程前拒绝。
+- **Windows P0 主机**：Windows 10+ x64，目标卷与临时卷都在本地 NTFS 上；Node.js 22.x（不低于 22.19）、24.x（不低于 24.11）或 26+。
+- **Python 不是前置**：REA 不依赖 PyGhidra，也不要求用户构建 native addon。
+
+## 环境变量配置
+
+三个变量决定 provider 能否就绪：`GHIDRA_INSTALL_DIR`、`JAVA_HOME` 与引擎选择。引擎选择上，`REA_ANALYSIS_PROVIDER=ghidra` 是长期偏好，命令行 `--provider ghidra` 与 MCP `open_binary` 的 `provider_id` 是单次显式选择；Hopper、IDA 等多引擎都支持同一目标时必须显式选择，否则报 `ambiguous`。运行时 provider 故障永远不会自动切换到另一个 provider。provider 机制与引擎管理本身归「Provider 体系」一课，本课只管把 Ghidra 配好。
+
+### Ghidra 安装目录
+
+`GHIDRA_INSTALL_DIR` 的发现规则是本课最重要的行为差异：
+
+- **显式指定永远优先**：即使路径无效也直接报错，不会回退到自动发现——配置错误显形，诊断更快。
+- **未设置时按 `PATH` 发现**：doctor 搜索 `ghidra` 或 `ghidraRun`，只有其真实路径位于完整 Ghidra 树内才接受；启动器包装脚本或部分安装会被拒绝。
+
+始终给绝对路径（如 `export GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra_12.1.4_PUBLIC`）是最省事的写法。
+
+### JDK 选择
+
+`JAVA_HOME` 选择与 Ghidra 匹配的 JDK；`java` 与 `javac` 都在 `PATH` 上时可省略。macOS 的 Homebrew OpenJDK 是 keg-only 安装，必须指向其真实 Home，即 `libexec/openjdk.jdk/Contents/Home` 这一层，而不是软链接所在的顶层目录。
+
+### MCP 注册示例
+
+MCP 方式接入时，环境变量写在服务器条目的 `env` 里；路径为示例，修改注册后需重启 MCP 客户端：
+
+```json
+{
+  "mcpServers": {
+    "rea": {
+      "command": "C:\\tools\\node\\node.exe",
+      "args": ["C:\\tools\\rea\\scripts\\rea.mjs", "mcp"],
+      "env": {
+        "REA_ANALYSIS_PROVIDER": "ghidra",
+        "GHIDRA_INSTALL_DIR": "C:\\tools\\ghidra_12.1.4_PUBLIC",
+        "JAVA_HOME": "C:\\tools\\jdk-21"
+      }
+    }
+  }
+}
+```
+
+## headless 启动与会话
+
+每次分析会话都是一次性的 headless 导入，理解这一点就能预测超时、内存与残留行为：
+
+- 临时 ephemeral project 加隔离的 home/cache/config/temp 路径；传 `-readOnly` 与 `-deleteProject`，绝不打开已存在的用户项目。
+- 一次 `analyzeHeadless` 导入恰好产出一个 Program（`list_documents` 恰好返回一个名称）。
+- bridge socket 等默认自动分析完成后才暴露——这是首次查询慢的根源。
+- 关闭或切换目标即关闭绑定的文档并停掉 bridge；Linux/macOS 使用当前用户专属的本地 socket，路径超长时在 `/tmp` 下另建 owner-only 目录并在退出时删除。
+- Linux/macOS 上除只读分析外，还允许原子化的函数名/入口注释编辑，并在导入时为 `malloc`、`memcpy`、`strlen` 等清除 no-return 标志；Windows P0 两者都不做。
+
+### 启动预算
+
+- 默认 330,000 ms，覆盖导入、分析、bridge 与 health 就绪全过程；用 `REA_GHIDRA_STARTUP_TIMEOUT_MS` 调整，取值必须是该区间内的整数——留空、无效或越界都会导致配置校验失败。
+- 该预算独立于 MCP 传输初始化和单个工具调用的客户端超时：MCP 客户端的默认短超时可能小于它，两头都要看。
+- 超时报 `provider_timeout`，错误信息会指出该变量名与本次使用的 deadline，并建议用 `REA_GHIDRA_DISABLED_ANALYZERS` 减载。
+- macOS 另有一条独立计时的 Darwin ownership-helper 编译准备（默认 120,000 ms，`REA_SWIFTC_COMPILE_TIMEOUT_MS`），Java 探测会先等待它完成。
+
+### 内存与 CPU
+
+- 堆上限优先级：`GHIDRA_HEADLESS_MAXMEM` > `GHIDRA_MAXMEM` > 默认 `2G`，作为 JVM `-Xmx` 传入；无效值会让 Java 启动失败。示例：`export GHIDRA_HEADLESS_MAXMEM=512M`。
+- 堆只限 Java heap：不限制 JVM RSS、Node 堆或进程族总内存。
+- REA 清空继承的 `_JAVA_OPTIONS`、`JAVA_TOOL_OPTIONS`、`JDK_JAVA_OPTIONS` 与 `GHIDRA_JAVA_OPTIONS`（有意隔离），自己持有 `GHIDRA_HEADLESS_JAVA_OPTIONS`；不支持经由被清空的注入变量加自定义 flag，包括第二个 `-Xmx`。
+- Linux/macOS 启动固定 `-XX:ParallelGCThreads=2` 与 `-XX:CICompilerCount=2`，且不传 Ghidra 的 `-max-cpu`；需要限制 CPU 时对 REA 进程设置 affinity 并验证 JVM——首个 Ghidra 查询启动 JVM 后，在 Linux 检查 `/proc/<jvm-pid>/cmdline`、`/proc/<jvm-pid>/status` 的 `Cpus_allowed_list` 与 `VmRSS`。
+
+### 导入覆盖与禁用分析器
+
+三类覆盖都在导入前生效，并记入分析 profile：
+
+- **语言覆盖**：`REA_GHIDRA_LANGUAGE_ID` 指定 Ghidra 语言，`REA_GHIDRA_COMPILER_SPEC_ID` 可选指定编译器规格（必须配合语言使用）。覆盖以 `-processor`/`-cspec` 传入、对 `.ldefs` 校验并记入分析 profile；DOS 导入一律拒绝覆盖。何时覆盖、覆盖与平台通道固定语言的关系见 [4.2.3 Ghidra 平台专题](?path=/docs/ghidra-platforms--docs)。
+- **种子文件**：`REA_GHIDRA_SEED_FILE` 指向 TSV，每行格式：
+
+  ```text
+  address<TAB>kind[<TAB>name]
+  ```
+
+  kind 为 `function`/`code`/`label`（label 必须带名称），`#` 开头是注释，地址用默认空间的 `0x` 十六进制。种子先于自动分析应用（函数从高地址到低、再代码、再标签）；seed digest 属于分析 profile，不一致时会话失败；种子与已解码指令重叠视为失败，function/code 种子要求落在已初始化字节上（label 可以指向 `.bss` 等未初始化存储）。
+- **禁用分析器**：`REA_GHIDRA_DISABLED_ANALYZERS` 收逗号分隔的精确名称，最多 32 个、每个最长 120 字符，只允许字母、数字、空格、句点、下划线与连字符；名称未知或未真正禁用时 headless 导入直接中止。实际生效组合记录在 `analyzer_preset`（如 `ghidra-default+disabled:Objective-C Message Analyzer`）；Windows PE 的资源分析器名为 `WindowsResourceReference`。
+
+## 就绪诊断
+
+### doctor 检查什么
+
+`rea doctor --provider ghidra --json` 对 Ghidra 引擎做只读就绪诊断。`--provider` 接受 Hopper、Ghidra、IDA、JADX；`pwntools-elf` 等其他适配器不进 doctor——它们缺配置时直接在调用处报告要求。
+
+就 Ghidra 而言，doctor 检查：
+
+- **安装发现**：显式 `GHIDRA_INSTALL_DIR` 优先且无效即报错；未设置时按 `PATH` 发现并校验完整 Ghidra 树。
+- **JDK**：64 位完整 JDK、版本在 Ghidra 声明范围内、平台映射与主机一致。
+- **主机前置**：如 Linux 的 procps `ps`；Windows P0 另有 native 控件自检（见下文）。
+
+读法与 [1.1 安装与设置](?path=/docs/installation--docs)一致：带 `--provider` 时 `scope.mode` 为 `explicit`，由 `scope_checks` 决定 `healthy` 与退出状态，其余检查进入 `informational_checks`，`environment_healthy` 概括全量审计。退出码为 1 当且仅当选定就绪范围内的必需检查失败；无关的可选 provider 不可用只是 informational，不影响退出码。两个边界：doctor 检查文件与主机前置，不检查代理的活连接；它也不保证某个具体输入会被接受。
+
+### 故障判断
+
+| 现象或错误 | 判断 | 处理 |
+| --- | --- | --- |
+| `ambiguous`，`details.candidate_ids` 列出候选 | 多引擎支持同一目标 | `--provider ghidra` 单次选择，或设 `REA_ANALYSIS_PROVIDER` |
+| `provider_unavailable`，看 `remediation.action` 与 `details.rejections` | 引擎不可用，rejections 保留原始原因 | 按原因修复后重跑 doctor |
+| 首次查询报 `provider_timeout` | headless 启动超预算 | 调大 `REA_GHIDRA_STARTUP_TIMEOUT_MS`，或用 `REA_GHIDRA_DISABLED_ANALYZERS` 减载 |
+| doctor 找不到 Ghidra | 未设 `GHIDRA_INSTALL_DIR` 且 `PATH` 上无完整树 | 设置安装目录绝对路径 |
+| doctor 拒绝 JDK | 非 64 位完整 JDK、超出声明范围或平台不映射 | `JAVA_HOME` 指向本机 64 位 JDK；macOS 注意 keg-only 路径 |
+| Linux 启动前拒绝（`capability_unavailable`/`provider_unavailable`/`execution_failure`） | procps 兼容的 `ps` 缺失或不兼容 | 安装 `procps`/`procps-ng` 或放置兼容的 `ps` |
+| Windows `runtime_missing`（doctor 分类 `missing_dependency`） | Windows x64 native 产物缺失、不匹配或无法加载 | 换用匹配的 Windows x64 包；重新注册 MCP 不能替代 |
+| Windows `runtime_unavailable`（doctor 分类 `runtime_failure`） | native 调用失败，不代表平台不受支持 | 见下方原生自检失败 |
+
+## Windows 平台边界
+
+### 支持范围
+
+- **状态**：实验性 Windows x64 只读 P0 支持。宿主 Windows 10+ x64，目标卷与临时卷须在本地 NTFS 上。
+- **目标 PE**：x86、x86-64、ARMNT（Thumb-2，机器码 `0x01C4`）与 ARM64（`0xAA64`）应用/DLL，外加显式选择的 raw NMOS 6502 镜像；合计 26 个只读操作。拒绝 ARM64EC（`0xA641`）、ARM64X、legacy ARM（`0x01C0`）与 Thumb（`0x01C2`）；ARMNT/ARM64 目标支持不等于 Windows on ARM 宿主支持。
+- **只读边界**：无 GUI 控制、无持久化数据库变更、可执行字节保持不变；函数改名/注释与导入修复在 Windows P0 上都不运行；PE load-image 检查返回明确的 `unsupported attestation status`。
+- **发布边界**：已发布的 npm 包直到 5.0.0 仅支持 x86-64 PE；仓库 main 分支额外支持本地 x86（32 位）PE——用旧包时先核对安装文档的 release boundary。
+- **路径准入**：路径中的命令解释器元字符不受支持；SUBST 别名、reparse 点、UNC 路径与备用数据流被排除。
+
+### 已知问题与规避
+
+受限验证环境（2 逻辑 CPU、512 MiB Node/JVM 堆、900 秒启动预算）暴露了三类真实问题，规避都落在环境变量与客户端配置上：
+
+- **默认分析器配置在该预算内完不成。** 用 `REA_GHIDRA_DISABLED_ANALYZERS=WindowsResourceReference` 减载。
+- **冷启动/冷分析极慢**（个体观察，非保证值）：Coreinfo ARM64 首次函数查询约 434 秒、同会话重读约 23 ms；MSVCR120 ARM DLL 首查约 601 秒——一次 900 秒的尝试超时，把启动预算提高到 1800 秒后完成。
+- **MCP 客户端默认短超时可能不够。** 验证通道沿用 330 秒 provider startup deadline；客户端侧也要调大超时，只调 REA 一头没用。
+
+PowerShell 配置与验证命令：
+
+```powershell
+$env:GHIDRA_INSTALL_DIR = "C:\tools\ghidra_12.1.4_PUBLIC"
+$env:JAVA_HOME = "C:\tools\jdk-21"
+$env:REA_ANALYSIS_PROVIDER = "ghidra"
+rea doctor --provider ghidra --json
+```
+
+### 原生自检失败
+
+Windows P0 在 provider 就绪前要跑 native 控件自检，全部通过前 provider 保持不可用。失败分三类：
+
+- `unsupported_host`：宿主不兼容。
+- `runtime_missing`（doctor 分类 `missing_dependency`）：native 产物缺失、版本不匹配或无法加载——需要匹配的 Windows x64 包，重新注册 MCP 不能替代。
+- `runtime_unavailable`（doctor 分类 `runtime_failure`）：native 调用失败或检查无效——不代表 Windows x64 本身不受支持。
+
+失败阶段与修复建议保留在 `windows_native_failure` 字段下，自检失败附 native 操作与 OS 错误文本。
+
+关键判断：**重装 Ghidra 或 Java 解决不了 native 自检失败。** 自检失败的常见根因是环境约束——检查进程可写的本地 NTFS 临时目录，以及报告中的文件系统、DACL、Job Object 或清理约束，解决后重跑 doctor。可重试类失败在下次查询即可重试；产物或畸形检查类失败在进程生命周期内保持稳定。私有运行时以 DACL 限当前用户与 SYSTEM、走 `127.0.0.1` 回环临时端口加 256 位 bearer token、用 Job Object 原子加入；崩溃后的事务性删除不做保证，可能遗留私有运行时文件。
+
+## 最佳实践
+
+- **显式路径优先。** `GHIDRA_INSTALL_DIR` 总是设绝对路径：显式无效会报错而非静默回退，`PATH` 发现只接受完整 Ghidra 树——让配置错误显形，比排查"为什么用了另一个安装"快。
+- **先调预算、禁分析器，再怀疑安装。** `provider_timeout` 的第一反应是 `REA_GHIDRA_STARTUP_TIMEOUT_MS` 与 `REA_GHIDRA_DISABLED_ANALYZERS`（Windows 上首选 `WindowsResourceReference`）；Windows native 自检失败的第一反应是查卷与权限约束——重装 Ghidra/Java 对两者都无济于事。
+- **把查询集中在同一会话。** 冷启动可能数百秒、同会话重读毫秒级；关闭或切换目标即停掉 bridge，频繁切换目标会反复支付冷启动代价。
+- **JVM 参数只走 REA 自己的变量。** 堆用 `GHIDRA_HEADLESS_MAXMEM`，其余参数用 `GHIDRA_HEADLESS_JAVA_OPTIONS`；设 `_JAVA_OPTIONS` 等继承变量会被启动时清空，这是有意的隔离行为。
+
+## 常见问题
+
+- **`PATH` 里有 `ghidraRun`，doctor 却说找不到或拒绝。**
+  `PATH` 发现只接受真实路径属于完整 Ghidra 树的候选，启动器包装脚本或部分安装会被拒。显式设置 `GHIDRA_INSTALL_DIR` 指向安装根目录最稳。
+- **显式设置的 `GHIDRA_INSTALL_DIR` 无效，为什么没有自动换用别的安装？**
+  有意行为：显式指定永远优先，无效时报错而非回退自动发现。修正路径，或清空该变量改走 `PATH` 发现。
+- **`REA_GHIDRA_DISABLED_ANALYZERS` 设了一个名字，headless 导入直接中止。**
+  名称必须与分析器精确同名，且满足最多 32 个、每个最长 120 字符与字符集限制；名称未知或未真正禁用都会中止导入。Windows PE 资源分析器的精确名称是 `WindowsResourceReference`。
+- **设了 `REA_GHIDRA_LANGUAGE_ID` 却被拒绝。**
+  覆盖要对 Ghidra 的 `.ldefs` 校验并记入分析 profile；DOS 导入一律拒绝覆盖，平台通道里固定语言与不匹配覆盖的组合是类型化拒绝。确认目标真实变体后再覆盖，见 [4.2.3 Ghidra 平台专题](?path=/docs/ghidra-platforms--docs)。
+- **seed 文件写了但会话失败。**
+  检查三处：格式是 `address`、`kind`、可选 `name` 的 TSV（label 必须带名称）；地址用默认空间的 `0x` 十六进制；种子与已解码指令重叠、或 seed digest 与既有分析 profile 不一致都会失败。
+- **ARM64 的 Windows PE 能分析，但在 Windows on ARM 机器上跑不了 REA。**
+  ARMNT/ARM64 是目标支持，宿主仍然要求 Windows x64；目标架构与宿主架构互不等价。
+
+## 总结回顾
+
+摘要：
+
+REA 的 Ghidra provider 把本机已有的 Ghidra 12.1.x 变成原生反汇编引擎：用 `GHIDRA_INSTALL_DIR` 与 `JAVA_HOME` 指路（显式路径优先、无效不回退），用 `rea doctor --provider ghidra` 验证就绪，用 `REA_ANALYSIS_PROVIDER` 或 `--provider` 选引擎。每次分析是一次性的 headless 导入——临时 project、只读、自动分析完成后 socket 才就绪，全程受 330 秒启动预算（`REA_GHIDRA_STARTUP_TIMEOUT_MS`）与默认 2G 堆（`GHIDRA_HEADLESS_MAXMEM`）约束；语言覆盖、种子与禁用分析器在导入前生效并记入分析 profile。诊断顺着 doctor 的范围语义读：`scope_checks` 决定 `healthy` 与退出码，其余进 `informational_checks`；Windows 上只有实验性只读 P0 边界，native 自检失败分三类，重装 Ghidra/Java 不能解决，要查 NTFS 卷、临时目录与 Job Object 约束。
+
+一句话：
+
+> 接入就是给已有安装指路并让失败显形：显式路径、预算与减载环境变量先行，doctor 的分类码定位故障，绝不静默回退。
+
+知识要点：
+
+- 接入需要自备哪些前提？Ghidra 版本、JDK 要求、Linux 与 Windows 主机各差什么？
+- `GHIDRA_INSTALL_DIR` 显式设置与 `PATH` 发现的行为有何不同？哪个优先、无效时各自怎么表现？
+- 首次查询为什么最慢？330 秒预算覆盖哪些阶段？超时报什么错、错误信息给出哪些建议？
+- 堆上限由哪些变量决定、优先级如何？为什么 `_JAVA_OPTIONS` 传不进 headless？
+- `rea doctor --provider ghidra` 的退出码何时为 1？`scope_checks` 与 `informational_checks` 如何分工？
+- Windows P0 接纳与拒绝哪些 PE？三类 native 失败分类如何区分、正确处理动作是什么？
+
+## 参考资料
+
+- [Ghidra provider 能力与边界（docs/ghidra-provider.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/ghidra-provider.md)
+- [Installation and setup — Ghidra 章节（docs/installation.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/installation.md)
+- [Windows Ghidra P0 边界（docs/windows-ghidra-p0.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/windows-ghidra-p0.md)
+- [REA CLI 参考 — doctor 与 provider 选择（docs/cli.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/cli.md)

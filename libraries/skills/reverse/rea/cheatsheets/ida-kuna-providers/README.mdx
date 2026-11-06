@@ -1,0 +1,265 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="ida-kuna-providers" title="原生二进制/反汇编 Provider/IDA 与 Kuna" name="Docs" />
+
+# IDA 与 Kuna
+
+Ghidra 之外，REA 还有两条接入原生分析引擎的路：**IDA provider** 适配一个已经在运行的 IDA MCP 服务器，**Kuna provider** 直接使用你自备的 `kuna` 可执行文件。两个成员与 Ghidra 的共同姿态是：REA 只做适配——不安装、不升级、不激活、不授权任何引擎，也不捆绑替代品；分析全部是静态的，原始二进制永不执行、永不改写。
+
+配置模式也相同：一个环境变量指向 MCP 注册 JSON（IDA）或可执行文件（Kuna），再通过 provider 选择入口显式绑定到目标。差异在能力面与适用平台：IDA 的能力跟随你的 IDA 授权，Windows PE 也能分析；Kuna 是 Apache-2.0 的免费单文件反编译器，只覆盖 ELF 与 thin Mach-O 的 x86-64、AArch64、ARM。
+
+Provider 的共同机制（`providers`、`capabilities`、`doctor` 与选择入口）归 [4.3.1 Provider 体系](?path=/docs/native-providers--docs)；Ghidra 的安装与就绪处理归 [4.3.2 Ghidra 接入](?path=/docs/ghidra-provider--docs)；`analyze`、`function`、`decompile` 等通用命令的语义归 [4.1.1 原生调查](?path=/docs/native-investigation--docs)。本课只讲两个成员各自的接入方式、支持的操作与平台取舍。
+
+看完导读你应该能预测：拿到目标先按下面的选型表定 provider，再按成员小节准备一个环境变量或一份 JSON，`rea doctor` 通过后 `analyze`；返回的证据会标明自己的覆盖边界——"没给"与"确认没有"是两回事。
+
+| 你的情况 | 走哪条 | 关键边界 |
+| --- | --- | --- |
+| Windows PE 目标 | IDA 或 Ghidra（4.3.2） | Kuna 以类型化理由拒绝 PE |
+| ELF / thin Mach-O（x86-64、AArch64、ARM），要免费引擎 | Kuna | Windows 主机暂不支持；类型化引用、基本块、类型恢复不可用 |
+| IDA GUI 已打开目标 | IDA attached | REA 侧必须打开同一原始输入，SHA-256 与镜像基址逐请求核对 |
+| 无 GUI 的自动化与批量 | IDA headless | supervisor 与 REA 须同主机、同路径语法 |
+| universal（fat）Mach-O | 先 `lipo -thin` | attached IDA 与 Kuna 都不收 universal |
+| 授权 | IDA 用你自己的授权（IDA Free 云端反编译需联网并同意）；Kuna 单文件 Apache-2.0 | REA 不代做任何安装或授权动作 |
+
+## 共同点与选型
+
+两个 provider 共享同一套接入流程与证据纪律：
+
+1. **自备引擎。** IDA 按上游说明装好 ida-pro-mcp（或 ida-free-mcp 插件）并启动；Kuna 放好一个可执行文件。REA 在发现阶段不启动任何 provider，只有打开目标才建立会话。
+2. **一份配置加一次显式选择。** IDA 用 `REA_IDA_MCP_CONFIG` 指向注册 JSON；Kuna 用 `REA_KUNA_COMMAND` 指向可执行文件。两者都用 `--provider`、`REA_ANALYSIS_PROVIDER` 或 MCP 的 `open_binary.provider_id` 显式选定，选择入口的完整机制见 4.3.1。
+3. **doctor 先行。** `rea doctor --provider ida --json` 校验注册但不启动 IDA；`rea doctor --provider kuna` 校验可执行文件并报告缓存目录（不创建）。
+4. **证据纪律一致。** 两者都保留上游的真实输出与分页限制，把"未提供的能力"记为未知而不是空集；Kuna 的结果在会话内按需重读，不是从快照回放。
+
+与 Ghidra 的取舍判断：目标平台是第一判据——PE 找 Ghidra 或 IDA，Kuna 直接拒绝；ELF/Mach-O 的三个架构上，Kuna 胜在零授权成本与单文件部署，IDA 胜在能力面（直接调用者、更全的引用语义）和已有授权时的分析质量。一条硬规则贯穿所有 provider：**不同引擎的反编译文本不可比**——Kuna 的伪代码与 Ghidra/IDA 的输出既不能断言相等也不能断言不同，比对要落回地址、调用关系这类结构事实。
+
+### IDA provider
+
+REA 不直接驱动 IDA，而是适配上游 MCP 服务器：IDA Pro 走 [mrexodia/ida-pro-mcp](https://github.com/mrexodia/ida-pro-mcp)；IDA Pro 与 IDA Free 还可选 [ida-free-mcp 原生插件](https://github.com/0xshlomil/ida-free-mcp)。安装、启动、激活全部按上游说明由你完成，REA 不代劳、也不捆绑另一个 IDA 服务器。
+
+**注册与选择：** 在一份 JSON 里选定生命周期模式，`REA_IDA_MCP_CONFIG` 指向它，然后按 4.3.1 的选择入口选 `ida`：
+
+```bash
+export REA_IDA_MCP_CONFIG=/absolute/path/to/ida-mcp.json
+export REA_ANALYSIS_PROVIDER=ida
+rea doctor --provider ida --json   # 校验注册，不启动 IDA
+```
+
+**上游版本矩阵。** 每种模式只接受一个上游工具档位，分析前按 `tools/list` 实查在线目录，不把版本号当兼容性保证：
+
+| 模式 | 上游档位 | 已验证可用 |
+| --- | --- | --- |
+| attached | legacy GUI 工具 | 1.4.0 |
+| headless | database supervisor（须有 `idb_open`、`idb_list`、`idb_close`） | 上游 commit `c133c385`（含 [PR #495](https://github.com/mrexodia/ida-pro-mcp/pull/495) 引入的 `idb_close`）及之后提供这三个工具的构建 |
+
+上游 2.0.0 改名了 legacy GUI 工具（attached 依赖 `get_metadata`、`list_functions`、`decompile_function` 等旧名），REA 尚未为新目录建立等价的 attached 生命周期与所有权契约，因此 fail closed 并在诊断里列出缺失的工具名；启动失败保留原始阶段于 `details.diagnostics.startup_operation`。headless 档位由 supervisor API 定义而非版本字符串——更早的构建可能报同样的 `2.0.0` 却没有 `idb_close`。
+
+**attached 模式——GUI 已打开目标。** 把上游注册里的 `command`、`args` 与可选 `env` 抄进 JSON（上游 `mcpServers` 里已有的 `ida-pro-mcp` 条目也可直接接受）：
+
+```json
+{
+  "command": "python",
+  "args": [
+    "/absolute/path/to/ida_pro_mcp/server.py",
+    "--ida-rpc",
+    "http://127.0.0.1:13337"
+  ]
+}
+```
+
+```bash
+rea function /absolute/path/to/program main --json
+rea decompile /absolute/path/to/program main --json
+```
+
+注意：legacy GUI 的 `/mcp` 端点是它的内部 RPC 端点，REA 走上游的 stdio 代理接入，不要把那个 URL 当 Streamable HTTP 直连。
+
+三个身份约束：
+
+- REA 打开的必须是**原始输入二进制**，不是 `.idb`/`.i64` 数据库；其 SHA-256 必须与 IDA 记录的输入哈希一致。每次分析请求前后都核对身份与镜像基址，不匹配或换了目标就失败并附恢复指引。WSL 下 GUI 跑在 Windows、REA 用挂载别名即可。
+- universal Mach-O 在准入时直接拒绝：每个 slice 共享同一整文件哈希，REA 无法核对 GUI 到底加载了哪个 slice。用 `lipo -thin` 提取 thin 文件、两边都打开它，或改用 headless（分析选定的 slice）。
+- 这些核对不锁定 GUI，也不证明数据库未被补丁。
+
+REA 的关闭操作只释放自己的 MCP 连接或代理，**从不保存或关闭** GUI 里已打开的数据库；结果是活读的，不是从快照回放。legacy 工具有 GUI 副作用：assembly 与原始指令会跳到目标函数，伪代码会打开或复用伪代码视图，function dossier 两者都做——`binary_session` 用 `effects.may_show_ui: true` 标记这些操作，headless 与其余 attached 操作为 `false`。
+
+**原生插件桥（IDA Pro 与 IDA Free）。** 显式 attached 注册，`protocol` 设为 `native`：
+
+```json
+{
+  "mode": "attached",
+  "protocol": "native",
+  "url": "http://127.0.0.1:13337/mcp"
+}
+```
+
+安全前提：原生插件 1.1.2 绑定 `0.0.0.0` 且没有监听地址设置，启动前用主机防火墙限制入站，或换只绑 loopback 的上游构建；REA 的 loopback URL 约束管不到插件自己的监听器。原生模式要求 `resources/read` 能读 `ida://idb/metadata` 及其记录的输入 SHA-256；上游资源里的 `path` 描述的是 IDB，不是原始输入路径。该档位不要求 IDAPython 或 idalib，原生 headless 注册被拒绝。
+
+能力覆盖：函数/字符串清单与搜索、函数查找、assembly、GUI 伪代码、callees、地址 xrefs、指令窗口与 function dossier；**直接调用者不可用**——原生的代码/数据 xref 标签证明不了调用边。IDA Free 的云端反编译需要联网并可能请求同意，遵循其授权与架构限制；反编译会挪动 GUI 焦点，并先关闭已有伪代码标签页再请求新输出。1.1.2 在切换函数时会在上一次聚焦的伪代码标签页里导航，用上游 1.1.3 或含导航修正的构建（修正会先聚焦反汇编视图再跳转）。上游 `structuredContent` 可能只是缩短的预览，REA 读完整文本表示，缺失或畸形就拒绝，不把预览当完整观测。
+
+**headless 模式——无 GUI 自动化。** 档位是上游 database supervisor API：`idb_open`、`idb_list`、`idb_close`、显式 `database` 参数与现代分析工具。legacy 1.4.0 的 `idalib-mcp`（只收一个初始文件名、走 SSE）**不是**这个档位；按[上游 headless 说明](https://github.com/mrexodia/ida-pro-mcp#headless-idalib-session-model)准备带 supervisor API 的安装：
+
+```json
+{
+  "command": "idalib-mcp",
+  "args": ["--stdio", "--max-workers", "1"],
+  "mode": "headless"
+}
+```
+
+用已安装的可执行文件；现有 idalib 需要时补 `"env": { "IDADIR": "/absolute/path/to/ida" }`。已有本地 Streamable HTTP supervisor 时可改用 `"url": "http://127.0.0.1:8745/mcp"` 加 `"mode": "headless"`。两个模式的 CLI 命令相同；Windows 原生 REA 进程：
+
+```powershell
+$env:REA_IDA_MCP_CONFIG = 'D:\analysis\ida-mcp.json'
+$env:REA_ANALYSIS_PROVIDER = 'ida'
+rea function 'D:\samples\program.exe' main --json
+```
+
+headless 下 REA 与 supervisor 必须共享主机文件系统与原生路径语法：supervisor 在 Windows 就在 Windows 跑 REA；attached 反而可以跨 WSL 与 Windows GUI，因为它核对的是记录的输入哈希。会话生命周期：REA 把通过准入的二进制复制进私有临时目录、核对摘要、用 `force_headless` 请求一个独占 worker 并把返回的数据库 ID 注入后续请求；POSIX 工作区按进程 umask 以 owner-only 权限原子创建，Windows 用本地 NTFS 临时目录上的 private-DACL。关闭或启动失败时以 `save: false` 释放会话、核对其已从上游发现中消失、并删除私有输入与 sidecar；无法核实的释放会保留工作区并报告未完成清理。一个 REA 会话独占一个数据库；stdio 注册默认 `IDA_MCP_MAX_WORKERS=1`；REA 不限制引擎内存；可选 `workspaceRoot` 指定既有绝对临时目录父级，留足输入副本与 IDA 工作文件的空间。优先用 `close_binary` 收尾——强杀 REA、代理或 supervisor 都不构成 worker 释放证明，中断后先查上游会话清单与保留的工作区诊断，再决定是否动工作文件。
+
+**接入 MCP 一次。** 把注册路径放进 REA 的 MCP 条目环境，上游注册留在独立 JSON 里：
+
+```json
+{
+  "mcpServers": {
+    "rea": {
+      "command": "npx",
+      "args": ["-y", "rea-agents@<version-with-ida>", "mcp"],
+      "env": {
+        "REA_ANALYSIS_PROVIDER": "ida",
+        "REA_IDA_MCP_CONFIG": "/absolute/path/to/ida-mcp.json"
+      }
+    }
+  }
+}
+```
+
+用确实包含该适配器的包版本（仓库 main 可能领先 npm 发布）。打开目标即启动所选 provider 会话，headless 打开会等 auto-analysis——给代理的 MCP 请求时限留足余量；注册里的 `timeoutMs` 默认 300000 ms，超时返回 `provider_timeout` 并附操作与实际预算。新开的 headless worker 可能短暂报 `status: "busy"`，REA 每 100 ms 重读健康状态，直到 worker 应答、调用方取消或总时限耗尽；到点仍是 busy 得到可重试的 `provider_timeout`。引导式注册：先设 `REA_IDA_MCP_CONFIG` 再跑 `rea setup --client <client>`，setup 把该文件引用纳入审核计划并在批准后保留，不会把上游凭据复制进代理配置。
+
+**能力与边界。** 所有档位支持：过程/字符串清单与字面及正则搜索、过程解析、伪代码、assembly、原始函数指令、已解析 callees、入站地址引用与 function dossier；清单与现代伪代码/assembly 跟随上游分页，上游对现代 xrefs 与 callees 的上限保留为显式截断限制。分档差异：
+
+- legacy 档位额外支持**直接调用者**：生产者报告的调用点或内部地址被解析到规范函数入口。modern 与原生档位证明不了直接调用者，dossier 把该 facet 标为未知。
+- modern headless 对未能证明 x86-only 的目标用处理器中立的 `callgraph` 边替代上游 `callees` 的 x86 指令检查；REA 请求深度 0（只取根的出边），再批量查函数名。图只覆盖已识别的函数目的地，导入与其他非函数目标保持未知；服务器没有 `callgraph` 时返回空关系列表并附显式覆盖限制。
+- modern headless 还支持 `resolve_containing_procedure`：经上游 `lookup_funcs` 解析到包含该地址的函数的规范入口（函数体照样不可得）；无函数包含时读数据库级最小 `survey_binary`，段内（段尾不含）报 `not_in_procedure`，否则报 `outside_segments`。attached 档位不声明地址归属解析。
+- 段枚举是可选能力：档位提供不了时 `binary_overview` 照常返回文档与过程/字符串计数，只省略 `segments` 与 `segment_count`——省略表示未观测，不是空。
+- `list_documents` 是会话唯一暴露的准入目标：attached 模式对照 IDA 元数据核对其摘要，headless 模式绑定摘要核对过的私有副本；`inspect_address_context`、`trace_feature` 与 `binary_overview` 因此无需上游文档清单工具即可解析身份。`trace_feature` 在上游设引用上限时把结果标记为截断，并为该地址保留未知残差。
+
+明确不可用：完整函数体区间、类型化引用边、CFG、被引用数据、源码局部变量、注释类别、数据库修订号。dossier 中空的不支持 facet 一律是**未知**，不是"确认不存在"。范围外：全符号清单、修改、调试、任意 Python 转发、按请求的 GUI 导航。`provider.version` 标识的是 REA 适配器本身（`version_scope: "rea-ida-adapter"`）；MCP 握手的 `serverInfo` 是另一回事，不能当作 IDA 或 Python 发行版本。
+
+**验证。** 配好上游后跑：
+
+```bash
+npm run verify:ida -- --target /absolute/path/to/program --procedure main
+```
+
+原生桥验证必须加 `--second-procedure other_function --second-marker unique_second_body_text`（标记须出现在第二个函数的伪代码中且不在第一个中，并核对切回第一个时文本恢复）；`--expected-string` 与 `--expected-xref` 是可选的独立判据，不给则字符串与 xref 正确性记入 `unverified`——输出形状合法不等于行为正确。已跑通的真实组合：Windows 上 legacy GUI stdio 档位与 x64 headless supervisor（IDA 9.3）；macOS arm64 上 IDA Professional 9.1（build 9.1.250226）headless 对同一上游 commit——Mach-O 的 C 符号带前导下划线，过程名写作 `_rea_fixture_add`；原生桥的 Windows 验证用 IDA Pro 9.3 与上游含 loopback 监听修正的构建完成。Streamable HTTP 只对 loopback MCP 夹具测过；Linux headless、其他 IDA 版本、其他架构与现代 attached GUI 工具需先有对应真实工作流才谈支持。
+
+### Kuna provider
+
+[Kuna](https://github.com/Noelo-Lab/kuna) 是 Apache-2.0 反编译器，整个引擎就是一个 `kuna` 可执行文件。REA 用你自备的这份 `kuna`，不下载、不安装、不更新、不捆绑；已用 Kuna 1.833 验证，其他版本照常接受，但会在 `rea doctor` 和每个分析 profile 里标为未验证。Kuna 是静态的：只读选定的映像，从不执行它。
+
+**配置与设置。** 一个必填环境变量加一次 doctor：
+
+```bash
+export REA_KUNA_COMMAND=/absolute/path/to/kuna
+rea doctor --provider kuna
+```
+
+用 `--provider kuna`、MCP 的 `open_binary.provider_id: "kuna"` 或 `REA_ANALYSIS_PROVIDER=kuna` 显式选定。同一目标同时配置了 Kuna 与另一个 provider 时，`auto` 报 `ambiguous` 而不替你挑——显式选择。
+
+| 设置 | 默认 | 含义 |
+| --- | --- | --- |
+| `REA_KUNA_COMMAND` | 无（必填） | `kuna` 可执行文件的绝对路径 |
+| `REA_KUNA_CACHE_DIR` | `~/Library/Caches/rea/kuna`（macOS）；`$XDG_CACHE_HOME/rea/kuna`（Linux；未设或相对时退到 `~/.cache/rea/kuna`） | REA 专有的项目导出目录，Kuna 自己的 spec 缓存也放这里 |
+| `REA_KUNA_CACHE_MAX_BYTES` | 4 GiB | 缓存上限，超出按 LRU 驱逐导出 |
+| `REA_KUNA_PROJECT_TIMEOUT_MS` | 30 分钟 | 全程序清单/导出、引用与字符串扫描的期限 |
+| `REA_KUNA_TIMEOUT_MS` | 120 s | 单函数反编译的期限，也是导出结束时没有清单时补跑清单的期限 |
+| `REA_KUNA_JOBS` | 1 | 传给 `decompile-project --jobs`。1 是参考答案；调大更快但丢失 callee-first 原型，实测会改变约 40–60% 的函数体 |
+
+超时语义分两级：单函数反编译、清单、字符串、调用图或 xref 超期报 `provider_timeout`，错误指明管这个期限的设置，且改动设置要重启 REA 才生效；项目导出超过 `REA_KUNA_PROJECT_TIMEOUT_MS` 是**导出失败**——依赖导出的请求此后报 `capability_unavailable` 并附导出自身的重试指引。平台边界：Windows 主机暂不支持；目标是 x86-64、AArch64、ARM 的 ELF 与 thin Mach-O 可执行文件；PE 与 universal Mach-O 以类型化理由拒绝。
+
+**能回答什么。**
+
+| 工具 | 来源 |
+| --- | --- |
+| `list_procedures`、`search_procedures`、`procedure_address` | `kuna functions --json` 可调用清单（含不反编译的导入槽位） |
+| `address_name` | 先函数入口，再导出指派的数据标签 |
+| `procedure_pseudo_code`、`batch_decompile` | 项目导出；导出未就绪时用单函数运行顶上 |
+| `procedure_assembly` | 项目导出的带标签清单 |
+| `procedure_callers`、`procedure_callees` | 惰性、无函数体的 Kuna 调用图中的 call 边；合成的导入节点按地址接受 |
+| `list_strings`、`search_strings` | 一次缓存、无引用扫描得到的类型化字符串候选；支持精确地址、字面与 ECMAScript 正则 |
+| `xrefs` | 精确地址的入站引用点，显式过滤转发别名 |
+| `analyze_function` | 导出的伪代码与 assembly 加调用关系；类型化引用、注释、字符串与 CFG 不可用 |
+
+类型化过程引用、基本块、原始内存工具、注解与类型恢复都不在此 provider 的能力内——需要就换 provider。
+
+**导出与缓存怎么工作。** 导出按目标 SHA-256 + `kuna` 可执行文件 SHA-256 + 版本 + `--jobs` 做键。热缓存直接复用已验证的导出（新进程对文件摘要核对一次）；冷缓存时 REA 在目标的私有副本上后台跑 `kuna decompile-project`，期间伪代码来自一次 `kuna decompile --addr` 单函数运行，清单、名称查找与列表来自 `kuna functions --json` 清单——导出构建前顺带取得，导出结束时没有清单时，会话自己在 `REA_KUNA_TIMEOUT_MS` 下补跑。要点：
+
+- 单函数顶替的答案在 limitations 里自我声明；它缺全程序原型，同一函数稍后可能返回不同文本。`raw_result.source` 记录文本来源：`single-function`，或带缓存目录的 `project-export`（导出文本再附文件、字节区间与 SHA-256）；`analyze_function` 的两个 facet 记在 `raw_result.source.files`。
+- assembly 与数据名等导出就绪，进度通知每十秒报一次等待。会话内导出失败不重建：相关请求报 `retryable: false`，附导出的失败原因、捕获的 Kuna 输出与重开目标前该改什么。`REA_KUNA_*` 设置在 REA 启动时读取，改完要重启。
+- 一次性 CLI 反编译由单函数运行作答；需要导出的请求（如 `procedure_assembly`、`analyze_function`）会留住后台导出。`close_binary` 或 CLI 命令结束会取消导出，除非别的会话还在等它。
+- 缓冲上限 16 MiB：单函数文本缓存与各缓存 facet 共享，超限文本留在本地导出里，错误指明文件与区间。你也可以直接打开或搜索导出的 `.c`/`.asm` 文件——这条路绕过了 REA 工具结果自带的不可信内容标记，读到什么自己把关。
+
+**字符串。** `list_strings` 与 `search_strings` 共享一次惰性扫描：`kuna strings --json --encoding all --min-length 5 --termination any --no-xrefs`，对摘要核对过的私有副本执行；跳过引用计算，避免程序提升、调用图与 C 导出。REA 逐行校验 JSON 后才缓存事实——格式错误是错误，不是空结果；保留量按 REA 进程的实时堆余量准入，拒绝即是 `memory` 资源约束且 `retryable: false`。结果保留精确 u64 虚拟地址、解码文本、原生编码、终止符状态与字节长度。边界：Kuna 只扫映射 section/segment 里至少 5 个字符的串，未终止的片段可能混入指令字节；`all` 覆盖 ASCII、UTF-8 与引擎对 Latin 范围的 UTF-16LE 读法，短字符串、非 Latin 宽文本与 UTF-16BE 可能漏检——**空结果不证明不存在**。匹配规则在 REA 侧：字面匹配保持原有的大小写与 Unicode 语义，正则用 ECMAScript Unicode 语义（5 秒匹配期限，可取消的 worker），不替换成 Kuna 自己的正则方言。命中行用 `search_strings` 取；对该位置用带精确地址的 `list_strings`，一次取回该地址的全部编码（缓存后走二分，不再全表扫描）；省略地址则把完整清单作为 Evidence 取回。
+
+**调用与引用。** 会话内首个调用查询跑 `kuna decompile-graph --functions ''`——一次全程序图遍历，只收 call 边（跳转与数据引用保持各自含义），不录任何函数体；图校验后建正反向索引，供后续调用查询与 `get_call_graph`/`trace_call_path` 复用。**即使导出已热，首个调用查询也要付这次全程序遍历的代价**（实测量级：53 MB 的 Raycast 产生 18 万函数、77 万条边，遍历约一分钟）。间接调用使相关关系覆盖标记为 partial，REA 不为它们虚构目标。`xrefs` 按需跑原生 `xrefs --to ADDRESS --json`：Kuna 统一了转发别名，REA 过滤到请求地址并记录被排除的行数；重复源点只出现一次；空结果同样不证明无引用。地址要么是显式 u64 值，要么是精确无歧义的过程名——Kuna 没有光标。图与 xref 结果按目标加可执行档位在会话内缓存（xref 复用上限 16 MiB、128 条；引用命令逐个执行，与单函数反编译共享前台预算）；内存超限报 `memory` 资源约束且 `retryable: false`（同目标同引擎产出相同输出），图失败会在会话内记住，后续调用查询直接失败，不再重复全程序遍历。
+
+**证据边界。** 地址与字节是 Kuna 对映像的观测；过程入口与范围是它的推导——范围是在下一入口截断的上界，Kuna 可能按自己推断的入口把一个函数拆开。伪代码是重建，永远不是原始源码；冷缓存答案与导出文本可能不同，结果按需重读而非回放。
+
+**缓存目录与验证。** REA 只在 `REA_KUNA_CACHE_DIR` 内写 Kuna 的东西：`projects/<key>/`（已发布的不可变导出加摘要清单）、`staging/`（进程可能还活着的构建）、`trash/`（待删除的退役构建与被驱逐导出）、`home/`（Kuna 的 HOME）。构建以一次 rename 发布，读者只见完整导出或没有；被改坏或编辑过的导出会被删除重建；无法证明进程已停止的 staging 永不清扫，REA 保留所有权并在 `close_binary` 时重试停止。验证：
+
+```bash
+REA_KUNA_COMMAND=/absolute/path/to/kuna npm run verify:kuna
+# 与 Ghidra 对比调用方自建的二进制
+REA_KUNA_COMMAND=/absolute/path/to/kuna GHIDRA_INSTALL_DIR=/absolute/path/to/ghidra \
+  npm run verify:kuna -- --targets DIR --functions inflate,crc32 --compare-ghidra
+```
+
+验证通道用主机 C 编译器编译一个源码自有的小夹具，端到端核对 MCP 工作流；`--compare-ghidra` 把同样的函数过一遍 Ghidra，要求同时给 `--targets` 与 `--functions`。清理未确认时报告 `cleanup: "incomplete"` 并记录 `retained_workspace`，该目录保留供排查与重试清理。
+
+## 最佳实践
+
+- **模式按"GUI 状态"选，不按偏好选。** 目标已经在 IDA GUI 里打开、想要活结果 → attached；无 GUI 的自动化/批量 → headless（supervisor 与 REA 同主机同路径语法）；只有 IDA Free 或不想装 IDAPython/idalib → 原生插件桥，接受没有直接调用者的代价。
+- **Kuna 的 `REA_KUNA_JOBS` 保持 1。** 1 是参考答案；调大只是更快，代价是丢 callee-first 原型并改变约 40–60% 的函数体——这会改变你读到的伪代码本身，而不是只是快慢。
+- **不跨 provider 比较反编译文本。** Kuna 文本与另一 provider 的文本不可比，Kuna 冷缓存答案与导出文本也可能不同；比对一律落到 `raw_result.source`、地址与调用关系这类结构事实。
+- **把"未知"当未知处理。** dossier 空的不支持 facet、省略的 `segments`、缺 `callgraph` 时的空关系列表、Kuna 字符串扫描的空结果，都是"未观测"；需要的能力先用 `binary_session` 与 doctor 确认存在，再排工作流。
+- **给首次操作留预算。** IDA headless 打开要等 auto-analysis（`timeoutMs` 默认 300000 ms，busy 时每 100 ms 轮询）；Kuna 首个调用查询是全程序图遍历，即便导出已热也要付。代理的 MCP 时限按最贵的一次操作设定，而不是按平均操作。
+
+## 常见问题
+
+- attached 模式分析一直报身份不匹配。
+  确认 REA 打开的是原始输入二进制而不是 `.idb`/`.i64`：REA 核对其 SHA-256 与 IDA 记录的输入哈希，每次请求还核对镜像基址，中途换目标也会失败。按错误里的恢复指引改回同一文件；WSL 场景让 GUI 在 Windows 打开原始文件、REA 用挂载别名。
+- universal Mach-O 在 attached 模式直接被拒。
+  每个 slice 共享同一整文件哈希，REA 无法核对 GUI 加载的是哪个 slice。用 `lipo -thin` 提取 thin 文件、IDA 与 REA 两边都打开它，或改用 headless 模式（分析选定的 slice）。
+- IDA attached 一启动就失败，错误里列出一串缺失的工具名。
+  上游 ida-pro-mcp 2.0.0 改名了 legacy GUI 工具，REA 尚未为该目录建立等价的 attached 契约，按设计 fail closed。换用已验证的 1.4.0 legacy 档位；缺失名单以错误诊断为准。
+- Kuna 的 `procedure_assembly` 或 `analyze_function` 报 `capability_unavailable`。
+  本会话的项目导出已经失败（超过 `REA_KUNA_PROJECT_TIMEOUT_MS` 的导出按导出失败处理），会话内不会重建。查看错误附带的捕获 Kuna 输出与重试指引；调整任何 `REA_KUNA_*` 设置后要重启 REA。伪代码不受影响，继续走单函数运行。
+- 同一个函数两次请求 Kuna 伪代码，文本不一样。
+  前一次来自导出未就绪时的单函数运行，缺全程序原型，文本以最终导出为准；单函数答案的 limitations 会自我声明。用 `raw_result.source` 区分 `single-function` 与 `project-export`，不要把两次文本差异当证据。
+- `auto` 没有自动选 provider，报 `ambiguous`。
+  同一目标配置了 Kuna 与另一个 provider 时这是设计行为：REA 不替你挑。用 `--provider`、`REA_ANALYSIS_PROVIDER` 或 `open_binary.provider_id` 显式指定（选择入口见 4.3.1）。
+
+## 总结回顾
+
+摘要：
+
+IDA 与 Kuna 是 REA 在 Ghidra 之外的两条原生分析引擎接入路径：IDA provider 适配你自备的 IDA MCP 服务器——attached 档位复用已打开的 GUI（1.4.0 legacy 工具，逐请求核对原始输入 SHA-256 与镜像基址），headless 档位走 database supervisor API 实现无 GUI 自动化（私有工作区、一个会话一个数据库、`save: false` 释放），IDA Pro/Free 还可选原生插件桥；Kuna provider 直接使用一个 Apache-2.0 的 `kuna` 可执行文件，靠按 SHA-256 做键的项目导出缓存应答清单、伪代码、assembly、字符串、调用图与 xrefs。两者都由你安装、授权、运维，REA 只做适配，并把能力边界写成显式证据：上游工具改名即 fail closed、导出失败不静默重建、空结果与省略字段一律是"未知"而非"确认缺失"。选型第一判据是目标平台——PE 找 IDA 或 Ghidra，ELF/thin Mach-O 的三个架构可以交给免费的 Kuna。
+
+一句话：
+
+> 引擎你自己备、授权你自己管、边界证据自己核——REA 只把你的 IDA 或 Kuna 适配成一致的原生分析入口。
+
+知识要点：
+
+- 按平台与授权选 provider 的判断入口是什么？PE、universal Mach-O、ELF/thin Mach-O 各走哪条？
+- IDA attached 与 headless 各要求什么上游档位？身份核对核对的是什么、何时发生？
+- Kuna 的六个环境变量各管什么？两级超时分别对应哪类失败？
+- 哪些"空"或"缺"要读成未知：dossier 空 facet、省略的 `segments`、Kuna 的空字符串结果？
+- 两个 provider 各自明确不可用的能力清单是什么？需要这些能力时往哪条路走？
+
+## 参考资料
+
+- [IDA provider](https://raw.githubusercontent.com/morluto/rea/main/docs/ida-provider.md)
+- [Kuna provider](https://raw.githubusercontent.com/morluto/rea/main/docs/kuna-provider.md)
+- [mrexodia/ida-pro-mcp](https://github.com/mrexodia/ida-pro-mcp)
+- [0xshlomil/ida-free-mcp](https://github.com/0xshlomil/ida-free-mcp)
+- [Noelo-Lab/kuna](https://github.com/Noelo-Lab/kuna)

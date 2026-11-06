@@ -1,0 +1,24 @@
+{
+  "name": "cheatsheet-storybook",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "storybook": "storybook dev -p 6006 --no-open",
+    "typecheck": "tsc --noEmit",
+    "build-storybook": "storybook build"
+  },
+  "devDependencies": {
+    "@storybook/addon-docs": "10.5.6",
+    "@storybook/html-vite": "10.5.6",
+    "mermaid": "11.16.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remark-gfm": "4.0.1",
+    "storybook": "10.5.6",
+    "typescript": "7.0.2",
+    "vite": "8.2.0"
+  }
+}

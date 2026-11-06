@@ -1,0 +1,160 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="managed-assemblies" title="托管代码与字节码/.NET 程序集" name="Docs" />
+
+# .NET 程序集
+
+.NET 程序集是携带 ECMA-335 元数据的 PE/CLI 文件：类型、方法签名、方法体里的 CIL 指令和部署信息都以表和堆的形式编码在文件内。REA 把它当作待读取的数据文件，而不是可执行程序：`rea inspect-managed-artifact` 先读出程序集身份与部署元数据，`rea inspect-managed-members` 再解码类型与成员定义。全程不加载、不执行程序集，不需要 .NET 运行时或 SDK，也不依赖原生分析引擎。
+
+| 回查点 | 内容 |
+| --- | --- |
+| 构件摘要 | `rea inspect-managed-artifact /absolute/path/Assembly.dll --json` |
+| 成员解码 | `rea inspect-managed-members /absolute/path/Assembly.dll --json` |
+| 选类型 | `--type` 可重复；值取成员输出里的精确 `full_name` |
+| 输入上限 | 输入最大 128 MiB；元数据、CIL 与投影共享 64 MiB 表示预算 |
+| MCP 工具 | `inspect_managed_artifact`、`inspect_managed_members` |
+| 关键边界 | 只读静态分析：不加载不执行；不解包 single-file host，不解码 IL2CPP，NativeAOT 需原生分析 |
+
+## 快速上手
+
+前置：已安装 REA（见 [1.1 安装与设置](?path=/docs/installation--docs)），手上有任意含 PE/CLI 元数据的 .NET 程序集文件（例如项目编译出的 DLL）。`.dll` 与 `.exe` 只是常见扩展名，解析器按文件内容识别，选择工作流要看构件内容而不是扩展名。路径用绝对路径。
+
+先读构件摘要：
+
+```bash
+rea inspect-managed-artifact /absolute/path/Assembly.dll --json
+```
+
+输出回答「这是什么构件」：选定路径与字节长度、SHA-256、PE/CLI 分类、程序集与模块标识（含模块 MVID）、目标框架与运行时家族，以及 `coverage` / `issues` / `limitations` 的覆盖情况。
+
+再用同一个路径解码成员。不带 `--type` 时输出全部成员：
+
+```bash
+rea inspect-managed-members /absolute/path/Assembly.dll --json
+```
+
+从输出里找到想深入的类型 `full_name`，用它收窄解码范围：
+
+```bash
+rea inspect-managed-members /absolute/path/Assembly.dll --type Example.Parser
+```
+
+`--json` 选择 JSON 表示：终端上缩进输出，管道或重定向时紧凑输出；省略时终端默认是 TOON 格式。
+
+## 程序集身份与部署元数据
+
+`inspect-managed-artifact` 识别构件并读出部署层元数据。输出字段回答四类问题：
+
+| 输出内容 | 回答的问题 |
+| --- | --- |
+| 选定路径、字节长度、SHA-256 | 分析对象是哪个文件，完整性基准是什么 |
+| PE/CLI 分类 | 这是不是解析器认识的托管构件 |
+| 程序集与模块标识（模块 MVID） | 这是哪个程序集、哪一次编译 |
+| `target_frameworks`、`runtime_family` | 目标框架与运行时家族 |
+| 元数据覆盖率、返回行数、`coverage` / `issues` / `limitations` | 解析覆盖到什么程度，哪些事实缺失 |
+
+两个判读要点：
+
+- **MVID 是构建身份。** 模块 MVID 唯一标识一次编译；配合 SHA-256 可以确认两次分析拿到的是不是同一个构建。
+- **覆盖情况是后续步骤的开关。** `coverage` / `issues` / `limitations` 报告的缺口会直接反映在成员解码的输出状态里，先读它再决定怎么解码成员。
+
+.NET Standard 目标在缺少 ReadyToRun 等标记时，`runtime_family` 会是 `unknown`——这不代表识别失败。
+
+MCP 侧同名能力是 `inspect_managed_artifact`，请求形态：
+
+```json
+{"path": "/absolute/path/Assembly.dll", "detail": "summary"}
+```
+
+大结果按 `references`、`resources`、`attributes` 三个集合翻页，翻页机制见 [1.4 MCP 接入](?path=/docs/mcp-integration--docs)。
+
+## 类型与成员解码
+
+`inspect-managed-members` 解码类型与成员定义：构建本地的元数据 token、签名、行偏移、方法体，以及解码后的引用关系。输出按集合组织：`types`、`exported_types`、`fields`、`methods`、`member_refs`、`call_edges`、`field_accesses`、`user_strings`。
+
+### 选择类型
+
+省略 `--type` 检查全部成员；给出 `--type` 后解码只限选中的类型：
+
+| 规则 | 说明 |
+| --- | --- |
+| 值来源 | 成员输出里报告的精确 `full_name`，或你已知的声明类型名 |
+| 可重复 | 重复 `--type` 一次选中多个类型 |
+| 嵌套类型 | 只报裸名，同名裸名会同时选中多个类型 |
+
+MCP 侧对应 `inspect_managed_members`，用 `type_names` 传类型：
+
+```json
+{"path": "/absolute/path/Assembly.dll", "type_names": ["Namespace.Type"], "detail": "summary"}
+```
+
+选择只限制解码范围：`member_refs` 与 `exported_types` 仍是程序集级清单，不随选择缩小，输出可能仍然很大。
+
+### 类型、方法与字段
+
+选中的类型带 `name_sha256`、`enclosing_type_token` 与 `nesting_read`（`true` / `false` / `null`）；方法与字段带构建本地的元数据 token、签名与行偏移；方法体解码后给出调用边（`call_edges`）与字段访问（`field_accesses`）。
+
+`exported_types` 返回 ExportedType 行：`forwarder: true` 标记转发器，`implementation_token` 指向实现所在行；被转发的定义本身不会被解析。
+
+token 与 RVA 都是构建本地的：同一程序集重新编译后 MVID 改变，`0x06001234` 这类 token 不再指向同一个方法，不能跨构建携带。
+
+### 字符串与 CIL 摘要
+
+`user_strings` 解码 `ldstr` 指令使用的用户字符串堆（`#US`）条目：token 以 `0x70` 为前缀、附 `#US` 偏移与 UTF-16 值，未配对代理项原样保留；token `0x70000000` 是堆的空条目，读作空字符串。缺 `#US` 流或存在未解码方法时，`user_strings` 的状态为 partial。
+
+方法体另给两个摘要，用于在不搬运完整方法体的情况下核对与比较：
+
+- `il_sha256`：tiny/fat 头之后的原始 CIL 字节摘要，不含头、局部变量签名与附加节；
+- `normalized_il_sha256`：`[opcode, operand_kind, operand]` 元组序列按 UTF-8 JSON 序列化后的摘要，方法体缺失或畸形时为 `null`。
+
+官方文档算例：`nop; ret` 的 normalized 摘要为 `5e5fad7741cb44bca3a4f045546b7449990da343f612f5f34c0ca30e9eee0636`。
+
+## 只读边界与限制
+
+**只读是硬保证。** 官方口径是没有任何程序集被加载或执行：无 CLR 执行、无运行时内部观测，关于运行时行为的问题在这两条命令的范围外。REA 包也不附带 .NET 运行时、SDK 或 ILSpy。
+
+**资源预算决定覆盖。** 输入最大 128 MiB；元数据、CIL 与投影共享 64 MiB 表示预算，超限返回 `resource-limit` 并带部分覆盖。被省略的事实不会变成空观测——缺失就是缺失，不会伪装成空列表。
+
+**形态边界有三条。** 不解包 .NET single-file host 打包产物，先把内嵌程序集解出为独立文件再分析；IL2CPP 的 `global-metadata.dat` 走 [5.2 IL2CPP 元数据](?path=/docs/il2cpp-metadata--docs)；NativeAOT 的 CIL 方法体在编译时已被移除，需转入 [4.1.1 原生调查](?path=/docs/native-investigation--docs)，普通原生 PE 也不会被推断为 NativeAOT。
+
+**相邻工具各管一段。** REA 还随附五个托管工具：`inspect-managed-native-boundaries`（列出原生调用与指标）、`compare-managed-members`（跨构建比较成员）、`verify-managed-native-boundaries`（核对原生声明与证据）、`import-managed-reconstruction`（导入反编译代码）、`project-managed-application-graph`（把发现写入应用图）。它们服务身份确认之后的后续工作流，不属于本课。
+
+## 最佳实践
+
+- **先摘要后成员。** `inspect-managed-artifact` 的 `coverage` / `issues` / `limitations` 决定成员解码能信到什么程度：先确认构件被完整识别、看清已报告的缺口，再进入 `inspect-managed-members`，避免把部分覆盖误读成完整事实。
+- **按类型分批控制输出规模。** 大程序集先全量解码拿到 `full_name`，再用 `--type` 分批收窄；但 `member_refs` 与 `exported_types` 不随选择缩小，输出仍可能达到兆级——用 `--json` 配合管道工具处理，或分多次调用消化。
+
+## 常见问题
+
+- 给 `--type` 传了类型名却没选中目标
+  值必须是成员输出里报告的精确 `full_name`，不能随手写短名；嵌套类型只报裸名，同名嵌套类型会被同时选中多个——用完整 `full_name` 或声明类型名区分。
+- 只选了一个类型，输出还是很大
+  选择只限制解码范围，`member_refs` 与 `exported_types` 仍是程序集级清单，这是文档明说的行为而不是缺陷。继续收窄只能按类型分批调用，或用管道处理 JSON。
+- `runtime_family` 是 `unknown`
+  .NET Standard 目标在缺少 ReadyToRun 等标记时就是 `unknown`，不代表解析失败；判断目标框架以 `target_frameworks` 为准。
+- 文件扩展名不是 `.dll` / `.exe`，或者 single-file 发布的产物读不出成员
+  解析器按字节识别 PE/CLI，扩展名不决定工作流；single-file host 不被解包，需要先把内嵌程序集解出为独立文件，再交给这两条命令。
+
+## 总结回顾
+
+摘要：
+
+本课建立 .NET 程序集静态读取的模型：程序集是携带 ECMA-335 元数据的 PE/CLI 文件，REA 用两条命令按「先认身份，再解码成员」的顺序只读访问它。`inspect-managed-artifact` 回答这是什么构件——路径、SHA-256、PE/CLI 分类、程序集与模块标识（MVID）、`target_frameworks` 与 `runtime_family`，以及 `coverage` / `issues` / `limitations` 的覆盖情况；`inspect-managed-members` 回答里面有什么——类型、字段、方法的构建本地 token、签名、行偏移与方法体，外加调用边、字段访问、导出类型和 `#US` 用户字符串，方法体给 `il_sha256` 与 `normalized_il_sha256` 两个摘要。`--type` 用精确 `full_name` 收窄解码范围但缩小不了 `member_refs` 与 `exported_types`。全程不加载不执行程序集，超预算返回 `resource-limit` 加部分覆盖；single-file host、IL2CPP 与 NativeAOT 分别要换路径。
+
+一句话：
+
+> .NET 程序集在 REA 里是待读的元数据文件：先读身份与部署元数据，再解码类型与成员，全程不执行任何代码。
+
+知识要点：
+
+- 两条命令分别回答什么问题？各需要什么输入？
+- `--type` 的值从哪里来？嵌套类型为什么会同时选中多个？
+- 哪些输出集合不随 `--type` 缩小？输出过大时怎么处理？
+- 为什么 token 与 RVA 是构建本地的，MVID 在其中起什么作用？
+- single-file host、IL2CPP、NativeAOT 各自为什么超出这两条命令的能力，分别转向哪里？
+- 输入超过 128 MiB 或表示预算超限时，输出会发生什么？
+
+## 参考资料
+
+- [Managed-code analysis — morluto/rea docs](https://raw.githubusercontent.com/morluto/rea/main/docs/managed-code-analysis.md)
+- [CLI and Evidence — morluto/rea docs](https://raw.githubusercontent.com/morluto/rea/main/docs/cli.md)

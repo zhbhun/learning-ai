@@ -1,0 +1,242 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="sqlite-databases" title="固件、数据与流量/SQLite 数据库" name="Docs" />
+
+# SQLite 数据库
+
+REA 的 SQLite 通道对一个显式指定的本地数据库快照做只读检查：`rea inspect-sqlite-database`（MCP 工具 `inspect_sqlite_database`）先给出 schema，再按需选表抽样读行。它不需要原生分析 provider，也不要求单独安装 SQLite，但把运行时底线抬到 Node.js 24.15+ 或 26+（依赖原生 `DatabaseSync.limits` API）。只读边界由复制保证：REA 把数据库与相邻 `-wal` 文件复制进自有私有临时目录后才让 SQLite 打开副本，源文件不被打开、不被修改，扩展加载与 schema 信任都被禁用，任意 SQL 从不执行。它也不是数据库工具：加密数据库、修复、任意 SQL、跨库查询与实时捕获都明确不支持。[固件分析](?path=/docs/firmware-analysis--docs)解包产物与应用本地存储里的 SQLite 快照归本课检查，PCAP 与信号记录归本阶段后续课程。
+
+```mermaid
+flowchart LR
+  S["静止快照 application.sqlite 与 -wal"] --> C["复制进私有临时目录"]
+  C --> W["只读 worker schema 检查 + 行抽样"]
+  W --> E["Evidence schema + 行样本 + 文件身份"]
+  X["源文件不被 SQLite 打开"] -.-> S
+```
+
+默认值与预算是本课的回查入口，后文所有小节都以这张表为基准：
+
+| 项目 | 值 |
+| --- | --- |
+| MCP 工具 / CLI 命令 | `inspect_sqlite_database` / `rea inspect-sqlite-database PATH` |
+| `path` 位置参数 | CLI 相对操作员工作目录解析；MCP 必须为当前主机的绝对路径 |
+| `--table` | 未设置；精确匹配一个普通表名 |
+| `--column` | 可重复；未设置 = 全部可见列，按请求顺序返回 |
+| `--row-limit` | 默认 20；需先指定 `--table`；正的安全整数 |
+| `--schema-scope` | 未选表 `inventory`；选表 `selected_table`；可显式设为 `database` |
+| 原生 provider / SQLite 安装 | 都不需要 |
+| 运行时 | Node.js 24.x ≥ 24.15 或 26+（原生 `DatabaseSync.limits`） |
+| 数据库 + WAL 合计 | 最多 256 MiB |
+| 单值/记录、SQL 语句、worker JSON 回复 | 各最多 16 MiB |
+| 检查时限 / worker JS 堆 | 30 秒 / 256 MiB |
+| 在途检查 | 每 provider 至多 2 个 |
+
+## 快速上手
+
+准备一份静止的数据库快照（怎么采见[快照采集与只读边界](#快照采集与只读边界)），先确认能力可用，再按「清单 → 选表」两步检查：
+
+```sh
+rea capabilities --json
+rea inspect-sqlite-database ./application.sqlite --json
+rea inspect-sqlite-database ./application.sqlite --table settings --column key --column value --row-limit 20 --json
+```
+
+输出中应能核对到：
+
+- 第一条列出能力清单，其中 `inspect_sqlite_database` 的 `available` 为 true；运行时不受支持时是 `available: false` 加 `availability_code: "unsupported_version"` 与升级提示。
+- 第二条返回 schema 清单：每张普通表的紧凑元数据，外加索引、视图与触发器的名称。
+- 第三条返回 `settings` 表最多 20 行的 `key`、`value` 两列，schema 自动展开该表及其索引与触发器，并报告返回行数与是否观察到更多行。
+
+`--json` 的缩进与管道行为、退出码约定见 [1.3 CLI 与 Evidence](?path=/docs/cli-evidence--docs)；终端默认 TOON 格式，结果要存档给 JSON 消费方时加 `--json`。
+
+## 能力检测与运行时
+
+这条通道不依赖任何原生分析引擎：`inspect-sqlite-database` 与 .NET、Go、Rust 检查类似，无需配置 provider；可用性与运行时要求由 `rea capabilities --json` 在不打开任何数据库的情况下报告。
+
+```sh
+rea capabilities --json
+```
+
+运行时要求只影响这一条通道：检查功能需要 Node.js 24.x 的 24.15+ 或 26+，带原生 `DatabaseSync.limits` API；worker 在真正查询前会再验证一次该能力。其他 REA 功能维持已发布的 Node 22.x / 24.x / 26+ 要求。不支持的运行时不会让清单命令失败：输出里 `available` 为 false、`availability_code` 为 `unsupported_version`，并附升级提示，命令本身仍成功退出。
+
+检查由 REA 自有 worker 完成，不需要单独安装 SQLite 或其他命令行数据库工具。
+
+## Schema 检查
+
+schema 报告由 `schema_scope`（CLI `--schema-scope`）控制展开深度，默认值随请求形态切换：未选表时是 `inventory`，选表后自动变为 `selected_table`。输出里的 `schema.completeness` 字段标明当前报告到的范围；因范围选择而省略的列详情标记为 `not_requested`，保留下来的 SQL 声明一律保留原文。
+
+| schema_scope | 生效时机 | 报告内容 |
+| --- | --- | --- |
+| `inventory` | 未选表时的默认 | 紧凑表元数据 + 索引、视图、触发器名称，不含 SQL 声明与列详情 |
+| `selected_table` | 选表时的默认 | 展开所选表及其索引与触发器 |
+| `database` | 显式设置 | 展开全部存储声明与受支持列 |
+
+虚拟表与影子表会被标识并附覆盖报告；解析不了的虚拟表，其可能的后备表标为 `kind: "unknown"` 并附明确限制，其行一律拒绝读取。schema 清单从不执行视图、触发器或任意 SQL。
+
+### 清单模式 inventory
+
+默认起点，回答「库里有哪些表、有哪些索引/视图/触发器」：
+
+```sh
+rea inspect-sqlite-database ./application.sqlite --json
+```
+
+不指定 `--table` 时得到的就是这一档：表级元数据加三类对象的名称列表，没有 SQL 声明，也没有列详情——要看列，换下一档或显式抬高范围。
+
+### 单表展开 selected_table
+
+给 `--table` 后自动生效，展开所选表的声明、索引与触发器：
+
+```sh
+rea inspect-sqlite-database ./application.sqlite --table settings --json
+```
+
+这一档与行读取天然搭配：同一次请求里 schema 已展开、行样本（默认最多 20 行、全部可见列）已就位。
+
+### 全库展开 database
+
+显式设置才生效，展开库里全部存储声明与受支持列：
+
+```sh
+rea inspect-sqlite-database ./application.sqlite --schema-scope database --json
+```
+
+适合写 schema 结论或对比两个版本快照的表结构差异；输出随表数量增长，走 MCP 时注意响应预算（见[资源限制与生命周期](#资源限制与生命周期)）。
+
+## 读取表数据
+
+行读取只对普通表开放：视图、虚拟表与影子表可以出现在 schema 清单里，但不支持读取行。表名与列名都是精确匹配。
+
+### 选表与选列
+
+`--table` 精确匹配一个普通表名；`--column` 可重复出现，未设置时返回全部可见列，设置后按请求顺序返回。列选择包含生成列，未选中的单元格不求值、不投影——大 BLOB 列不选就不会进结果：
+
+```sh
+rea inspect-sqlite-database ./application.sqlite --table settings --column key --column value --json
+```
+
+MCP 用 `columns` 数组表达同一请求，`path` 必须是当前主机的绝对路径：
+
+```json
+{
+  "name": "inspect_sqlite_database",
+  "arguments": {
+    "path": "/artifacts/application.sqlite",
+    "table": "settings",
+    "columns": ["key", "value"],
+    "row_limit": 20
+  }
+}
+```
+
+`--column` 必须与 `--table` 同用且至少给一个名称；空字符串是有效的标识符。
+
+### 限量抽样
+
+`--row-limit` 默认 20，要求先指定 `--table`，接受正的安全整数：
+
+```sh
+rea inspect-sqlite-database ./application.sqlite --table events --row-limit 50 --json
+```
+
+结果会报告所选 limit、实际返回行数与是否观察到更多行；行序未指定。截断样本只证明「这些行存在」，不能证明被省略记录的任何情况；样本仍受 16 MiB 记录与回复等资源预算约束（见[资源限制与生命周期](#资源限制与生命周期)）。
+
+### 行值语义
+
+| SQLite 值 | Evidence 表现 |
+| --- | --- |
+| INTEGER | 十进制字符串，完整保留有符号 64 位 |
+| REAL | 数值原样保留；`"Infinity"`、`"-Infinity"`、`"-0"` 经 JSON 显式保留 |
+| TEXT | 解码字符串 + 十六进制字节 + 数据库编码 |
+| BLOB | 十六进制 |
+| NULL | 独立标记值 |
+
+TEXT 附带十六进制字节与数据库编码，是为了保留可能被显示替换掩盖的畸形文本；判断「实际存的是什么字节」以十六进制部分为准。
+
+## 快照采集与只读边界
+
+### 静止快照与 WAL 配对
+
+检查对象是静止快照：先停止写入者，或用应用自身的备份流程获得一致的 database/WAL 文件对。活跃文件对的普通副本不构成原子快照——主库与 WAL 落在不同时刻，读出的数据可能既不是提交前也不是提交后。WAL 与数据库一起复制进快照，其身份（见[文件身份与证据摘要](#文件身份与证据摘要)）对解读待提交数据是必要的。
+
+### 回滚日志的接受与拒绝
+
+回滚日志按状态分流：成功 `TRUNCATE`/`PERSIST` 提交留下的空回滚日志、或全零日志头，经稳定身份检查后接受；日志头在获取前后各检查一次，仅文件元数据未变并不证明日志不活跃。其余仍保留内容的回滚日志会被拒绝——崩溃恢复不在本通道范围内。日志文件从不被修改，也不会被复制进 worker 快照。
+
+### 私有副本与输入检测
+
+REA 把数据库与现有 WAL 复制到自有私有临时目录后才让 SQLite 打开副本；源文件从不被 SQLite 打开，锁与共享内存 sidecar 都不可能改到原快照。临时副本与自有 worker 在成功、失败、取消时都会清理；扩展加载与 schema 信任全程禁用。
+
+检测发生在复制后的快照上：变更的输入身份、特殊文件、畸形数据库、不支持的格式、资源失败，都会以所选路径和有意义的原因报告为错误。明确不支持的请求：加密数据库、数据库修复、任意 SQL、跨数据库查询、实时捕获。路径过长导致派生的 WAL/回滚日志路径无法寻址时，报能力不可用；用应用支持的离线导出把完整文件集放到更短路径。
+
+### 文件身份与证据摘要
+
+Evidence 分别记录数据库与相邻 `-wal` 文件的原始 SHA-256 和字节数，主体标识原始数据库文件；同时报告本次使用的 SQLite 引擎版本。WAL 的身份对解读待提交数据是必要的。这份摘要是身份与观察记录，不构成对数据库健康、完整或可信的声明。
+
+## 资源限制与生命周期
+
+| 限制 | 值 | 超出表现 |
+| --- | --- | --- |
+| 数据库 + WAL 合计 | 最多 256 MiB | 报 `resource_constraint`，附配置上限与观测合计大小 |
+| 单个 SQLite 值/记录 | 最多 16 MiB | 资源失败，不会把不完整 schema 当成功的完整证据返回 |
+| SQL 语句 | 最多 16 MiB | 同上 |
+| 完整 worker JSON 回复 | 最多 16 MiB | 同上 |
+| worker JS 堆 / 检查时限 | 256 MiB / 30 秒 | 资源失败 |
+| 在途检查 | 每 provider 至多 2 个 | 超额请求在读写文件或建 worker 前收到类型化容量错误 |
+
+在途检查覆盖「获取 → worker 执行 → 清理」全程，超额请求等当前检查完成后再重试。原生堆与常驻内存不设上限。
+
+超 256 MiB 预算时按错误指引走：`resource_constraint` 会报告配置的字节上限与观测合计大小（十进制字符串），出路是用应用支持的导出流程生成更小的离线一致快照——通用备份/复制不保证更小，REA 不截断也不修改源文件。
+
+MCP 侧对完整 Evidence 信封另有响应预算：超限报传输约束，出路是导出 Evidence、请求更大的客户端/服务器响应预算，或改用完整 CLI JSON 输出。
+
+取消与清理是保证据的：worker 完成后才到达的取消不会抹除已完成的观察；后续私有根清理失败时，错误保留完成的 Evidence 与资源所有者供清理重试；MCP 在交付错误前记录 Evidence，错误携带保留证据 ID 供后续检索/导出。
+
+## 最佳实践
+
+- **先清单后选表，按需抬范围。** 未选表的 `inventory` 清单决定先看哪张表；选表自动展开该表 schema；只有要写 schema 结论或做版本对比时才显式 `--schema-scope database`，并预估输出体积。
+- **宽表先选列再限量。** 未选中的单元格不求值、不投影：先排除大 BLOB 与长文本列，再配 `--row-limit`，避免触顶 16 MiB 记录/回复预算。
+- **快照采集决定结论效力。** 停止写入者或走应用备份流程拿一致的 database/WAL 对；活跃文件的普通副本可能被 journal 检查拒绝，也可能读到交错状态。
+- **截断样本当存在性证据用。** 「观察到更多行」为 true 时提高 `--row-limit` 是合理下一步，但回复受 16 MiB 与 30 秒期限约束；本通道没有绕开预算的全表导出，完整数据走应用支持的导出流程。
+
+## 常见问题
+
+- `rea capabilities --json` 里 `inspect_sqlite_database` 是 `available: false`，`availability_code` 为 `unsupported_version`
+  把 Node 升到 24.15+（24.x 线）或 26+；这条通道依赖原生 `DatabaseSync.limits` API，worker 在查询前还会再验证。清单命令本身仍以退出码 0 成功，其他 REA 功能不受该要求影响。
+- 数据库别的工具能打开，REA 却报错拒绝
+  按错误原因分流：仍有保留内容的回滚日志会被拒绝（崩溃恢复不在本通道）；加密数据库、畸形数据库与不支持的格式都会以所选路径和原因报错；活跃文件对的普通副本也可能因一致性问题失败。用应用备份流程重新采集一致的 database/WAL 对再检查。
+- 报 `resource_constraint`，说超出字节上限
+  数据库与 WAL 合计超过 256 MiB；错误里带配置上限与观测合计大小。用应用支持的导出流程生成更小的离线一致快照；REA 不截断、不修改源文件，通用备份/复制也不保证更小。
+- 只返回了 20 行，是不是表里就这些数据
+  不是。`--row-limit` 默认 20，结果会标注实际返回数与是否观察到更多行；行序未指定，截断样本不能证明被省略记录的任何情况。需要更多就显式提高 `--row-limit`，注意仍受 16 MiB 回复与 30 秒期限约束。
+- MCP 客户端报传输约束或响应超限，CLI 却能正常出全量
+  MCP 对完整 Evidence 信封另有响应预算，与检查本身的资源限制是两回事。按错误指引导出 Evidence、请求更大的客户端/服务器响应预算，或改用 CLI 的完整 JSON 输出。
+- 想执行一条 SQL、解密库或修复损坏库
+  都明确不支持：任意 SQL、跨数据库查询、加密数据库、数据库修复、实时捕获；schema 清单也不执行视图与触发器。视图同样不在可读行范围内。
+
+## 总结回顾
+
+摘要：
+
+REA 的 SQLite 通道用一个命令检查本地数据库快照：`rea inspect-sqlite-database`（MCP `inspect_sqlite_database`）不需要原生 provider、不需要安装 SQLite，只要 Node.js 24.15+/26+ 与一份静止的 database/WAL 快照对。请求侧由 `--table`、`--column`、`--row-limit`（默认 20）与 `--schema-scope`（未选表 `inventory`、选表 `selected_table`、可显式 `database`）控制；结果侧返回 schema（含 `completeness` 与原文 SQL 声明）、行样本（十进制整数字符串、带十六进制的文本、十六进制 BLOB、独立 NULL 标记）与文件身份（数据库与 WAL 的 SHA-256、引擎版本）。只读边界由私有临时副本保证，源文件不被 SQLite 打开；256 MiB 合计、16 MiB 值/语句/回复、30 秒期限与每 provider 两个在途检查构成资源边界；加密、修复、任意 SQL、跨库查询与实时捕获明确不支持。
+
+一句话：
+
+> SQLite 检查是「静止快照 + 私有副本 + 四个旋钮」的只读投影：schema 三档定深度，选表抽样定广度，文件身份定证据，超预算一律走应用导出而不是改源文件。
+
+知识要点：
+
+- 这条通道有哪些前置：Node 版本要求是什么，`rea capabilities --json` 怎么读，为什么不需要 provider 和 SQLite？
+- `schema_scope` 三档各报告什么，`completeness` 与 `not_requested` 怎么读，虚拟表/影子表的边界是什么？
+- `--table`、`--column`、`--row-limit` 的精确匹配、默认值与生成列行为是什么？
+- 行值语义里 INTEGER、REAL、TEXT、BLOB、NULL 各以什么形态出现，TEXT 为什么带十六进制字节？
+- 静止快照怎么采，回滚日志何时接受、何时拒绝，源文件如何被保护？
+- Evidence 的文件身份字段有哪些，为什么说摘要不是健康声明？
+- 各项资源预算是多少，`resource_constraint` 与 MCP 响应预算超限分别怎么处置？
+
+## 参考资料
+
+- [SQLite database snapshots（仓库 docs/sqlite-databases.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/sqlite-databases.md)
+  本课一手来源：CLI/MCP 契约、schema_scope 与行值语义、快照与回滚日志规则、资源预算与不支持范围。
+- [CLI 参考（仓库 docs/cli.md）](https://raw.githubusercontent.com/morluto/rea/main/docs/cli.md)
+  `inspect-sqlite-database` 的 CLI 形态、`--json` 全局输出约定与退出码。

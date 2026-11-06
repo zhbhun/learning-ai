@@ -1,0 +1,175 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="evm-bytecode" title="托管代码与字节码/EVM 字节码" name="Docs" />
+
+# EVM 字节码
+
+REA 对 EVM（以太坊虚拟机）字节码只有一条静态检查路线：`inspect-evm-interface` 从你指定的一个本地字节码文件里离线推断"接口候选"——内置的 EVMole 0.9.3 恢复函数选择器（function selector）候选及其字节偏移、dispatch 与参数/可变性字符串，附带解码编译器附加的 CBOR 元数据尾注，并给出两份 SHA-256 字节身份。全程不执行合约、不联链、不请求 RPC 或区块浏览器，结论可落成 Evidence 供回读。它回答的是"这段字节码暴露哪些可调用入口"；函数名、存储布局、控制流、代理路由与运行时行为都不在能力范围内。
+
+先记住命令与硬边界：
+
+| 事项 | 回查要点 |
+| --- | --- |
+| 检查命令 | `rea inspect-evm-interface <path> hex --json`（hex 文件）或 `... <path> raw --json`（原始字节） |
+| MCP 工具 | `inspect_evm_interface`，参数 `path` + `encoding`（`hex` / `raw`），可选 `detail` |
+| 输入 | 单个本地文件：hex（可选 `0x` 前缀与首尾空白）或 raw 字节；空字节码合法；上限 4 MiB |
+| 引擎 | 内置 EVMole 0.9.3，未修改；文档验证平台为 Linux x64 的平坦旧版字节码 |
+| 结果模式 | 默认完整内联；MCP 参数 `detail: "summary"` 改为派生 Evidence 摘要 |
+| 运行前置 | 主机需自备 util-linux `prlimit`（通常 `/usr/bin/prlimit`），可用 `REA_EVM_PRLIMIT_COMMAND` 换路径 |
+| 明确不做 | 无网络访问、无函数名解析、不验证 ABI、EOF（`EF00`）容器返回 `unsupported_target` |
+
+## 快速上手
+
+准备一个只装部署字节码（runtime bytecode）的本地文件。常见做法是从可信来源复制合约的 deployed bytecode，存成十六进制文本文件 `runtime.hex`；REA 不替你抓取，链上、浏览器、编译产物都行，只要文件内容是这段字节码本身。
+
+然后运行：
+
+```bash
+rea inspect-evm-interface ./runtime.hex hex --json
+```
+
+结果里依次核对四类东西：
+
+- 函数选择器候选：每个候选带 decoded-byte 偏移、dispatch 信息和 argument/mutability 字符串——这是"这段字节码可能暴露哪些函数入口"的直接答案。
+- `bytecode.metadata`：编译器写在字节码尾部的 CBOR 元数据解读（如 Solidity 元数据段），整数是十进制字符串、字节串是 hex。
+- 两份 SHA-256：一份标识原始文件（含前缀与空白），一份标识实际选中的 EVM 字节——比对两份文件是否同一字节码时用它们。
+- `raw_result`：上游 EVMole 的原始输出，原样内联保留。
+
+想要函数名，把选择器拿去和你手里的 ABI 或公开签名库比对——REA 自己不查名。想要行为逻辑、存储或代理结构，本命令不提供，见下文边界。
+
+## 接口推断
+
+`inspect-evm-interface` 是一条固定流水线：读取你显式指定的单个本地文件 → 按编码（`hex` 或 `raw`）解码出 EVM 字节 → 交给内置 EVMole 0.9.3 做 selector 恢复 → 解析尾部 CBOR 元数据 → 汇成结构化结果。官方等价写法：
+
+```bash
+rea inspect-evm-interface ./runtime.hex hex --json
+rea inspect-evm-interface ./runtime.bin raw --json
+```
+
+MCP 输入同名不同形：
+
+```json
+{
+  "name": "inspect_evm_interface",
+  "arguments": {
+    "path": "/artifacts/runtime.hex",
+    "encoding": "hex"
+  }
+}
+```
+
+分析完全离线：没有目标运行时执行，没有隐式的链/RPC/浏览器查询、钱包操作、交易广播或任何网络请求。
+
+### 输入与编码
+
+- 一次只接受一个显式选择的本地字节码载体；不存在"给地址分析合约"的入口。
+- hex 编码允许可选的 `0x` 前缀和首尾 ASCII 空白；raw 编码就是原始字节。
+- 空字节码是合法输入，结果是"覆盖未知"的空候选集，不是错误。
+- 大小上限 4 MiB，回复上限 16 MiB，合并诊断输出上限 1 MiB。
+- 这些输入一律拒绝：奇数长度 hex、内部分隔符、BOM、非 ASCII 空白、无效 UTF-8。
+
+### 函数选择器候选
+
+EVMole 在字节码里恢复函数选择器候选，每个候选携带：
+
+- 选择器本身与 decoded-byte 偏移（字节在解码后字节码中的位置）；
+- dispatch 信息；
+- argument/mutability 字符串（可为 `null`）。
+
+三条硬边界决定你怎么用这份列表：
+
+- 全部是推断，不是验证过的源码 ABI。函数名和签名不做查找；优化过的代码可能给出不同的可变性候选。
+- 候选集为空不证明"没有可调用接口"——发现完整性始终未知，即使是空或已穷尽的结果。
+- 部署身份、runtime/init-code 同一性、hardfork 都保持未知；本原语不做部署或运行时行为断言。
+
+### 元数据尾注
+
+结果里的 `bytecode.metadata` 是对字节码末尾 CBOR 元数据的独立解读：从选中字节中识别"疑似终端 CBOR 根映射"后按结构解码，整数用十进制字符串、字节串用 hex、标量键保留原类型；其中记录的 offset/length 指向原始字节码。
+
+- 解析有界：最多 64 层容器，受终端负载编码大小约束；嵌套容器只有部分标量覆盖。
+- 畸形或不支持的候选报告 `not-decoded` 并附诊断。
+- 尾注不可用不证明"没有元数据"或"不是 Solidity"；编译器版本字节是元数据声明，不构成对编译器、源文件或已部署合约身份的验证；其中的 metadata/source URL 不会被抓取。
+
+### 字节身份与原始结果
+
+- 两份 SHA-256 各管一件事：carrier 摘要标识原始文件本身（含 `0x` 前缀、大小写与空白），decoded 摘要标识实际选中的 EVM 字节。判断"两个文件是不是同一段字节码"看 decoded 摘要；判断"两个文件是否逐字节相同"看 carrier 摘要。
+- 两份摘要都不是以太坊的 Keccak code hash，别拿去和链上 code hash 对。
+- 完整字节码与上游函数偏移默认内联返回，原始编码的元数据段仍嵌在其中。
+- `raw_result` 原样保留上游 EVMole 的输出，包括 selector 恢复期间的终端元数据；JS 绑定下的整数精度与非文本键覆盖未知，需精确语义时以 `raw_result` 为准。
+- 成功结果的 `diagnostics.truncated` 说明合并诊断输出是否被截断。
+
+## 摘要证据与视图
+
+默认模式把完整结果内联返回；MCP 参数 `detail: "summary"` 改为交付一份派生 Evidence，`normalized_result.summary` 保留生产者返回的每一个选择器、decoded 偏移、dispatch、argument/mutability 字符串（含 `null`）、carrier/decoded 身份、原有限制与显式未知项，并保留 stderr 与截断状态、记录 stdout 文本长度；`evidence_kind` 为 `inferred`。
+
+```json
+{
+  "name": "inspect_evm_interface",
+  "arguments": {
+    "path": "/artifacts/runtime.hex",
+    "encoding": "hex",
+    "detail": "summary"
+  }
+}
+```
+
+拿到 `normalized_result.parent_evidence_id` 后，用 `inspect_analysis_view`（source kind `retained-evidence`）回读：
+
+- 视图种类为 `evm`，页面有四个：`functions`、`bytecode_hex`、`stdout`、`stderr`。
+- `functions` 按原始行序排列；文本页按 UTF-16 code unit 排序，所以文本页偏移不等于函数的 decoded-byte 偏移。
+- `bytecode_hex` 保留原始小写十六进制文本、无前缀，两个字符对应一个解码字节。
+- 读视图不重跑分析、不改变其身份；父 Evidence 仍走正常的 ledger/export 流程。
+
+两个交付细节：不支持保留的服务器会在分析开始前拒绝 summary 交付、继续支持完整交付；可移植的历史完整 EVM Evidence 可用 source kind `inline` 回读，不需要 provider。交付选择不省解释器的工作——分析照常运行。
+
+## 资源限制与运行前置
+
+- 主机必须已提供 util-linux 的 `prlimit`（通常在 `/usr/bin/prlimit`）；路径不同或缺失时，用环境变量 `REA_EVM_PRLIMIT_COMMAND` 指向另一个绝对路径的可执行文件。REA 不安装系统工具。
+- 工作进程限额：256 MiB JS 堆、3 GiB 虚拟地址空间、30 CPU 秒、30 秒命令截止时间。
+- 限额失败没有部分成功：触限即整体失败，并带资源诊断（如 EFBIG/SIGXFSZ、SIGXCPU 类）。
+- 文档的验证范围是 Linux x64 上的平坦旧版字节码；EOF 风格的 `EF00` 容器返回 `unsupported_target`（附选中的路径与格式原因）。其他平台与容器形态需自行验证。
+- 仓库自带验证通道：CLI 通道追踪代表性的 raw/hex 工作流并拒绝网络尝试（不是通用沙箱）；元数据通道用 `REA_VERIFY_SOLC_MODULE` 指向 solc 0.8.30 的 `index.js` 编译自有 fixture 并报告本地解码耗时，全程不执行任何合约：
+
+```bash
+REA_VERIFY_SOLC_MODULE=/absolute/path/to/solc/index.js npm run verify:solidity:metadata
+```
+
+## 常见问题
+
+- 只有合约地址，想直接分析链上合约。
+  没有这条入口。先把 deployed bytecode 从可信来源复制成本地 hex 文件，再跑 `rea inspect-evm-interface`；REA 自身不发任何网络请求。
+- 报 `unsupported_target`。
+  输入是 EOF 风格（`EF00` 开头）的容器，当前不支持；本能力只针对平坦旧版字节码。
+- 拿到选择器列表却查不到函数名。
+  预期行为：REA 不做名称/签名查找，结果本来就是推断候选。自己拿选择器对照手中的 ABI、编译产物或公开签名数据，再回填结论。
+- 想用结果里的 SHA-256 和链上 code hash 比对。
+  不行，两份摘要都不是 Keccak code hash；链上比对需要自己另行计算 Keccak。
+- 结果为空或候选很少，能断定合约没有可调用函数吗？
+  不能。发现完整性始终未知，空候选集不证明没有可调用接口；优化过的字节码还可能给出不同的可变性候选。
+- 元数据报告 `not-decoded` 或缺失。
+  `not-decoded` 附带诊断，说明候选畸形或不受支持；尾注不可用不证明没有元数据，也不是"非 Solidity"的证据。需要精确语义时回看 `raw_result`。
+- Linux 主机上报 prlimit 相关失败。
+  核对 util-linux `prlimit` 是否存在（通常 `/usr/bin/prlimit`）；不在标准位置就用 `REA_EVM_PRLIMIT_COMMAND` 指定绝对路径。
+
+## 总结回顾
+
+摘要：
+
+REA 对 EVM 字节码的能力集中在一个离线命令 `inspect-evm-interface`（MCP 工具 `inspect_evm_interface`）上：读取一个本地 hex 或 raw 字节码文件，由内置 EVMole 0.9.3 推断函数选择器候选（含 decoded 偏移、dispatch、argument/mutability 字符串），独立解析尾部 CBOR 元数据为 `bytecode.metadata`，并给出 carrier 与 decoded 两份 SHA-256 字节身份，原始输出保留在 `raw_result`。`detail: "summary"` 把结果换成派生 Evidence，经 `inspect_analysis_view` 的 `evm` 视图按 `functions`、`bytecode_hex`、`stdout`、`stderr` 四页回读。选择器与可变性都是推断而非验证的 ABI；函数名、Keccak code hash、存储、控制流、代理解析与运行时行为都不在能力内，EOF 容器直接不支持。
+
+一句话：
+
+> `inspect-evm-interface` 回答"这段本地字节码可能暴露哪些函数入口"；它是离线推断，不是链上验证，更不是行为分析。
+
+知识要点：
+
+- 输入是什么形态？单个本地文件，hex（可选 `0x` 前缀与首尾空白）或 raw 字节，上限 4 MiB，空字节码合法；没有地址入口。
+- 结果里能读到什么？选择器候选（偏移、dispatch、argument/mutability）、`bytecode.metadata` CBOR 解读、carrier/decoded 两份 SHA-256、内联字节码与 `raw_result`。
+- 摘要模式怎么用？MCP 参数 `detail: "summary"` 得到 `normalized_result.summary` 与 `parent_evidence_id`，用 `inspect_analysis_view` 的 `evm` 视图四页回读。
+- 哪些判断超出本命令？函数名解析、ABI 验证、Keccak code hash、部署与运行时行为、存储/CFG/代理解析、EOF 容器。
+- 运行前置是什么？主机自备 util-linux `prlimit`，可用 `REA_EVM_PRLIMIT_COMMAND` 改路径；触限整体失败，无部分成功。
+
+## 参考资料
+
+- [EVM bytecode interface analysis（morluto/rea 仓库 docs）](https://github.com/morluto/rea/blob/main/docs/evm-bytecode.md)
+- [REA CLI 参考（输出格式与全局选项，morluto/rea 仓库 docs）](https://github.com/morluto/rea/blob/main/docs/cli.md)

@@ -1,0 +1,346 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="js-application-graph" title="JavaScript 与 Electron/应用图与工作流" name="Docs" />
+
+# 应用图与工作流
+
+`analyze-javascript-application` 产出的 Evidence 里装的是一张 JS 应用图：节点是应用中的实体（package、ASAR 条目、模块、BrowserWindow、IPC 通道、原生插件等），边是实体间的关系，每条记录都带证据标注。本课讲这张图的结构与标注方式，以及官方预置的六个只读工作流——它们只消费已完成的 Evidence 做投影和追踪，不读产物、不执行代码、不附加进程。读完本课，你能把"某个功能在哪实现"落到具体模块，并说清每个结论的证据等级。
+
+应用图相关能力全部围绕下表六个工作流展开。MCP 工具名用下划线，CLI 命令用连字符，输入是同一套 JSON：
+
+| MCP 工具 | CLI 命令 | 用途 |
+| --- | --- | --- |
+| `inspect_analysis_view` | `rea inspect-analysis-view` | 把已完成 Evidence 投影成摘要、模块页、引用或保留事实视图，不遍历关系 |
+| `trace_application_feature` | `rea trace-application-feature` | 从字面种子追踪可达的完整子图，定位功能实现 |
+| `trace_javascript_semantics` | `rea trace-javascript-semantics` | 在认证伴随语义图上查询声明方向与关系种类 |
+| `compare_application_versions` | `rea compare-application-versions` | 对两个认证图版本做实体配对比较 |
+| `compare_source_to_bundle` | `rea compare-source-to-bundle` | 提交的历史源图与应用图对比 |
+| `compare_javascript_export_shapes` | `rea compare-javascript-export-shapes` | 两侧各选一个模块路径加导出名，比较返回形状 |
+
+## 快速上手
+
+前提：已有一次 JS 静态分析的 Evidence（分析命令见静态分析一课）。三步形成最小闭环：分析 → 投影摘要 → 按功能追踪。
+
+```bash
+# 1. 生成应用图 Evidence
+rea analyze-javascript-application /absolute/path/to/app --json > application-evidence.json
+
+# 2. 把 Evidence 内联进请求，投影整份图的摘要视图
+jq -c '{source: {kind: "inline", evidence: .}, view: {kind: "summary"}}' application-evidence.json > app-view.json
+rea inspect-analysis-view app-view.json
+
+# 3. 用字面量种子追踪一个功能（示例种子：字符串 "search-result"）
+node --input-type=module -e '
+import { readFileSync, writeFileSync } from "node:fs";
+const application = JSON.parse(readFileSync("application-evidence.json", "utf8"));
+writeFileSync("trace-input.json", JSON.stringify({
+  application, seed: { kind: "string", value: "search-result" }, direction: "both"
+}));'
+rea trace-application-feature ./trace-input.json --json
+```
+
+可观察结果：
+
+- 摘要视图把整份 Evidence 压缩成很小的摘要——官方示例中 334 MB 的 Obsidian 应用 Evidence 投影出约 10 KB 的 summary 视图。
+- 特征追踪返回匹配依据（matching basis）、完整可达子图、terminal paths、authority summaries 与 native handoffs。
+
+## 图的结构
+
+应用图是 provider-neutral 的领域模型：它连接发布的应用字节、JavaScript 结构、Electron 进程边界、被动浏览器观察和原生插件，是持久化的规范数据契约。实现是纯函数式的——验证调用方提供的事实、推导语义 ID、强制图完整性、以 RFC 8785 canonical JSON 序列化；它不做文件系统或 CDP I/O，也不执行 JavaScript。
+
+存储记录的顶层字段：
+
+```json
+{
+  "schema": "JavaScriptApplicationGraph",
+  "graph_id": "jag_<规范化图语义的 sha256>",
+  "root_node_ids": ["jag_node_<sha256>"],
+  "nodes": [],
+  "edges": [],
+  "coverage": "partial",
+  "limitations": []
+}
+```
+
+- `graph_id` 与节点 ID 由规范化语义内容派生，且在每次解析时重算——语义内容变更后，旧 ID 无法被保留。
+- `coverage` 描述图覆盖程度，取值 `complete`、`partial`、`unknown`、`unavailable`。
+- 不对 roots、nodes、edges、observations 或 JSON 属性施加聚合上限；提取器在 coverage 中报告实际省略，而不是静默丢弃。
+
+解析图记录时整体拒绝：未知字段、非规范排序、重复 ID、过期语义承诺、缺失根节点、悬挂端点、自环，以及跨节点类型的 `changed_from` 边。
+
+### 节点类型
+
+节点覆盖从打包产物到运行时实例的全部实体。按来源层分组记忆：
+
+| 分组 | 节点类型 |
+| --- | --- |
+| 打包与构件 | `package`、`installer`、`artifact`、ASAR entry |
+| JavaScript 代码 | JavaScript asset、chunk、module；source map；original source module |
+| Electron 进程边界 | main / preload / renderer / utility process 代码；BrowserWindow；frame；target |
+| 交互面 | contextBridge API、IPC channel、IPC handler、endpoint、storage |
+| 运行时实例 | worker、service worker、runtime script instance |
+| 原生扩展 | native add-on、native export |
+| 兜底 | 显式 `unknown` 类型——分类不成立时使用，而不是静默丢弃 |
+
+### 边类型
+
+关系词表固定为 12 个，供应商名称刻意不出现在词表中：
+
+| 关系 | 语义（官方静态链示例或文档说明） |
+| --- | --- |
+| `contains` | 容器包住内容：package contains app.asar、main asset contains BrowserWindow |
+| `loads` | BrowserWindow loads preload role |
+| `imports` | JavaScript asset imports requested native binding；模块间 import |
+| `maps_to` | source map 节点映射到恢复的原始源模块 |
+| `exposes` | preload asset exposes contextBridge API |
+| `sends` | 发送方向关系（词表成员，具体搭配以生成图的 Evidence 为准） |
+| `invokes` | preload asset invokes 唯一匹配的 main-process IPC handler |
+| `handles` | IPC handler handles 字面 IPC channel |
+| `calls` | 调用关系（词表成员） |
+| `persists_to` | 持久化到 storage（词表成员） |
+| `observed_as` | 运行时实例与静态实体的观察关联，由 browser/Electron observation 层提供 |
+| `changed_from` | 跨版本变化；不允许出现在不同节点类型之间 |
+
+两个字段细节：
+
+- endpoint 可标记 `resolution: "partial"`——识别到请求调用但解析不到唯一目标值。部分与精确 endpoint 即使显示值相同也有不同身份；不同位置匹配相同表达式文本不能建立同一运行时目标。这只记录源语法，不证明调用实际执行。
+- `maps_to` 指向 source-map 节点时携带 `resolved_path` 和 `declared_url_sha256`；完整 `declared_url` 不进入节点身份、显示标签或边属性——大型内联 data URL 每个引用只存一次。读旧数据时注意：以前读 `edge.properties.declared_url` 的消费者应改为跟踪 `target_node_id` 并按 `declared_url_sha256` 选择观察。
+
+官方给出的典型静态推断链（`loads`、`exposes`、`invokes`、`handles`、`imports` 保持为静态推断；动态或歧义 IPC 保留但不产生配对边）：
+
+```text
+package contains app.asar
+main asset contains BrowserWindow
+BrowserWindow loads preload role
+preload asset exposes contextBridge API
+preload asset invokes uniquely matched main-process IPC handler
+main-process IPC handler handles literal IPC channel
+JavaScript asset imports requested native binding
+resolved native add-on exposes requested binding (not a verified binary export)
+```
+
+## 语义标注
+
+图里的每条观察和边都带三组限定，这决定了你能把结论说到哪一层：
+
+- authority（来源）：artifact bytes、AST 分析、静态关系推断、passive CDP runtime、跨层调和、native 分析、历史参考、用户断言。
+- epistemic state：`observed`、`inferred`、`unknown`、`unavailable`。
+- confidence：`exact`、`high`、`medium`、`low`、`unknown`，独立于 epistemic state 限定。
+
+约束规则（读图时可直接当判断依据）：
+
+- `static-relationship-inference` 与 `cross-layer-reconciliation` 只能产生 `inferred` 事实；后者必须同时链接静态与运行时证据。
+- `unknown` 与 `unavailable` 事实要求 unknown confidence 和 limitation；`inferred` 事实要求显式 limitation。
+- `exact` confidence 仅为观察保留；所有观察需要可操作的 location；artifact 支撑的事实需要 digest。
+- 静态/原生 authority 不能声称 runtime 位置。
+- 截断的 coverage 必须是 `partial`、命名限制边界、不能声称零省略；`complete` coverage 不能截断或省略。
+- 不可用值显式表示而非缺省字段——"证据的缺失不能悄悄变成缺失的证据"。
+
+每个节点还有一个身份稳定性策略，决定它在什么范围内被认作同一个实体：
+
+| 策略 | 稳定性范围 | 用途 |
+| --- | --- | --- |
+| `content-digest` | 全局精确字节 | artifact 与字节相同的 asset |
+| `source-map-original` | 一个 source-map 承诺 | 恢复的原始源模块 |
+| `canonical-path` | 一个 artifact 版本 | 精确规范化路径上的 ASAR 条目与 asset |
+| `artifact-local-key` | 一个 artifact 版本 | IPC channel、handler、export 等命名实体 |
+| `structural-fingerprint` | 显式跨版本推断 | 由有限结构假设关联的模块 |
+| `runtime-instance` | 仅一个 capture | target、frame、运行时脚本、worker |
+| `observation-fingerprint` | 一个观察范围 | 无更强身份依据的事实 |
+
+判断要点：`canonical-path` 与 `artifact-local-key` 身份只在一个 artifact 版本内稳定；跨版本认同一律依赖 `structural-fingerprint`，且绝不声称精确跨版本身份；`runtime-instance` 身份只在单个 capture 内有效。
+
+## 视图投影
+
+`inspect_analysis_view` 只对已完成的 Evidence 做投影——摘要、模块页、类型化模块引用或单个模块，也可以投影保留的 `inspect_binary_layout` Evidence——不遍历关系。请求统一为 `source` 加 `view` 两段：
+
+```json
+{
+  "source": { "kind": "retained-evidence", "evidence_id": "RETURNED_ID" },
+  "view": { "kind": "summary" }
+}
+```
+
+`source` 有三种取法：
+
+- `retained-evidence`：引用之前返回的 Evidence ID（引用仅限单连接，`close_binary` 清除）。
+- `inline`：内嵌完整父 Evidence，便携但大文件成本高。
+- `evidence-file`：给文件路径，如 `{"kind": "evidence-file", "path": "application-evidence.json"}`。相对路径相对工作目录解析，MCP 客户端需传绝对路径；REA 读取并校验文件后按 retained Evidence 投影，大文件受文件读取器限制而不按内联输入计费。文件须为常规文件（符号链接可以），目录、命名管道、设备文件报输入错误。4.1.0 之前的版本只接受完整内联 Evidence。
+
+通用分页：`offset` 默认 0，`limit` 默认 64，后续页跟随 `coverage.next_offset`。结果保留父 Evidence 身份、artifact 身份、limitations 与 unknowns；`source_coverage` 单独报告 selected/unselected 来源、图覆盖与 unknown 计数——空页或翻完页不能证明某项不存在。
+
+### 摘要视图
+
+`view.kind` 为 `summary`，返回整份图的压缩摘要。Evidence 已是 JSON 文件时，可以在命令行用 jq 构造请求：
+
+```bash
+jq -c '{source: {kind: "inline", evidence: .}, view: {kind: "summary"}}' application-evidence.json > app-view.json
+rea inspect-analysis-view app-view.json
+```
+
+### 模块分页
+
+`view.kind` 为 `page`，按 `collection` 分页取内容：
+
+```json
+{
+  "source": { "kind": "evidence-file", "path": "application-evidence.json" },
+  "view": { "kind": "page", "collection": "modules", "offset": 0, "limit": 32 }
+}
+```
+
+### 模块引用投影
+
+`view.kind` 为 `javascript` 且 `projection` 为 `references`，按精确 path/kind 过滤后列出保留的引用观察：
+
+```json
+{
+  "kind": "javascript",
+  "collection": "modules",
+  "projection": "references",
+  "where": { "path": "main.js", "kind": "javascript-module" },
+  "offset": 0,
+  "limit": 16
+}
+```
+
+- `where` 按 path/kind 精确匹配；省略即包含所有值；`path: null` 选不可用路径，`path: ""` 选记录的空路径。多个身份可共享同一 path。
+- 每行含 `node_id`、kind、path、canonical identity、保留源范围观察计数和 `basis`（distinct authority/state/confidence 组合）。
+- 计数不证明唯一的引用点或运行时加载；要精确 source ranges，需用该行 `node_id` 走 module item view（单个模块视图）。
+
+### 保留模块事实
+
+`view.kind` 为 `javascript-facts`，按属性名抽取保留的模块事实：
+
+```json
+{
+  "kind": "javascript-facts",
+  "where": { "paths": ["package.json", "build/Release/addon.node"] },
+  "property_keys": ["name", "version", "bytes", "availability", "operation", "analysis_status"],
+  "offset": 0,
+  "limit": 32
+}
+```
+
+- `property_keys` 精确选属性名：缺失键被省略，保留的 null 保持 null；空列表只取身份/溯源。
+- `include_available_property_keys` 默认 `false`；设为 `true` 时每行附带 `available_property_keys`（不含未选值），与空 `property_keys` 组合可做字段发现。
+- `where.paths` 精确匹配 artifact-path 或 source-range sources；不检查 display labels、不检查名为 `path` 的属性、不规范化 URL、不重开文件。省略即包含 unknown 位置；空列表匹配零行。`where.kinds` 按原始 node kind 过滤，空列表同样匹配零行。
+- 输出行保留 node identity、observation ID、source-map reference 和原始 Evidence（location、authority、confidence、coverage、limitations）；观察不会合并成单一断言事实，合并行时须保持 node/observation ID 配对。同一共享内容的多个位置保持多行、同一 canonical node identity。
+- 这些行只选 application-graph 观察；语义关系与 semantic unknown 仍在完整父 Evidence 与 trace 工具中。
+
+## 按功能追踪
+
+`trace_application_feature` 从一个字面量种子出发，追踪可达的完整子图，是"这个功能在哪实现"的主入口。种子 kind 七选一：
+
+| 种子 kind | 示例 |
+| --- | --- |
+| node ID | 图中已有的节点 ID |
+| route | 路由字面量 |
+| string | 字符串常量，如 `"search-result"` |
+| API | API 名称 |
+| IPC channel | IPC 通道名 |
+| module | 模块路径或名称 |
+| native export | 原生导出名 |
+
+匹配只接受 exact 或字面子串，不接受正则和可执行谓词；`direction` 控制遍历方向（官方示例用 `"both"`，即追踪完整选中方向的可达图）：
+
+```json
+{
+  "seed": { "kind": "string", "value": "search-result" },
+  "direction": "both"
+}
+```
+
+`application` 字段取 retained 引用（`{"kind": "retained-evidence", "evidence_id": "..."}`）或完整 inline Evidence——快速上手一节演示了内联构造。输出包含：matching basis、complete reachable subgraph、terminal paths、authority summaries、native handoffs。
+
+原生交接（native handoffs）规则：
+
+- handoff 绑定 native artifact 的精确 digest 与请求的 exports；Hopper/Ghidra Evidence 仅在 subject digest 精确匹配时链接。
+- 摘要不匹配时报 `requires-provider-analysis`，推荐 provider-neutral 后续工具，从不隐式启动或切换 provider。
+- 不可用的未打包 companion 保留在图中（canonical path、availability、container-backed Evidence）；archive digest 不能标识缺失 add-on。
+
+## 语义追踪与比较工作流
+
+其余四个工作流覆盖语义关系查询与三类比较。六个工作流的共同边界：所有结果都区分结构可达、语义影响、运行时观察与因果证明——缺关系绝不报告为已证行为缺失。
+
+### 语义追踪
+
+`trace_javascript_semantics` 在认证伴随语义图上查询，不重读可变文件；回答声明方向与关系种类。
+
+- 默认不遍历模糊动态 candidate 边（结果保持 ambiguous），须显式开启 `include_ambiguous_dynamic_edges` 才遍历。
+- 调用方不能自选节点、关系、深度、函数、模块、种子匹配或页面预算。
+- 语义图线格式把非位置 provenance 集中存于 `evidence_contexts` 表，节点用 `evidence.context_id` 引用——这是一处破坏性变更，消费 `evidence.authority` 时须按 `context_id` 查 context 合并。
+- 提取覆盖：词法定义/读取、字面量种子、属性槽、对象读写/展开/解构、闭包捕获、唯一解析的本地调用、参数/返回流、显式 Promise 流；以及 EventEmitter、Node 定时器、child_process、配置源、请求构造、parse/coercion/validation 边界、资源获取释放的静态候选。
+- 函数指纹提交规范化语法、控制流形状、关系形状、字面量集合、arity 与效果，不用本地名或偏移；重复指纹保持歧义。
+- TypeScript `import type` 与 `export type` 是源事实，不产生运行时关系；内联 `type` 说明符在 verbatimModuleSyntax 下的依赖候选被保留。
+
+### 版本比较
+
+`compare_application_versions` 对两个认证图版本做实体配对比较。配对层级从高到低：
+
+```text
+精确内容摘要 -> 模块源摘要 -> 精确节点身份 -> source-map 身份 -> 结构指纹 -> 非模块语义键
+```
+
+低层不覆盖高层唯一匹配。状态取值：`unchanged`、`added`、`removed`、`changed`、`unknown`。
+
+- 仅 location 差异在双侧覆盖完整时算 `unchanged`，但仍报 `dimensions: ["location"]`。
+- 一侧缺失只有在对面图覆盖完整时才判 added/removed，否则 `unknown`。
+- 官方提供配套验证入口：
+
+```bash
+npm run verify:application-workflows -- \
+  --left /absolute/path/to/version-a \
+  --right /absolute/path/to/version-b
+```
+
+验证器可选项：`--seed-kind` 与 `--seed-value`；完整导出对需同时给 `--left-module-path`、`--left-export-name`、`--right-module-path`、`--right-export-name`。
+
+### 源码对比与导出形状
+
+- `compare_source_to_bundle`：把提交的历史源图与应用图对比（历史源码树的导入与逐层比对在 Evidence 阶段的历史源码比对课程展开）。
+- `compare_javascript_export_shapes`：两侧各选一个模块路径加导出名，比较返回形状。
+
+## 最佳实践
+
+- **先投影，后追踪。** 大 Evidence 先用 summary 视图和模块分页缩小范围，再对目标功能发追踪请求；六个工作流各自独立计费读入，避免盲目对整图发大请求。大文件优先用 `evidence-file` 或 retained 引用，不内联。
+- **种子选字面量。** 从界面文案、IPC 通道名、路由或字符串常量里取种子的精确文本；追踪不支持正则，模糊猜测只会得到空结果。
+- **结论按证据等级引用。** 静态推断链上的 `loads`、`exposes`、`invokes`、`handles`、`imports` 都是 `inferred`；引用结论时带上 authority 与 confidence，不要把静态推断说成运行时观察。
+- **需要运行时语义就跑探针。** 静态图工作流不执行代码；要确认行为真的发生，改用行为探针工作流（见运行时观测课程），再把动态现象通过 `observed_as` 归因回图。
+
+## 常见问题
+
+- 空页、空 handoff 列表，能不能证明"这个功能不存在"或"没有原生组件"？
+  不能。视图的 `source_coverage` 单独报告未选中来源与 unknown 计数，空 handoff 列表不证明无 native 组件；只有图覆盖 `complete` 时，缺失才有判定意义。
+- 追踪原生交接时报 `requires-provider-analysis`？
+  handoff 绑定的 artifact digest 与已有 provider Evidence 不精确匹配。用 provider-neutral 后续工具对该 artifact 显式发起原生分析；REA 不会隐式启动或切换 provider。
+- 视图行里源范围观察计数很高，能当作"唯一引用点"吗？
+  不能。引用投影的计数不证明唯一引用点或运行时加载；需要精确 source ranges 时，用该行 `node_id` 走 module item view。
+- 自己构造或修改的图记录解析失败？
+  按解析器的拒绝清单核对：未知字段、非规范排序、重复 ID、过期语义承诺、缺失根节点、悬挂端点、自环、跨节点类型的 `changed_from` 边。所有 ID 是解析时重算的语义 ID，语义内容变了旧 ID 必然失效，不能手工沿用。
+
+## 总结回顾
+
+摘要：
+
+分析产出的 Evidence 内是一张持久化的 JS 应用图：顶层带 `graph_id`、`root_node_ids`、`coverage` 与 `limitations`，节点覆盖从 package、ASAR 条目、模块到 BrowserWindow、IPC 通道、原生插件的全部实体，边固定为 12 个关系词表。每条记录带 authority、epistemic state、confidence 三组标注和身份稳定性策略，约束规则保证"证据的缺失不能悄悄变成缺失的证据"。官方预置六个只读工作流消费这份 Evidence：`inspect_analysis_view` 投影摘要、模块页、引用与保留事实，`trace_application_feature` 从七种字面种子追踪可达子图，`trace_javascript_semantics` 查询伴随语义图，三个 compare 工作流做版本、源码与导出形状比较。全程不执行代码，结论只说到证据支撑的那一层。
+
+一句话：
+
+> 应用图是带证据标注的只读地图：先用视图投影缩小范围，再用字面种子追踪到具体模块，结论只能说到图证了的那一层。
+
+知识要点：
+
+- 应用图 Evidence 的顶层字段有哪些，`coverage` 四个取值分别说明什么？
+- 12 个边关系各表达什么，哪些关系永远只是静态推断？
+- 一条观察的 authority、epistemic state、confidence 怎么组合出结论等级？
+- 身份稳定性策略如何决定跨版本认不认同一个实体？
+- `inspect_analysis_view` 的 `source` 有哪三种取法，各适合什么场景？
+- 四种视图（summary、page、javascript 引用投影、javascript-facts）分别回答什么问题，默认分页是多少？
+- 特征追踪支持哪七种种子，匹配规则是什么，空结果说明什么？
+
+## 参考资料
+
+- [JavaScript application graph — morluto/rea docs](https://github.com/morluto/rea/blob/main/docs/javascript-application-graph.md)
+- [JavaScript application workflows — morluto/rea docs](https://github.com/morluto/rea/blob/main/docs/javascript-application-workflows.md)
+- [REA CLI 文档 — morluto/rea docs](https://github.com/morluto/rea/blob/main/docs/cli.md)

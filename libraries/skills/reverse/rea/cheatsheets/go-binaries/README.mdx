@@ -1,0 +1,123 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="go-binaries" title="原生二进制/语言与平台/Go 二进制" name="Docs" />
+
+# Go 二进制
+
+Go 工具链在构建时会把编译器版本、模块依赖、构建设置等元数据直接嵌进二进制文件。`rea inspect-go-binary` 只读文件就能把这些内容解析成结构化证据——不运行目标、不需要安装 Go、也不需要配置 Hopper/Ghidra/IDA 等分析引擎，这一点与 [4.1.1 原生调查](?path=/docs/native-investigation--docs)的六条命令不同。本课讲清这条命令怎么调用、读出什么、支持范围与上限在哪，以及读出的元数据如何接入后续调查。Rust 构件的同类检查见 [4.2.2 Rust 二进制](?path=/docs/rust-binaries--docs)。
+
+```mermaid
+flowchart LR
+  B[Go 二进制文件] --> C[inspect-go-binary 只读解析]
+  C --> E[Evidence 构件身份]
+  C --> M[build_info 版本与模块]
+  E --> N[锚定分析对象与后续调查]
+  M --> N
+```
+
+| 回查点 | 内容 |
+| --- | --- |
+| CLI 调用 | `rea inspect-go-binary /absolute/path/to/application --json` |
+| MCP 工具 | `inspect_go_binary`，`arguments.path` 必须是绝对路径 |
+| 输出两层 | Evidence（构件身份）+ `build_info`（编译器版本与模块信息） |
+| 支持容器 | 带 Go 内联或历史指针式 build-info 编码的 ELF、PE、thin Mach-O |
+| 输入上限 | 256 MiB（资源 `file-size`，见 `reported_limits.maximum_input_bytes`） |
+| 关键判读 | `build_info: null` 只表示未找到已识别记录，不能证明不是 Go |
+
+## 快速上手
+
+前置：已安装 REA（见 [1.1 安装与设置](?path=/docs/installation--docs)）。`PATH` 换成任意一个 Go 编译的可执行文件——不需要安装 Go，也不需要 provider。
+
+```bash
+rea inspect-go-binary /absolute/path/to/application --json
+```
+
+观察：返回两层内容。Evidence 给出构件路径、SHA-256、字节长度、容器格式、架构、字长与字节序；`build_info` 给出 `go_version` 和 `module`（主模块、依赖列表、构建设置）。路径规则：CLI 的相对路径按调用方工作目录解析；MCP 侧同名工具 `inspect_go_binary` 的 `path` 必须是绝对路径，并按传入值原样使用。整个过程只读：不运行目标、不创建临时文件、不启动子进程、不访问网络、不修改所选文件。
+
+## 读出什么
+
+输出分两层：Evidence 回答「这是什么文件」，`build_info` 回答「它是用什么构建的」。下面按字段组展开；`build_info` 为 `null` 时的解读见常见问题。
+
+### 构件身份
+
+Evidence 记录构件路径、SHA-256、字节长度、容器格式、架构、字长与字节序。它的职责是把本课所有结论锚定到确切的文件：后续引用这份分析时，用路径加 SHA-256 就能核对拿到的是不是同一个文件。
+
+### 编译器版本
+
+`build_info.go_version` 以嵌入的 UTF-8 文本保留，不强制为语义版本格式；字符串不是合法 UTF-8 时该字段为 `null`。无论文本能否解码，`go_version_bytes_base64` 都保留编译器字符串原始字节的精确 base64——需要逐字节核用时从这里取。输出还带编译器字符串在文件中的精确偏移与字节长度，可直接定位到嵌入位置。
+
+### 模块与依赖
+
+`build_info.module` 承载构建时的模块信息：
+
+| 字段 | 内容 |
+| --- | --- |
+| `module.path` | 嵌入的包路径 |
+| `module.main` | 主模块：路径、版本、校验和及可选替换 |
+| `module.dependencies` | 依赖列表，保持原始顺序 |
+| `module.settings` | 有序键值对，保留重复键 |
+| `module_text` | 解码后的模块信息正文，无法表示为 UTF-8 时为 `null` |
+| `module.unparsed_lines` | 未被解析的原始行 |
+| `module.complete` | 是否每一行都被解析 |
+
+判读边界：校验和缺失时为 `null`；空字段与开发、本地替换版本保持原样，不会被补全或清洗。`module.complete` 为 `false` 时先看 `module.unparsed_lines` 再下结论——解析器没能覆盖的行不在结构化字段里，但原始内容仍可查（配 `module.unparsed_line_bytes_base64`）。
+
+### 原始字节与偏移
+
+除解码后的字段外，输出同时给出头部、编译器字符串、模块字符串的精确文件偏移与字节长度；`go_version_bytes_base64` 与 `module_bytes_base64`（含 Go 分帧的原始模块字符串字节）保留原始字节。这组内容回答「元数据在文件里的哪里、原文是什么」：不做任何解析就能直接对照文件核对结论，也把更深的字节级调查锚定到准确位置。
+
+## 支持范围与上限
+
+容器与编码：支持带 Go 内联或历史指针式 build-info 编码的 ELF、PE 与 thin Mach-O 镜像；历史无模块二进制的零初始化虚拟内存模块头也能识别。没有命名 build-info 节的 ELF，按程序头顺序检查非空、可写、不可执行的加载段。两条硬边界：不把任意字节串当作编译器元数据来扫描；不把 fat Mach-O 解析成单一架构。
+
+资源上限：
+
+| 资源 | 上限 |
+| --- | --- |
+| 输入文件大小（资源 `file-size`） | 256 MiB（`reported_limits.maximum_input_bytes`） |
+| 累计头部搜索 | 256 MiB |
+| 嵌入字符串聚合 | 1 MiB |
+| 结构表解码 | 16 MiB |
+| 规范化元数据报告 | 8 MiB |
+
+任一上限超限即失败，没有部分成功。MCP 调用另有响应传输预算：元数据超预算时响应不完整或失败，但 Evidence 会保留，可从 Evidence 导出后再取所需内容。
+
+## 最佳实践
+
+- **把元数据接进后续调查，而不是当终点。** `go_version` 判断编译器年代与可用特性；`module.dependencies` 直接产出依赖清单，供供应链与已知漏洞核对；`module.settings` 的构建设置反映构建方式；偏移与原始字节把结论锚到文件位置。元数据里没有函数名和源码映射——需要函数级调查时转入 [4.1.1 原生调查](?path=/docs/native-investigation--docs)的 disassembler 工作流。
+- **嵌入元数据只证明文件内容。** 它不认证编译器或供应链，也不反映运行时行为；据此下结论时把范围限定在「这个文件是用什么构建的」。
+- **需要独立核验时对照 Go 官方读取器。** 仓库提供 `npm run verify:go:binary`，用公共 CLI 与 MCP 比对元数据与 Go 标准 `debug/buildinfo` 读取器的结果；该验证流程需要安装 Go，日常检查不需要。
+
+## 常见问题
+
+- `build_info` 返回 `null`，能断定文件不是 Go 编译的吗
+  不能。`null` 只表示未找到已识别的 build-info 记录；剥离（stripped）、旧构建或混淆都可能让元数据不可见。先确认容器与架构在支持范围内，再用字节级与反汇编手段继续判断。
+- 命令拒绝我给的路径，或报文件在读取期间被修改
+  符号链接与非普通文件会被拒绝，改传普通文件；文件在获取期间被修改也会报错——对正在构建或被覆盖的文件，等写入完成后重试。
+- 输入超过 256 MiB 直接失败
+  这是 `file-size` 资源约束（`reported_limits.maximum_input_bytes`），超限即失败、无部分结果；先确认目标构件是否为完整镜像。
+- MCP 调用结果不完整或提示超出响应预算
+  MCP 有响应传输预算，规范化元数据报告上限 8 MiB；超限时从保留的 Evidence 导出所需内容，而不是放大单次响应。
+
+## 总结回顾
+
+摘要：
+
+本课建立 Go 二进制元数据检查的模型：Go 构建时把版本与模块信息嵌进二进制，`rea inspect-go-binary`（MCP 工具 `inspect_go_binary`）只读文件即可解析，不需要 Go、provider 或反汇编引擎。输出分两层：Evidence 固定构件身份（路径、SHA-256、字节长度、容器格式、架构、字长、字节序），`build_info` 给出 `go_version`（非 UTF-8 时 `null`，原始字节在 `go_version_bytes_base64`）与 `module`（主模块、保持原始顺序的依赖、保留重复键的构建设置、`module.complete` 完整性标志）。工具支持内联与历史指针式 build-info 编码的 ELF、PE、thin Mach-O，受 256 MiB 输入与各级解码上限约束；`build_info: null` 不能证明不是 Go，嵌入元数据只证明文件内容，函数级调查要转 disassembler 工作流。
+
+一句话：
+
+> Go 二进制的构建元数据就在文件里，`inspect-go-binary` 只读一次就能拿到编译器版本、模块依赖与构建设置——不需要 Go，也不需要反汇编引擎。
+
+知识要点：
+
+- `inspect-go-binary` 的 CLI 与 MCP 调用形态是什么，路径解析规则有何不同？
+- Evidence 与 `build_info` 两层输出各回答什么问题？
+- `go_version`、`module.main`、`module.dependencies`、`module.settings`、`module.complete` 各承载什么？原始字节与偏移怎么取？
+- 支持哪些容器与编码，各级资源上限分别是多少，超限后行为如何？
+- `build_info: null` 能说明什么、不能说明什么？元数据能证明什么、不能证明什么？
+
+## 参考资料
+
+- [Go binaries — morluto/rea docs](https://raw.githubusercontent.com/morluto/rea/main/docs/go-binaries.md)
+- [CLI and Evidence — morluto/rea docs](https://raw.githubusercontent.com/morluto/rea/main/docs/cli.md)
