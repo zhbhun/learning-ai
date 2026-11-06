@@ -1,0 +1,29 @@
+{
+  "skill_name": "commit-message",
+  "evals": [
+    {
+      "id": 1,
+      "name": "simple-feat-with-scope",
+      "prompt": "帮我给暂存区写一条 commit message。",
+      "setup": "在任意临时 git 仓库中：新建 src/utils/format.ts，内容为导出一个 formatDate 函数（含简单实现和 JSDoc 注释）；在 src/index.ts 中 import 并调用它；git add 之后运行本测试。",
+      "expected_output": "一条 feat 类型的 message，带从路径推断的 scope（如 utils 或 src），subject 为祈使句、无句号、约 50 字符内，如 feat(utils): add formatDate helper。不执行 git commit。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "empty-staging-area",
+      "prompt": "帮我写一条 commit message 然后提交。",
+      "setup": "在临时 git 仓库中：修改一个已有文件但不要 git add，保持暂存区为空，然后运行本测试。",
+      "expected_output": "技能应检测到暂存区为空，指出有未暂存的改动并停下来让用户先 stage，而不是基于未暂存内容编造 message，也绝不执行 git commit（否则会提交空或错误内容）。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "fix-with-root-cause-body",
+      "prompt": "暂存区里的改动帮我生成 commit message。",
+      "setup": "在临时 git 仓库中：新建一个含分页逻辑的文件，其中边界条件故意写成 offset < 0 才重置为 0；随后把条件改为 offset <= 0，git add 这个修复，运行本测试。",
+      "expected_output": "一条 fix 类型的 message，subject 描述修正本身（如 fix(pagination): include zero offset in boundary reset），并带一句 body 说明根因（恰好等于边界值的输入被漏掉），而不是只复述把 < 改成 <=。",
+      "files": []
+    }
+  ]
+}

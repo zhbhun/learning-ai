@@ -1,0 +1,42 @@
+<evaluation>
+  <qa_pair>
+    <question>The Association for Computing Machinery's highest honor, often called the Nobel Prize of computing, is named after a British logician and computer science pioneer. Find his author record in Open Library and give his author ID (OLID, in the form OL…A).</question>
+    <answer>OL770877A</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Find the satirical novella about a farm uprising in which the animals overthrow their human owner, written by the English author born on 25 June 1903. What year did Open Library record as its first publication year?</question>
+    <answer>1945</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>The science fiction novel famous for its desert-planet setting was written by an author Open Library records as having died on 11 February 1986. Look up that author's record and give his birth date exactly as Open Library records it.</question>
+    <answer>8 October 1920</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which publishing house released the edition of George Orwell's Nineteen Eighty-Four that carries ISBN 9780451524935? Give the publisher name exactly as recorded on the edition's Open Library record.</question>
+    <answer>Signet Classic</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the Open Library record of the 1949 dystopian novel about totalitarian surveillance, several characters are catalogued under the work's subject people. Among them, who is the novel's protagonist — the low-ranking party member who keeps a forbidden diary?</question>
+    <answer>Winston Smith</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>When did the author of The Hobbit die? Answer with the date exactly as Open Library records it on his author record.</question>
+    <answer>2 September 1973</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>An American science fiction author born on 21 October 1929 has an Open Library record listing her top work. What is the title of that top work?</question>
+    <answer>The Left Hand of Darkness</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In the Open Library subject data for Frank Herbert's Dune, one entry names the fictional planet the story is set on, written in the form of a place name with a parenthetical. Give that subject string exactly as it appears in the work's record.</question>
+    <answer>Dune (Imaginary place)</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Of George Orwell's two most famous novels — the 1945 allegorical novella and the 1949 dystopian novel — which one does Open Library list with the larger number of editions? Give the title as it appears on its Open Library work record.</question>
+    <answer>Nineteen Eighty-Four</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Three authors have records in Open Library: Mark Twain, J.R.R. Tolkien, and Alan Mathison Turing. Exactly one of them died in 1954. Give that author's name exactly as Open Library records it on his author record.</question>
+    <answer>Alan Mathison Turing</answer>
+  </qa_pair>
+</evaluation>

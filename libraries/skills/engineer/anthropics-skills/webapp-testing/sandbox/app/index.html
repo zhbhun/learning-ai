@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Todo Mini</title>
+<style>
+  body { font-family: sans-serif; max-width: 420px; margin: 40px auto; }
+  li.done { text-decoration: line-through; color: #999; }
+  #count { color: #666; }
+</style>
+</head>
+<body>
+  <h1>Todo Mini</h1>
+  <input id="new-todo" placeholder="What needs doing?">
+  <button id="add-btn">Add</button>
+  <p id="count"></p>
+  <ul id="list"></ul>
+  <script>
+    const todos = [];
+    function render() {
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      todos.forEach((t, i) => {
+        const li = document.createElement('li');
+        li.textContent = t.text;
+        li.className = t.done ? 'done' : '';
+        li.addEventListener('click', () => { todos[i].done = !todos[i].done; console.log('todo toggled:', i); render(); });
+        list.appendChild(li);
+      });
+      document.getElementById('count').textContent =
+        todos.filter(t => !t.done).length + ' item(s) left';
+    }
+    document.getElementById('add-btn').addEventListener('click', () => {
+      const input = document.getElementById('new-todo');
+      if (!input.value.trim()) return;
+      todos.push({ text: input.value.trim(), done: false });
+      console.log('todo added:', input.value.trim());
+      input.value = '';
+      render();
+    });
+    console.log('Todo Mini loaded');
+    render();
+  </script>
+</body>
+</html>

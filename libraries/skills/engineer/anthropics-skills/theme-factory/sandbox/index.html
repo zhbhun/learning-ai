@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acme — 让团队协作更高效</title>
+<style>
+  /* Theme: Ocean Depths (theme-factory)
+     Deep Navy #1a2332 · Teal #2d8b8b · Seafoam #a8dadc · Cream #f1faee
+     Headers: DejaVu Sans Bold · Body: DejaVu Sans */
+  :root {
+    --deep-navy: #1a2332;
+    --teal: #2d8b8b;
+    --seafoam: #a8dadc;
+    --cream: #f1faee;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "DejaVu Sans", "PingFang SC", "Microsoft YaHei", Verdana, sans-serif;
+    background: var(--cream);
+    color: var(--deep-navy);
+    line-height: 1.6;
+  }
+  h1, h2, h3 { font-weight: 700; }
+
+  /* Header */
+  header {
+    background: var(--deep-navy);
+    padding: 16px 6%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    color: var(--cream);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .logo span { color: var(--teal); }
+  nav a {
+    color: var(--seafoam);
+    text-decoration: none;
+    margin-left: 24px;
+    font-size: 0.95rem;
+  }
+  nav a:hover { color: var(--cream); }
+
+  /* Hero */
+  .hero {
+    background: var(--deep-navy);
+    color: var(--cream);
+    text-align: center;
+    padding: 96px 6% 104px;
+  }
+  .hero h1 { font-size: 2.6rem; max-width: 720px; margin: 0 auto 16px; }
+  .hero h1 em { color: var(--teal); font-style: normal; }
+  .hero p { color: var(--seafoam); max-width: 560px; margin: 0 auto 32px; font-size: 1.1rem; }
+  .cta {
+    display: inline-block;
+    background: var(--teal);
+    color: var(--cream);
+    text-decoration: none;
+    padding: 14px 36px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .cta:hover { background: #359d9d; }
+  .cta-secondary {
+    margin-left: 12px;
+    color: var(--seafoam);
+    text-decoration: none;
+    padding: 14px 20px;
+    font-size: 1rem;
+  }
+  .cta-secondary:hover { color: var(--cream); }
+
+  /* Features */
+  .features { padding: 72px 6%; }
+  .features h2 { text-align: center; font-size: 1.8rem; margin-bottom: 40px; }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 28px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  .feature {
+    background: #ffffff;
+    border-top: 4px solid var(--teal);
+    border-radius: 8px;
+    padding: 28px 24px;
+    box-shadow: 0 2px 10px rgba(26, 35, 50, 0.08);
+  }
+  .feature h3 { margin-bottom: 8px; }
+  .feature p { color: var(--deep-navy); opacity: 0.8; font-size: 0.95rem; }
+
+  /* Quote band */
+  .quote {
+    background: var(--seafoam);
+    padding: 56px 6%;
+    text-align: center;
+  }
+  .quote blockquote {
+    max-width: 640px;
+    margin: 0 auto;
+    font-size: 1.15rem;
+    color: var(--deep-navy);
+  }
+  .quote cite { display: block; margin-top: 12px; font-size: 0.9rem; color: var(--teal); font-style: normal; font-weight: 700; }
+
+  /* Bottom CTA */
+  .bottom-cta {
+    background: var(--deep-navy);
+    color: var(--cream);
+    text-align: center;
+    padding: 72px 6%;
+  }
+  .bottom-cta h2 { font-size: 1.7rem; margin-bottom: 24px; }
+
+  /* Footer */
+  footer {
+    background: var(--deep-navy);
+    border-top: 1px solid rgba(168, 218, 220, 0.25);
+    color: var(--seafoam);
+    text-align: center;
+    padding: 20px 6%;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Acme<span>.</span></div>
+  <nav>
+    <a href="#features">功能</a>
+    <a href="#quote">客户评价</a>
+    <a href="#start">开始使用</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>让团队协作<em>更简单</em>，让交付更高效</h1>
+  <p>Acme 为团队提供一站式协作平台：任务、文档、进度，全部汇聚在一个工作区。</p>
+  <a class="cta" href="#start">免费开始使用</a>
+  <a class="cta-secondary" href="#features">了解功能 →</a>
+</section>
+
+<section class="features" id="features">
+  <h2>为什么选择 Acme</h2>
+  <div class="feature-grid">
+    <div class="feature">
+      <h3>任务管理</h3>
+      <p>看板、列表、时间线多种视图，进度一目了然，优先级清晰可控。</p>
+    </div>
+    <div class="feature">
+      <h3>实时协作</h3>
+      <p>多人同时编辑文档与评论，沟通上下文不再散落在各个工具之间。</p>
+    </div>
+    <div class="feature">
+      <h3>数据洞察</h3>
+      <p>内置报表与度量面板，团队效率与项目风险，数据说话。</p>
+    </div>
+  </div>
+</section>
+
+<section class="quote" id="quote">
+  <blockquote>
+    "接入 Acme 三个月后，我们的需求交付周期缩短了 40%，跨部门协作终于有了统一的入口。"
+    <cite>— 某互联网公司研发负责人</cite>
+  </blockquote>
+</section>
+
+<section class="bottom-cta" id="start">
+  <h2>准备好让团队更进一步了吗？</h2>
+  <a class="cta" href="#">立即免费试用</a>
+</section>
+
+<footer>© 2026 Acme Inc. · 保留所有权利</footer>
+
+</body>
+</html>

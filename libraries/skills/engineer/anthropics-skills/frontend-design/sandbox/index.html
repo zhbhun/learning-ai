@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拾遗书局</title>
+<meta name="description" content="拾遗书局：老城区中山路的二手书店。收旧书、卖旧书、修旧书，二〇〇九年至今。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css">
+<style>
+:root{
+  --paper:#EAE3D2;
+  --slip:#F6F1E3;
+  --ink:#26231D;
+  --ink-soft:#57503F;
+  --ink-mute:#4A4436;
+  --seal:#B23A26;
+  --cloth:#22453A;
+  --navy:#2E3D55;
+  --oxblood:#5E2A22;
+  --mustard:#A07E3B;
+  --wood:#6B503A;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Noto Serif SC','Songti SC',serif;
+  color:var(--ink);
+  font-size:17px;
+  line-height:1.95;
+  background:
+    radial-gradient(1100px 500px at 88% -8%, rgba(246,241,227,.75), transparent 62%),
+    radial-gradient(900px 480px at -6% 108%, rgba(214,203,175,.55), transparent 58%),
+    var(--paper);
+}
+::selection{background:var(--seal);color:var(--slip)}
+:focus-visible{outline:2px solid var(--seal);outline-offset:3px}
+a{color:inherit}
+
+/* ---------- hero ---------- */
+.hero{
+  min-height:88vh;
+  max-width:1160px;
+  margin-inline:auto;
+  padding:clamp(3rem,7vw,5.5rem) clamp(1.25rem,5vw,4rem) clamp(3.5rem,8vw,6rem);
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:clamp(2.5rem,7vw,6rem);
+  align-items:end;
+}
+.brand{display:flex;flex-direction:column;align-items:flex-start;gap:2.4rem}
+.title-wrap{position:relative;animation:slot .9s cubic-bezier(.22,.75,.3,1) .05s backwards}
+.title-slip{
+  writing-mode:vertical-rl;
+  display:inline-block;
+  background:var(--slip);
+  border:1.5px solid var(--ink);
+  outline:1px solid var(--ink);
+  outline-offset:4px;
+  padding:2.4rem 1rem 2.8rem 1.15rem;
+  font-size:clamp(2.7rem,5.2vw,4.1rem);
+  font-weight:900;
+  letter-spacing:.16em;
+  line-height:1.12;
+}
+.title-slip .sub{
+  font-size:.3em;
+  font-weight:400;
+  letter-spacing:.62em;
+  color:var(--ink-soft);
+}
+.seal{
+  position:absolute;
+  right:-1.7rem;
+  bottom:-1.5rem;
+  width:4.4rem;height:4.4rem;
+  background:var(--seal);
+  color:var(--slip);
+  border-radius:4px;
+  transform:rotate(3.5deg);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  place-items:center;
+  font-family:'LXGW WenKai',serif;
+  font-size:1.5rem;
+  box-shadow:inset 0 0 0 3px rgba(246,241,227,.5),inset 0 0 0 6px var(--seal);
+}
+.seal i{font-style:normal;line-height:1}
+.seal i:nth-child(1){grid-column:1;grid-row:1}
+.seal i:nth-child(2){grid-column:2;grid-row:1}
+.seal i:nth-child(3){grid-column:1;grid-row:2}
+.seal i:nth-child(4){grid-column:2;grid-row:2}
+.tagline{
+  font-family:'LXGW WenKai',serif;
+  font-size:1.12rem;
+  line-height:2.15;
+  color:var(--ink-soft);
+  max-width:22em;
+}
+.cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:1.6rem}
+.btn{
+  display:inline-block;
+  background:var(--seal);
+  color:var(--slip);
+  text-decoration:none;
+  font-family:'LXGW WenKai',serif;
+  font-size:1.05rem;
+  letter-spacing:.22em;
+  padding:.85em 1.5em .95em 1.7em;
+  border-radius:2px;
+  transition:background .2s ease;
+}
+.btn:hover{background:#99301D}
+.btn:focus-visible{outline-color:var(--ink)}
+.quiet{
+  font-family:'LXGW WenKai',serif;
+  text-decoration:underline;
+  text-underline-offset:.35em;
+  text-decoration-thickness:1px;
+}
+.quiet:hover{color:var(--seal)}
+
+/* ---------- the spine shelf ---------- */
+.shelf{
+  --sh:1;
+  display:flex;
+  align-items:flex-end;
+  gap:.5rem;
+  padding:0 clamp(.75rem,2vw,1.5rem);
+  border-bottom:.85rem solid var(--wood);
+}
+.spine{
+  position:relative;
+  display:block;
+  writing-mode:vertical-rl;
+  height:calc(var(--h) * var(--sh));
+  background:var(--c);
+  color:#EFE8D6;
+  font-family:'LXGW WenKai',serif;
+  font-size:1.06rem;
+  letter-spacing:.3em;
+  padding:1.5rem .58rem 1.25rem .75rem;
+  text-decoration:none;
+  border-radius:2px 2px 0 0;
+  transition:transform .25s ease;
+  animation:slot .8s cubic-bezier(.22,.75,.3,1) backwards;
+  animation-delay:calc(.18s + var(--i) * .055s);
+}
+.spine::before,.spine::after{
+  content:"";
+  position:absolute;
+  left:0;right:0;
+  height:.45rem;
+  background:rgba(0,0,0,.22);
+}
+.spine::before{top:0}
+.spine::after{bottom:0}
+a.spine:hover,
+a.spine:focus-visible{transform:translateY(-.5rem)}
+.spine.blank{padding-left:.62rem}
+.spine.blank.paper{background:var(--slip)}
+@keyframes slot{
+  from{transform:translateY(-1.9rem);opacity:0}
+}
+/* ---------- sections ---------- */
+section{
+  max-width:820px;
+  margin-inline:auto;
+  padding:clamp(3.5rem,9vw,6.5rem) clamp(1.25rem,5vw,2.5rem) 0;
+}
+h2{
+  font-size:clamp(1.55rem,3.4vw,2.15rem);
+  font-weight:900;
+  letter-spacing:.08em;
+  line-height:1.4;
+  margin-bottom:1.6rem;
+}
+h3{
+  font-family:'LXGW WenKai',serif;
+  font-size:1.18rem;
+  font-weight:400;
+  color:var(--cloth);
+  margin-top:2.2rem;
+  margin-bottom:.5rem;
+}
+p + p{margin-top:1em}
+.hand{font-family:'LXGW WenKai',serif}
+
+/* 来路：老照片贴纸式时间线 */
+.photo-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.6rem;
+  margin:2.2rem 0 1.2rem;
+}
+figure.polaroid{
+  background:var(--slip);
+  border:1px solid rgba(38,35,29,.28);
+  padding:.7rem .7rem .6rem;
+  box-shadow:2px 3px 8px rgba(38,35,29,.18);
+}
+figure.polaroid:nth-child(odd){transform:rotate(-1.6deg)}
+figure.polaroid:nth-child(even){transform:rotate(1.3deg)}
+.ph{
+  width:9.2rem;height:6.6rem;
+  display:grid;place-items:center;
+  font-size:2.6rem;
+  color:#EFE8D6;
+}
+.ph.a{background:linear-gradient(160deg,#5E2A22,#6B503A)}
+.ph.b{background:linear-gradient(160deg,#22453A,#2E3D55)}
+.ph.c{background:linear-gradient(160deg,#A07E3B,#5E2A22)}
+figcaption{
+  font-family:'LXGW WenKai',serif;
+  font-size:.92rem;
+  color:var(--ink-soft);
+  padding-top:.5rem;
+  text-align:center;
+}
+.milestones{
+  border-left:2px solid rgba(38,35,29,.35);
+  margin:2rem 0 0;
+  padding-left:1.6rem;
+  display:grid;
+  gap:1.35rem;
+}
+.milestones li{list-style:none;position:relative}
+.milestones li::before{
+  content:"";
+  position:absolute;
+  left:calc(-1.6rem - 7px);
+  top:.75em;
+  width:9px;height:9px;
+  border-radius:50%;
+  background:var(--paper);
+  border:2px solid var(--ink);
+}
+.milestones .yr{
+  font-weight:900;
+  letter-spacing:.06em;
+  color:var(--seal);
+  margin-right:.6em;
+}
+
+/* 批注：旧书页上的手写便条 */
+.notes{
+  display:flex;
+  flex-direction:column;
+  gap:1.4rem;
+  margin-top:2rem;
+}
+.note{
+  position:relative;
+  background:var(--slip);
+  border:1px solid rgba(38,35,29,.22);
+  padding:1.3rem 1.5rem 1.1rem;
+  max-width:34em;
+  font-family:'LXGW WenKai',serif;
+  line-height:1.9;
+  font-size:1.02rem;
+  box-shadow:2px 3px 7px rgba(38,35,29,.14);
+}
+.note::before{
+  content:"";
+  position:absolute;
+  top:-.6rem;left:1.4rem;
+  width:4.6rem;height:1.15rem;
+  background:rgba(176,122,44,.4);
+  transform:rotate(-2deg);
+}
+.note:nth-child(even){margin-left:auto;transform:rotate(1deg)}
+.note:nth-child(odd){transform:rotate(-.8deg)}
+.note .who{
+  display:block;
+  margin-top:.7rem;
+  font-size:.88rem;
+  color:var(--ink-mute);
+}
+.note .who::before{content:"—— "}
+/* 架上：书脊式分类条目 */
+.rack{margin-top:1.6rem;display:grid;gap:.65rem}
+.rack-row{
+  display:grid;
+  grid-template-columns:11.5rem 1fr;
+  gap:1.1rem;
+  align-items:stretch;
+  border-bottom:1px solid rgba(38,35,29,.16);
+  padding-bottom:.9rem;
+}
+.rack .tag{
+  writing-mode:vertical-rl;
+  font-family:'LXGW WenKai',serif;
+  font-size:1rem;
+  letter-spacing:.34em;
+  color:#EFE8D6;
+  padding:1.5rem .55rem 1.8rem .68rem;
+  border-radius:2px;
+  text-align:center;
+}
+.tag.t1{background:var(--cloth)}
+.tag.t2{background:var(--navy)}
+.tag.t3{background:var(--oxblood)}
+.tag.t4{background:var(--mustard)}
+.rack-row > div > p{font-size:.98rem}
+.rack-row small{
+  display:block;
+  font-family:'LXGW WenKai',serif;
+  color:var(--ink-mute);
+  font-size:.88rem;
+  margin-top:.3rem;
+}
+
+/* 来店：实地信息，左签右文 */
+.visit-grid{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:clamp(1.6rem,4.5vw,3.2rem);
+  margin-top:.5rem;
+}
+.visit-grid .tag{
+  writing-mode:vertical-rl;
+  background:var(--oxblood);
+  color:#EFE8D6;
+  font-family:'LXGW WenKai',serif;
+  font-size:1.15rem;
+  letter-spacing:.4em;
+  padding:1.6rem .7rem 1.9rem .8rem;
+  border-radius:2px;
+  align-self:start;
+}
+.hours{display:grid;gap:.15rem;margin-top:.4rem}
+.hours div{display:flex;gap:1.2rem;align-items:baseline}
+.hours .d{
+  flex:0 0 6.5em;
+  font-weight:600;
+}
+dl.traffic{display:grid;grid-template-columns:auto 1fr;gap:.15rem 1rem;margin-top:1.4rem}
+dl.traffic dt{
+  font-family:'LXGW WenKai',serif;
+  color:var(--seal);
+}
+dl.traffic dd{margin:0}
+
+footer{
+  margin-top:clamp(4rem,9vw,6rem);
+  border-top:1px solid rgba(38,35,29,.28);
+  padding:1.8rem clamp(1.25rem,5vw,2.5rem) 2.4rem;
+  max-width:820px;
+  margin-inline:auto;
+  font-family:'LXGW WenKai',serif;
+  font-size:.95rem;
+  color:var(--ink-soft);
+  display:flex;
+  flex-wrap:wrap;
+  gap:.6rem 2.2rem;
+  justify-content:space-between;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;align-items:start;min-height:auto;gap:3rem}
+  .title-wrap{margin-left:.4rem}
+  .shelf{border-bottom-width:.55rem}
+  .spine{font-size:.9rem;letter-spacing:.22em;padding:1rem .42rem .85rem .52rem}
+}
+@media (max-width:640px){
+  .rack-row{grid-template-columns:5.4rem 1fr;gap:.9rem}
+  .rack .tag{letter-spacing:.2em;font-size:.92rem;padding:.8rem .38rem 1rem .45rem}
+  .visit-grid{grid-template-columns:auto 1fr;gap:1.4rem}
+  .visit-grid .tag{font-size:1rem;letter-spacing:.3em;padding:1.2rem .55rem 1.5rem .65rem}
+  .hours .d{flex-basis:5.5em}
+  .hours span:last-child{flex:1;min-width:9em}
+}
+@media (max-width:430px){
+  .spine{font-size:.78rem}
+  .spine.xm,.spine.xs{display:none}
+  .shelf{gap:.35rem}
+  .seal{width:3.6rem;height:3.6rem;font-size:1.2rem;right:-1.2rem;bottom:-1.1rem}
+  .hours div{flex-wrap:wrap;gap:.1rem .9rem}
+  .hours .d{flex-basis:auto}
+  .hours span:last-child{min-width:0;flex:1 1 12em}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .title-wrap,.spine{animation:none}
+  .spine,a.spine:hover{transition:none;transform:none}
+  figure.polaroid,.note,.note:nth-child(even),.note:nth-child(odd){transform:none}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="brand">
+    <div class="title-wrap">
+      <h1 class="title-slip">拾遗书局<span class="sub">老城中山路</span></h1>
+      <div class="seal" aria-hidden="true"><i>书</i><i>拾</i><i>局</i><i>遗</i></div>
+    </div>
+    <p class="tagline">老城里一间收旧书、卖旧书、修旧书的店。<br>书是别人读完的，故事还没有。</p>
+    <p class="cta-row">
+      <a class="btn" href="#shelves">看看架上有什么</a>
+      <a class="quiet" href="#visit">怎么找到我们</a>
+    </p>
+  </div>
+  <nav class="shelf" aria-label="页面各部分">
+    <span class="spine blank xs" style="--h:6.5rem;--c:#26231D;--i:5" aria-hidden="true"></span>
+    <span class="spine blank xm" style="--h:10rem;--c:#22453A;--i:6" aria-hidden="true"></span>
+    <span class="spine blank paper xm" style="--h:8rem;--i:12" aria-hidden="true"></span>
+    <a class="spine" style="--h:14.5rem;--c:#22453A;--i:0" href="#about">这间店</a>
+    <span class="spine blank xs" style="--h:11rem;--c:#2E3D55;--i:7" aria-hidden="true"></span>
+    <span class="spine blank paper xm" style="--h:9rem;--i:13" aria-hidden="true"></span>
+    <a class="spine" style="--h:16rem;--c:#2E3D55;--i:1" href="#from">来路</a>
+    <span class="spine blank xm" style="--h:8.5rem;--c:#26231D;--i:8" aria-hidden="true"></span>
+    <a class="spine" style="--h:13rem;--c:#5E2A22;--i:2" href="#notes">批注</a>
+    <span class="spine blank paper" style="--h:10.5rem;--i:14" aria-hidden="true"></span>
+    <span class="spine blank xm" style="--h:9rem;--c:#22453A;--i:9" aria-hidden="true"></span>
+    <a class="spine" style="--h:15.5rem;--c:#A07E3B;--i:3" href="#shelves">架上</a>
+    <span class="spine blank xs" style="--h:12rem;--c:#5E2A22;--i:10" aria-hidden="true"></span>
+    <span class="spine blank paper xm" style="--h:8rem;--i:15" aria-hidden="true"></span>
+    <a class="spine" style="--h:14rem;--c:#B23A26;--i:4" href="#visit">来店</a>
+    <span class="spine blank xm" style="--h:10rem;--c:#22453A;--i:11" aria-hidden="true"></span>
+    <span class="spine blank xs" style="--h:7.5rem;--c:#26231D;--i:16" aria-hidden="true"></span>
+    <span class="spine blank paper xm" style="--h:9.5rem;--i:17" aria-hidden="true"></span>
+  </nav>
+</header>
+
+<section id="about">
+  <h2>这间店</h2>
+  <p>拾遗书局开在老城中山路的骑楼下，二〇〇九年到现在。我们收旧书、卖旧书，也修旧书——书脊散了、书页黄了的书，在这里补好，等下一位读者。</p>
+  <p>店里没有"新书区"。每一本都带着上一位主人的痕迹：扉页的题字、页边的批注、夹了三十年的一张车票。买书的人常常买走的不是一本书，是这些痕迹的延续。</p>
+  <h3>书怎么来</h3>
+  <p>街坊搬家清出的、老人子女送来的、旧书摊上淘的。上门收书不嫌少：一捆也好，一书柜也好。价钱按品相和稀罕程度当面谈，不压价。</p>
+</section>
+
+<section id="from">
+  <h2>来路</h2>
+  <p>开店的人原先在造纸厂做装订，厂子关了，就用手艺换了营生。店名取自"拾遗补阙"——旧书散了容易，收拢难，我们就做收拢的事。</p>
+  <div class="photo-row" aria-hidden="true">
+    <figure class="polaroid">
+      <div class="ph a">书</div>
+      <figcaption>二〇〇九年，开店那天</figcaption>
+    </figure>
+    <figure class="polaroid">
+      <div class="ph b">架</div>
+      <figcaption>二楼书架，一直没变</figcaption>
+    </figure>
+    <figure class="polaroid">
+      <div class="ph c">摊</div>
+      <figcaption>周六的旧书摊</figcaption>
+    </figure>
+  </div>
+  <ol class="milestones">
+    <li><span class="yr">二〇〇九</span>中山路骑楼下开了这间店，第一批书来自街坊搬迁。</li>
+    <li><span class="yr">二〇一四</span>添了修书的台子，开始接装订和补页的活。</li>
+    <li><span class="yr">二〇一九</span>办了第一次"批注展"，把书里别人写的字展出来。</li>
+    <li><span class="yr">二〇二三</span>开始每月一次的旧书交换会，带一本书来，换一本走。</li>
+  </ol>
+</section>
+
+<section id="notes">
+  <h2>批注</h2>
+  <p>旧书最动人的部分不在正文里，在页边。这些是从店里卖出去和没卖出去的书里抄下来的。</p>
+  <div class="notes">
+    <div class="note">一九八四年冬天读到这里，窗外下了雪。那年我二十岁。<span class="who">《边城》页边，蓝墨水</span></div>
+    <div class="note">母亲生前读过多遍，划线是她划的。书我留着，字替她抄给您。<span class="who">《唐诗三百首》扉页，随书出让</span></div>
+    <div class="note">此页算错了，正确答案是十二。当年为此挨了先生的戒尺。<span class="who">《算术课本》一九五三年版，铅笔</span></div>
+  </div>
+</section>
+<section id="shelves">
+  <h2>架上</h2>
+  <p>书按来路和内容分四架，每架隔一阵就换一批——旧书只有一本，见过就未必再有。</p>
+  <div class="rack">
+    <div class="rack-row">
+      <span class="tag t1">文史</span>
+      <div>
+        <p>地方志、老照片集、口述史。老城这一带的研究者常来翻。</p>
+        <small>现存六十一册，近收《县志》民国铅印本一套</small>
+      </div>
+    </div>
+    <div class="rack-row">
+      <span class="tag t2">文学</span>
+      <div>
+        <p>小说、诗、散文，以八九十年代版本为多，品相整体最好。</p>
+        <small>现存一百四十余册，近收《围城》一九八〇年一版一印</small>
+      </div>
+    </div>
+    <div class="rack-row">
+      <span class="tag t3">旧课本</span>
+      <div>
+        <p>五六十年代到九十年代的语文、算术、自然课本。批注最多的一架。</p>
+        <small>现存八十八册，近收《自然》一九六二年版，附教学挂图</small>
+      </div>
+    </div>
+    <div class="rack-row">
+      <span class="tag t4">连环画</span>
+      <div>
+        <p>成套的不多，散本随缘。常有家长带着孩子来认当年的书。</p>
+        <small>现存二百余册，近收《三国演义》散本十二册</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="visit">
+  <h2>来店</h2>
+  <div class="visit-grid">
+    <span class="tag" aria-hidden="true">欢迎来坐</span>
+    <div>
+      <p>中山路一百二十七号，骑楼下，门口有一棵老榕树。认不得路就问街坊，这一片都知道。</p>
+      <div class="hours">
+        <div><span class="d">星期二至五</span><span>上午十点至晚上七点</span></div>
+        <div><span class="d">星期六日</span><span>上午九点至晚上八点</span></div>
+        <div><span class="d">星期一</span><span>闭店修书</span></div>
+      </div>
+      <dl class="traffic">
+        <dt>公车</dt><dd>「中山路口」站下车，往骑楼方向走两百步。</dd>
+        <dt>地铁</dt><dd>二号线下塔站 B 口，出站左转，穿过菜市场就到。</dd>
+        <dt>收书</dt><dd>电话约上门，一捆也接。急事发短信，店里看手机不多。</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>拾遗书局，中山路一百二十七号，二〇〇九年至今</span>
+  <span>电话 五五〇一二三一四（店里人多，慢接勿怪）</span>
+</footer>
+</body>
+</html>

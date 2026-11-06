@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<!--
+    Built from templates/viewer.html — Anthropic branding, seed controls and
+    actions kept exactly as the template; algorithm, parameters and parameter
+    UI replaced for this artwork.
+
+    Artwork: 深渊辉光 · Abyssal Luminance (deep-sea bioluminescence)
+    Philosophy: abyssal-luminance-philosophy.md (same folder)
+-->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深渊辉光 · Abyssal Luminance</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Anthropic Brand Colors */
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        /* Seed Controls */
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .regen-button {
+            margin-bottom: 0;
+        }
+
+        /* Parameter Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Color Pickers */
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        /* Buttons */
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        .button-row + .button-row {
+            margin-top: 8px;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: #02060e;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+            padding: 60px 0;
+        }
+
+        /* Responsive - Stack on mobile */
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .canvas-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Control Sidebar -->
+        <div class="sidebar">
+            <!-- Headers -->
+            <h1>深渊辉光 · Abyssal Luminance</h1>
+            <div class="subtitle">深海生物发光 · 生成艺术 —— 光不是被点亮的物，而是水被扰动的瞬间。</div>
+
+            <!-- Seed Section (ALWAYS KEEP THIS) -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42117" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <!-- Plankton Count -->
+                <div class="control-group">
+                    <label>浮游体数量</label>
+                    <div class="slider-container">
+                        <input type="range" id="planktonCount" min="800" max="5000" step="100" value="2600" onchange="updateParam('planktonCount', this.value)">
+                        <span class="value-display" id="planktonCount-value">2600</span>
+                    </div>
+                </div>
+
+                <!-- Current Speed -->
+                <div class="control-group">
+                    <label>洋流速度</label>
+                    <div class="slider-container">
+                        <input type="range" id="currentSpeed" min="0.2" max="2.5" step="0.05" value="1.0" oninput="updateParam('currentSpeed', this.value)">
+                        <span class="value-display" id="currentSpeed-value">1.0</span>
+                    </div>
+                </div>
+
+                <!-- Flow Scale -->
+                <div class="control-group">
+                    <label>流场尺度</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowScale" min="0.001" max="0.004" step="0.0002" value="0.0022" oninput="updateParam('flowScale', this.value)">
+                        <span class="value-display" id="flowScale-value">0.0022</span>
+                    </div>
+                </div>
+
+                <!-- Tide Strength -->
+                <div class="control-group">
+                    <label>洄游潮汐</label>
+                    <div class="slider-container">
+                        <input type="range" id="tideStrength" min="0" max="1.2" step="0.05" value="0.55" oninput="updateParam('tideStrength', this.value)">
+                        <span class="value-display" id="tideStrength-value">0.55</span>
+                    </div>
+                </div>
+
+                <!-- Glow Decay -->
+                <div class="control-group">
+                    <label>辉光衰减</label>
+                    <div class="slider-container">
+                        <input type="range" id="glowDecay" min="0.8" max="0.97" step="0.01" value="0.9" oninput="updateParam('glowDecay', this.value)">
+                        <span class="value-display" id="glowDecay-value">0.9</span>
+                    </div>
+                </div>
+
+                <!-- Lure Count -->
+                <div class="control-group">
+                    <label>诱饵数量（隐形猎手）</label>
+                    <div class="slider-container">
+                        <input type="range" id="lureCount" min="0" max="4" step="1" value="2" onchange="updateParam('lureCount', this.value)">
+                        <span class="value-display" id="lureCount-value">2</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Colors Section -->
+            <div class="control-section">
+                <h3>Colors</h3>
+
+                <!-- Color 1 -->
+                <div class="color-group">
+                    <label>主辉光 · 青蓝（470nm）</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#3fb6e8" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#3fb6e8</span>
+                    </div>
+                </div>
+
+                <!-- Color 2 -->
+                <div class="color-group">
+                    <label>次辉光 · 蓝绿</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#2ec9a0" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#2ec9a0</span>
+                    </div>
+                </div>
+
+                <!-- Color 3 -->
+                <div class="color-group">
+                    <label>稀有辉光 · 堇紫</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#9a7bd8" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#9a7bd8</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section (ALWAYS KEEP THIS) -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button tertiary" onclick="regenerate()">Regenerate</button>
+                </div>
+                <div class="button-row">
+                    <button class="button secondary" onclick="downloadPng()">Download PNG</button>
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">正在潜入深海…</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 42117,
+            planktonCount: 2600,
+            currentSpeed: 1.0,
+            flowScale: 0.0022,
+            tideStrength: 0.55,
+            glowDecay: 0.9,
+            lureCount: 2,
+            colorPalette: ['#3fb6e8', '#2ec9a0', '#9a7bd8']
+        };
+
+        let defaultParams = {
+            ...params,
+            colorPalette: [...params.colorPalette]
+        };
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS GENERATIVE ART ALGORITHM — 深渊辉光 · Abyssal Luminance
+        //
+        // 定律一：黑暗是底色，光是事件。浮游体平时近乎不可见，只有被扰动
+        //         （诱饵逼近、邻居的闪光接力、极罕见的自发闪烁）才会亮起，
+        //         并按指数衰减熄灭 —— 真实的荧光动力学。
+        // 定律二：横向为主的分层 Perlin 洋流 + 高频乱流 + 极缓慢的垂直潮汐
+        //         （昼夜垂直洄游的影子）。
+        // 定律三：色彩即物理 —— 470nm 青蓝主导（60%），蓝绿其次（30%），
+        //         堇紫稀有（10%）。权重在个体诞生时按光谱分配。
+        // 定律四：猎手不可见。只有利萨茹轨迹上的发光诱饵在噪声节律下明灭，
+        //         以微弱的引力聚拢浮游体；被引诱者因扰动而发光。
+        // 性能：空间哈希网格（44px 格）让闪光接力只查询邻域，
+        //       数千个体依然流畅 —— 同种子必然复现同一片海域。
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let plankton = [];
+        let lures = [];
+        let snow = [];
+        let simT = 0;
+        let grid, gCols, gRows;
+        const G_CELL = 44;           // spatial hash cell size (px)
+        const LURE_PULL_R = 200;     // bait attraction radius
+        const LURE_PULL_R2 = LURE_PULL_R * LURE_PULL_R;
+
+        function setup() {
+            let canvas = createCanvas(1200, 1200);
+            canvas.parent('canvas-container');
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            // Seeded randomness — same seed, same dive. Always.
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            simT = 0;
+
+            plankton = [];
+            for (let i = 0; i < params.planktonCount; i++) plankton.push(new Plankton());
+
+            lures = [];
+            for (let i = 0; i < params.lureCount; i++) lures.push(new Lure(i));
+
+            // 海雪 marine snow — 不发光，只提供深度
+            snow = [];
+            for (let i = 0; i < 150; i++) {
+                snow.push({
+                    x: random(width),
+                    y: random(height),
+                    s: 0.12 + random() * 0.3,
+                    o: random(1000)
+                });
+            }
+
+            background(2, 6, 14); // the abyss
+        }
+
+        // ── Spatial hash ─────────────────────────────────────────────────────
+
+        function buildGrid() {
+            gCols = Math.ceil(width / G_CELL);
+            gRows = Math.ceil(height / G_CELL);
+            grid = new Array(gCols * gRows);
+            for (let i = 0; i < grid.length; i++) grid[i] = [];
+            for (const p of plankton) {
+                let cx = Math.floor(p.x / G_CELL);
+                let cy = Math.floor(p.y / G_CELL);
+                if (cx < 0) cx = 0; else if (cx >= gCols) cx = gCols - 1;
+                if (cy < 0) cy = 0; else if (cy >= gRows) cy = gRows - 1;
+                grid[cy * gCols + cx].push(p);
+            }
+        }
+
+        // A disturbance in the water: everything inside the radius gets lit,
+        // harder near the epicenter. This is how light becomes an event.
+        function spark(x, y, radius, strength) {
+            const gx0 = Math.max(0, Math.floor((x - radius) / G_CELL));
+            const gx1 = Math.min(gCols - 1, Math.floor((x + radius) / G_CELL));
+            const gy0 = Math.max(0, Math.floor((y - radius) / G_CELL));
+            const gy1 = Math.min(gRows - 1, Math.floor((y + radius) / G_CELL));
+            const r2 = radius * radius;
+            for (let gy = gy0; gy <= gy1; gy++) {
+                for (let gx = gx0; gx <= gx1; gx++) {
+                    const cell = grid[gy * gCols + gx];
+                    for (let k = 0; k < cell.length; k++) {
+                        const p = cell[k];
+                        const dx = p.x - x, dy = p.y - y;
+                        const d2 = dx * dx + dy * dy;
+                        if (d2 < r2) {
+                            const f = 1 - Math.sqrt(d2) / radius;
+                            p.excite = Math.min(1, p.excite + strength * f);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Simulation loop ──────────────────────────────────────────────────
+
+        function draw() {
+            buildGrid();
+            simT++;
+
+            const pal = params.colorPalette.map(hexToRgb);
+
+            // 隐形的猎手：诱饵游荡、明灭、点火；猎手本身永远不画
+            for (const L of lures) {
+                L.x = width * (0.5 + 0.37 * Math.sin(simT * L.fx + L.px));
+                L.y = height * (0.5 + 0.37 * Math.sin(simT * L.fy + L.py));
+                const fl = noise(simT * 0.018 + L.i * 37.31 + 11.7);
+                L.b = Math.min(1, Math.pow(fl, 2.4) * 1.35);
+                if (L.cool > 0) L.cool--;
+                if (fl > 0.68 && L.cool === 0) {
+                    spark(L.x, L.y, 95, 0.55);
+                    L.cool = 45;
+                }
+            }
+
+            // 浮游体物理：分层洋流 + 乱流 + 垂直潮汐 + 引诱 + 接力
+            const cs = params.currentSpeed;
+            const fs = params.flowScale;
+            const tt1 = simT * 0.0009;
+            const tt2 = simT * 0.0021;
+            for (const p of plankton) {
+                // 主洋流：东向基流 + 大尺度涡旋
+                const a1 = noise(p.x * fs, p.y * fs, tt1) * TWO_PI * 2;
+                let vx = 0.55 * cs + Math.cos(a1) * 0.5 * cs;
+                let vy = Math.sin(a1) * 0.7 * cs;
+                // 第二层高频乱流
+                const a2 = noise(p.x * fs * 3.3 + 90.7, p.y * fs * 3.3 + 31.4, tt2) * TWO_PI * 2;
+                vx += Math.cos(a2) * 0.28 * cs;
+                vy += Math.sin(a2) * 0.34 * cs;
+                // 昼夜垂直洄游的暗影：极缓慢的潮汐
+                vy += params.tideStrength * 0.35 * Math.sin(simT * 0.00035 + p.phase * TWO_PI);
+                // 诱饵引力：越亮越诱，越近越强
+                for (const L of lures) {
+                    const dx = L.x - p.x, dy = L.y - p.y;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < LURE_PULL_R2 && d2 > 1) {
+                        const d = Math.sqrt(d2);
+                        const f = 0.05 * (1 - d / LURE_PULL_R) * (0.5 + L.b);
+                        vx += dx / d * f;
+                        vy += dy / d * f;
+                    }
+                }
+                p.x += vx;
+                p.y += vy;
+                // 环形深海
+                if (p.x < 0) p.x += width; else if (p.x >= width) p.x -= width;
+                if (p.y < 0) p.y += height; else if (p.y >= height) p.y -= height;
+
+                // 自发闪烁：大部分时候，深渊是沉默的
+                if (random() < 0.0005) p.excite = Math.max(p.excite, 0.5 + random() * 0.35);
+
+                // 接力：点燃者向邻居传播一次扰动，然后休息
+                if (p.cool > 0) p.cool--;
+                if (p.excite > 0.45 && p.cool === 0) {
+                    spark(p.x, p.y, 36, 0.42);
+                    p.cool = 40 + Math.floor(random() * 45);
+                }
+
+                // 指数衰减 —— 亮起与熄灭同样果决
+                p.excite *= params.glowDecay;
+                if (p.excite < 0.012) p.excite = 0;
+            }
+
+            render(pal);
+        }
+
+        // ── Rendering ────────────────────────────────────────────────────────
+
+        function render(pal) {
+            // 深渊回收一切：半透明暗色矩形让轨迹缓缓沉入黑暗
+            blendMode(BLEND);
+            noStroke();
+            fill(2, 6, 14, 22);
+            rect(0, 0, width, height);
+
+            // 海雪缓沉
+            fill(140, 165, 185, 26);
+            for (const m of snow) {
+                m.y += m.s;
+                m.x += (noise(m.y * 0.008, simT * 0.0004, m.o) - 0.5) * 0.5;
+                if (m.y > height) { m.y = 0; m.x = random(width); }
+                if (m.x < 0) m.x += width; else if (m.x >= width) m.x -= width;
+                rect(m.x, m.y, 1.5, 1.5);
+            }
+
+            // 从这里开始，一切皆光（加色混合）
+            blendMode(ADD);
+
+            // 悬浮的暗态浮游体 —— 刚好够看见水里有生命
+            fill(96, 126, 150, 18);
+            for (const p of plankton) {
+                if (p.excite <= 0.02) rect(p.x, p.y, p.size, p.size);
+            }
+
+            // 被扰动的浮游体：光谱色 + 柔和光晕
+            for (const p of plankton) {
+                if (p.excite <= 0.02) continue;
+                const c = pal[p.spec];
+                const e = p.excite * p.bVar;
+                if (e > 0.18) {
+                    fill(c[0], c[1], c[2], 30 * e);
+                    circle(p.x, p.y, 8 + 24 * e);
+                }
+                fill(c[0], c[1], c[2], Math.min(255, 215 * e));
+                circle(p.x, p.y, p.size + 4 * p.excite);
+            }
+
+            // 诱饵在明灭 —— 猎手并不存在
+            for (const L of lures) {
+                if (L.b < 0.06) continue;
+                const c = pal[0];
+                fill(c[0], c[1], c[2], 20 * L.b + 5);
+                circle(L.x, L.y, 26 + 52 * L.b);
+                fill(c[0], c[1], c[2], 70 * L.b);
+                circle(L.x, L.y, 10 + 16 * L.b);
+                fill(c[0] + (255 - c[0]) * 0.55, c[1] + (255 - c[1]) * 0.55, c[2] + (255 - c[2]) * 0.55, 200 * L.b + 40);
+                circle(L.x, L.y, 3.6 + 4 * L.b);
+            }
+
+            blendMode(BLEND);
+        }
+
+        // ── System entities ──────────────────────────────────────────────────
+
+        class Plankton {
+            constructor() {
+                this.x = random(width);
+                this.y = random(height);
+                this.phase = random();               // 洄游潮汐相位
+                this.bVar = 0.45 + random() * 0.55;  // 个体亮度差异
+                const r = random();
+                this.spec = r < 0.6 ? 0 : (r < 0.9 ? 1 : 2); // 光谱权重 60/30/10
+                this.size = 1.2 + random();
+                this.excite = 0;
+                this.cool = Math.floor(random(80));  // 初始错峰，避免同步爆发
+            }
+        }
+
+        class Lure {
+            constructor(i) {
+                this.i = i;
+                this.px = random(TWO_PI);
+                this.py = random(TWO_PI);
+                this.fx = 0.004 + random() * 0.004;  // 缓慢利萨茹轨迹（不可公度）
+                this.fy = 0.005 + random() * 0.004;
+                this.x = width / 2;
+                this.y = height / 2;
+                this.b = 0;
+                this.cool = Math.floor(random(60));
+            }
+        }
+
+        function hexToRgb(hex) {
+            const n = parseInt(hex.slice(1), 16);
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const LIVE_PARAMS = new Set(['currentSpeed', 'flowScale', 'tideStrength', 'glowDecay']);
+        const SLIDER_IDS = ['planktonCount', 'currentSpeed', 'flowScale', 'tideStrength', 'glowDecay', 'lureCount'];
+
+        function updateParam(name, value) {
+            params[name] = parseFloat(value);
+            document.getElementById(name + '-value').textContent = value;
+            if (!LIVE_PARAMS.has(name)) initializeSystem();
+        }
+
+        function updateColor(id, value) {
+            const i = { color1: 0, color2: 1, color3: 2 }[id];
+            params.colorPalette[i] = value;
+            document.getElementById(id + '-value').textContent = value;
+        }
+
+        function regenerate() {
+            initializeSystem();
+        }
+
+        function downloadPng() {
+            saveCanvas('abyssal-luminance-seed-' + params.seed, 'png');
+        }
+
+        function resetParameters() {
+            params = { ...defaultParams, colorPalette: [...defaultParams.colorPalette] };
+            for (const id of SLIDER_IDS) {
+                document.getElementById(id).value = params[id];
+                document.getElementById(id + '-value').textContent = params[id];
+            }
+            const cIds = ['color1', 'color2', 'color3'];
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(cIds[i]).value = params.colorPalette[i];
+                document.getElementById(cIds[i] + '-value').textContent = params.colorPalette[i];
+            }
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEED CONTROL FUNCTIONS - ALWAYS KEEP THESE
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // Initialize UI on load
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>
