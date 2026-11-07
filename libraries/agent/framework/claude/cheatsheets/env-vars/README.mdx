@@ -1,0 +1,532 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta id="env-vars" title="配置与控制/配置体系/环境变量" name="Docs" />
+
+# 环境变量
+
+[Options 地图](?path=/docs/options--docs)里 `env` 是"CLI 子进程的环境变量"一行带过,本课把这个通道展开。官方在[环境变量页](https://code.claude.com/docs/en/env-vars)维护着一张 280 余项、按字母序排列的大表,本课先按用途把它重排成全量速查——每个变量一句话说清干什么;再挑出影响最大的几组在子章节展开:覆盖规则、接入三件套、模型映射与上下文修正、effort 与 thinking 治理、无人值守重试、隐私开关。个别变量(`CLAUDE_CODE_MODEL_CAPABILITIES` 等)官方未收录,行为以 Claude Code CLI v2.1.310 实测为准,文中单独标注。看完导读与参考表,你应该能预测:settings 里写 `effortLevel: "max"` 和 env 里写 `CLAUDE_CODE_EFFORT_LEVEL=max` 为什么结局不同;把 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` 设成 `0` 为什么关不掉流量。
+
+| 主题 | 默认 / 规则 | 回查要点 |
+| --- | --- | --- |
+| 注入通道 | Options 的 `env` 字段 / settings 文件的 `env` 键 | 两者都写进子进程环境;**`options.env` 是替换不是合并**,显式设置须展开 `process.env` |
+| 覆盖规则 | settings `env` 块通常盖过 shell 同名变量 | env 块只能设不能删;空字符串对 provider 选择视同 unset |
+| 生效时机 | shell 变量启动时读一次 | settings env 块多数行为可热生效,启动期功能(如 OTel)保留启动值 |
+| 数字写法 | 接受 `2e3`、`64_000` | v2.1.211 前这些写法会静默变成极小值,老版本用纯数字 |
+| 开关写法 | `1/true/yes/on` 开,`0/false/no/off` 关 | 5 个"设了就生效"的例外变量见[隐私与流量开关](#隐私与流量开关) |
+| 路径写法 | 原样拷贝,不经过 shell | `~`、`$HOME` 不会被展开,写绝对路径 |
+| 未文档化变量 | `CLAUDE_CODE_MODEL_CAPABILITIES` 等 | 官方 env-vars 页查不到;逆向+实测结论,升级需复测 |
+| 排错入口 | mock 端点抓请求体 | 这类变量多静默生效,见[验证手段](#验证手段) |
+
+## 全量速查
+
+按用途重排官方清单;同族变量(如 `VERTEX_REGION_CLAUDE_*`)折叠成一行列出全部成员。**加粗**的是后文有子章节展开的重点。
+
+### 认证与端点
+
+| 变量 | 作用 |
+| --- | --- |
+| **`ANTHROPIC_API_KEY`** | API 密钥,以 `X-Api-Key` 头发送;设置后覆盖订阅登录(交互模式首次需批准一次) |
+| **`ANTHROPIC_AUTH_TOKEN`** | 自定义 `Authorization` 头的值(自动加 `Bearer ` 前缀);网关场景占位符亦可 |
+| **`ANTHROPIC_BASE_URL`** | 覆盖 API 端点走代理/网关;指向非官方主机时 Remote Control 自动禁用 |
+| `ANTHROPIC_BETAS` | 额外的 `anthropic-beta` 头值(逗号分隔);比 `--betas` flag 通用,订阅登录也能用 |
+| `ANTHROPIC_CUSTOM_HEADERS` | 自定义请求头(`Name: Value`,换行分隔);含非法字符请求即失败,v2.1.227+ |
+| `ANTHROPIC_PROFILE` | 要认证的 Anthropic 档案名 |
+| `ANTHROPIC_ORGANIZATION_ID` / `ANTHROPIC_WORKSPACE_ID` / `ANTHROPIC_FEDERATION_RULE_ID` | 工作负载身份联合的三件套 |
+| `ANTHROPIC_AWS_API_KEY` / `ANTHROPIC_AWS_BASE_URL` / `ANTHROPIC_AWS_WORKSPACE_ID` | Claude Platform on AWS 的密钥/端点/工作区 |
+| `AWS_BEARER_TOKEN_BEDROCK` / `AWS_SECRET_ACCESS_KEY` | Bedrock 认证令牌与 AWS 密钥 |
+| `CLAUDE_CODE_CLIENT_CERT` / `CLAUDE_CODE_CLIENT_KEY` / `CLAUDE_CODE_CLIENT_KEY_PASSPHRASE` | mTLS 客户端证书、私钥与口令 |
+| `CLAUDE_CODE_CERT_STORE` | CA 证书来源列表(默认 `bundled,system`) |
+| `CLAUDE_CODE_OAUTH_TOKEN` / `CLAUDE_CODE_OAUTH_REFRESH_TOKEN` / `CLAUDE_CODE_OAUTH_SCOPES` | claude.ai OAuth 访问/刷新令牌与 scope 列表 |
+| `CLAUDE_CODE_SKIP_BEDROCK_AUTH` / `_VERTEX_AUTH` / `_FOUNDRY_AUTH` / `_MANTLE_AUTH` / `_ANTHROPIC_AWS_AUTH` | 对应 provider 跳过认证流程(宿主平台代管时用) |
+| `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` | `apiKeyHelper` 凭据刷新间隔(毫秒) |
+
+### 模型选择与上下文
+
+| 变量 | 作用 |
+| --- | --- |
+| **`ANTHROPIC_MODEL`** | 会话使用的模型;优先于 settings 的 `model` 键(该键仅在变量未设时生效) |
+| **`ANTHROPIC_DEFAULT_MODEL`** | 新会话的默认模型,v2.1.236+ |
+| **`ANTHROPIC_DEFAULT_FABLE_MODEL` / `_OPUS_MODEL` / `_SONNET_MODEL` / `_HAIKU_MODEL`** | 给 `fable`/`opus`/`sonnet`/`haiku` 别名各钉一个实际模型 ID |
+| `ANTHROPIC_DEFAULT_{TIER}_MODEL_NAME` / `_DESCRIPTION` / `_SUPPORTED_CAPABILITIES` | 上列四档的展示名/描述/能力声明(4×3=12 个);`SUPPORTED_CAPABILITIES` 仅非 firstParty provider 读取 |
+| `ANTHROPIC_CUSTOM_MODEL_OPTION`(+`_NAME`/`_DESCRIPTION`/`_SUPPORTED_CAPABILITIES`) | 在 `/model` 选择器加自定义模型条目及其显示信息 |
+| `ANTHROPIC_SMALL_FAST_MODEL` | 【已弃用】后台任务用的小模型 |
+| **`CLAUDE_CODE_SUBAGENT_MODEL`** | 子代理/agent team/workflow 代理的默认模型;代理定义的 `model` 字段优先 |
+| `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` | 强制所有子代理用一个模型,盖过定义字段 |
+| **`CLAUDE_CODE_MAX_CONTEXT_TOKENS`** | 覆盖 CLI 假定的上下文窗口大小;网关模型窗口与名字内置值不符时用 |
+| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | 自动压缩触发窗口(100000–1000000 token;`200k` 后缀写法 v2.1.304+) |
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | 多数请求的最大输出 token;未知模型默认 32000、上限 128000;调大会挤占自动压缩前的有效窗口 |
+| `CLAUDE_CODE_DISABLE_1M_CONTEXT` | 设 `1` 关闭 1M 上下文支持 |
+| `CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT` | 设 `1` 对未知模型 ID 跳过主动自动压缩 |
+| `CLAUDE_CODE_DISABLE_LEGACY_MODEL_REMAP` | 设 `1` 阻止旧 Opus/Sonnet ID 自动映射到当前版本 |
+| `CLAUDE_CODE_DISABLE_MODEL_ACCESS_FALLBACK` | 设 `1` 失去模型访问权时不自动切旧模型 |
+| `CLAUDE_CODE_GATEWAY_HINT_HEADERS` | `1` 发送 / `0` 停止发送网关提示头 |
+| `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY` | 设 `1` 从网关 `/v1/models` 填充 `/model` 选择器 |
+| `CLAUDE_CODE_GATEWAY_MODEL_DISCOVERY_TIMEOUT_MS` | 上面这个发现的超时(默认 3000,纯数字) |
+| `VERTEX_REGION_CLAUDE_*` | Vertex 区域覆盖,19 个:3_5_HAIKU、3_5_SONNET、3_7_SONNET、4_0_OPUS、4_0_SONNET、4_1_OPUS、4_5_OPUS、4_5_SONNET、4_6_OPUS、4_6_SONNET、4_7_OPUS、4_8_OPUS、5_OPUS、5_SONNET、5_5_OPUS、5_5_SONNET、FABLE_5、FABLE_5_1、HAIKU_4_5、HAIKU_5_5 |
+| `ANTHROPIC_BEDROCK_BASE_URL` / `_BEDROCK_MANTLE_BASE_URL` / `_BEDROCK_REGION_PREFIX` / `_BEDROCK_SERVICE_TIER` / `ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION` | Bedrock 系端点/区域前缀(us/eu/apac 等)/服务层级/小模型区域 |
+| `ANTHROPIC_VERTEX_BASE_URL` / `ANTHROPIC_VERTEX_PROJECT_ID` | Vertex 端点与 GCP 项目 ID |
+| `ANTHROPIC_FOUNDRY_API_KEY` / `_AUTH_TOKEN` / `_BASE_URL` / `_RESOURCE` | Foundry 认证与资源(RESOURCE 拒绝填 URL) |
+
+### effort 与 thinking
+
+| 变量 | 作用 |
+| --- | --- |
+| **`CLAUDE_CODE_EFFORT_LEVEL`** | effort 档位(`low`–`max`/`auto`/`unset`);盖过 `--effort`、`/effort` 与 settings 的 `effortLevel`,但仍受 `maxEffortLevel` 上限 |
+| `CLAUDE_EFFORT` | 【自动设置】Bash/hook 子进程启动时注入当前 effort 档位,供脚本读取 |
+| **`CLAUDE_CODE_ALWAYS_ENABLE_EFFORT`** | 设 `1` 对所有请求发 effort,即使模型 ID 不被认识(网关自定义 ID 场景);API 侧明确拒绝的模型仍排除 |
+| `CLAUDE_CODE_MODEL_CAPABILITIES` | 【未文档化】按模型覆盖能力判定的表;负声明(`-effort` 等)是掐字段的真闸门,见[能力覆盖表](#能力覆盖表未文档化) |
+| **`CLAUDE_CODE_EXTRA_BODY`** | JSON 对象,合并进每个 API 请求体顶层,**不经 clamp** |
+| `MAX_THINKING_TOKENS` | 固定 thinking 预算;`0` 关 thinking(官方 API;第三方改为不发参数);adaptive 模型忽略具体数值 |
+| `CLAUDE_CODE_DISABLE_THINKING` | 设 `1` 请求里整个不发 `thinking` 参数(代理兼容用) |
+| `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` | 设 `1` 关闭自适应推理,thinking 退回固定预算 |
+| `DISABLE_INTERLEAVED_THINKING` | 设 `1` 不发 interleaved-thinking beta 头(网关不支持时用) |
+| `CLAUDE_CODE_SIMPLE` / `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT` | 设 `1` 极简模式:最小提示词+仅 Bash/读/改三个工具,关掉各类自动发现 |
+| `CLAUDE_CODE_ATTRIBUTION_HEADER` | 设 `0` 系统提示开头省略归属块 |
+| `CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS` | 设 `1` 移除内置 git 工作流指令与状态快照 |
+| `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS` | 设 `1` 剥离预发布 beta 头与配套字段 |
+
+### 请求行为、超时与重试
+
+| 变量 | 作用 |
+| --- | --- |
+| `API_TIMEOUT_MS` | API 请求等待响应头的时限(默认 600000;`0` 移除限制需 v2.1.305+) |
+| `CLAUDE_CODE_MAX_RETRIES` | 失败请求重试次数(默认 10,上限 15) |
+| `CLAUDE_CODE_RETRY_WATCHDOG` | 设 `1` 无限重试 429/529 容量错误(无人值守用;花限/额度尽的 429 仍立即失败) |
+| `CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS` / `_USAGE_LIMIT_RECHECK_MS` | 看门狗单次等待上限与额度恢复复查间隔 |
+| `CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS` / `_MAX_DELAY_MS` | 过载重试的退避基数与上限 |
+| `CLAUDE_STREAM_IDLE_TIMEOUT_MS` / `CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS` | 流空闲/首字节超时 |
+| `CLAUDE_ENABLE_STREAM_WATCHDOG` / `CLAUDE_ENABLE_BYTE_WATCHDOG` / `CLAUDE_ENABLE_BYTE_WATCHDOG_BEDROCK` | 流/字节级看门狗开关 |
+| `CLAUDE_BYTE_STREAM_IDLE_TIMEOUT_MS` | 字节级流空闲看门狗超时 |
+| `CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES` | 非流式请求超时重发次数限制 |
+| `API_FORCE_IDLE_TIMEOUT` | 覆盖 5 分钟流式空闲超时(`0` 关,`1` 全 provider 开) |
+| `CLAUDE_CODE_GZIP_REQUEST_BODIES` | 设 `0` 关闭请求体 gzip 压缩 |
+| `CLAUDE_CODE_NONSTREAMING_FALLBACK`→`CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK` | 设 `1` 禁用流失败后的非流式回退 |
+| `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` | 代理三件套;启动时读一次 |
+| `CLAUDE_CODE_PROXY_RESOLVES_HOSTS` | 代理自行解析主机名时设 `1` |
+| `CLAUDE_CODE_MTLS_RELOAD_ON_STALE_CONNECTION`→`CLAUDE_CODE_DISABLE_MTLS_RELOAD_ON_STALE_CONNECTION` | 设 `1` 连接错误时不重读 mTLS 证书 |
+
+### 上下文与压缩
+
+| 变量 | 作用 |
+| --- | --- |
+| `DISABLE_AUTO_COMPACT` / `DISABLE_COMPACT` | 禁用自动压缩 / 禁用全部压缩 |
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` | 自动压缩触发百分比(1–100,只能调低) |
+| `CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` | 空闲压缩生效的上下文阈值(默认 200000) |
+| `CLAUDE_CODE_DISABLE_AUTO_MEMORY` | 设 `1` 禁用自动记忆(`0` 强制开启) |
+| `CLAUDE_CODE_DISABLE_CLAUDE_MDS` | 设 `1` 不加载任何 CLAUDE.md |
+| `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD` | 设 `1` 从 `--add-dir` 目录也加载记忆文件 |
+| `CLAUDE_CODE_PROMPT_CACHE_TTL` / `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL` | 主/子代理提示缓存 TTL |
+| `CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING` | 设 `1` 禁用文件检查点(`/rewind` 无法恢复) |
+| `CLAUDE_CODE_FILE_READ_MAX_OUTPUT_TOKENS` | 覆盖文件读取 token 上限(默认 25000) |
+
+### 子代理与后台任务
+
+| 变量 | 作用 |
+| --- | --- |
+| `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` | 并发子代理上限(默认 20) |
+| `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` | 子代理嵌套层数(默认 3) |
+| `CLAUDE_ASYNC_AGENT_STALL_TIMEOUT_MS` | 子代理停滞超时(默认 600000) |
+| `CLAUDE_CODE_FORK_SUBAGENT` | 分叉模式开关(`0` 关,默认开) |
+| `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS` | 设 `1` 禁用所有内置子代理(仅 `-p` 模式) |
+| `CLAUDE_AUTO_BACKGROUND_TASKS` | 设 `1` 强制长时间任务自动后台化 |
+| `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` | 设 `1` 移除 `run_in_background` 与 Ctrl+B |
+| `CLAUDE_SUBAGENT_BG_SHELL_MAX_MS` | 子代理后台 shell 时长上限 |
+| `CLAUDE_CODE_BG_TASKS_REPORT_RUNNING` | 设 `0` 后台任务运行时报空闲 |
+| `CLAUDE_CODE_WORKER_CHECKIN_SCHEDULE` | 后台 worker 签到计划(替代已移除的 AUTO_BACKGROUND_WORKER_CHECKIN_SECONDS) |
+| `CLAUDE_CODE_GOAL_CHECKIN_MINUTES` | 后台目标检查间隔(默认 30,`0` 关) |
+| `CLAUDE_CODE_FORWARD_SUBAGENT_TEXT` | 设 `1` stream-json 输出中发出子代理文本 |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | 设 `1` 启用实验性 agent teams |
+| `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS` / `CLAUDE_CODE_WORKFLOW_PREFIX_STAGGER_MS` | workflow 并发代理数与错峰毫秒 |
+| `CLAUDE_CODE_MAX_TURNS` | 无显式限制时的轮次上限(`--max-turns` 优先) |
+| `CLAUDE_CODE_ENABLE_TASKS` | `0` 用旧版 `TodoWrite`,默认 Task 工具集 |
+| `CLAUDE_CODE_ENABLE_TODO_TOOLS` | 设 `1` 所有模型都提供任务跟踪工具 |
+
+### 工具行为
+
+| 变量 | 作用 |
+| --- | --- |
+| `BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS` / `BASH_MAX_OUTPUT_LENGTH` | 前台命令默认/最大超时与输出字符上限(默认 120000/600000/30000) |
+| `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` | 每条命令后回到原工作目录 |
+| `CLAUDE_CODE_SHELL` / `CLAUDE_CODE_SHELL_PREFIX` | 指定 shell 与命令前缀 |
+| `CLAUDE_CODE_GIT_BASH_PATH` | Windows:Git Bash 路径 |
+| `CLAUDE_CODE_USE_POWERSHELL_TOOL` / `CLAUDE_CODE_POWERSHELL_RESPECT_EXECUTION_POLICY` | PowerShell 工具开关与执行策略遵从 |
+| `CLAUDE_CODE_DISABLE_WINDOWS_SHELL_LAUNCHER` | 设 `1` Windows 直接启动 PowerShell 命令 |
+| `USE_BUILTIN_RIPGREP` | 设 `0` 改用系统 `rg` |
+| `CLAUDE_CODE_GLOB_HIDDEN` / `CLAUDE_CODE_GLOB_NO_IGNORE` / `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` | Glob 对点文件/gitignore/超时的行为 |
+| `CLAUDE_CODE_WEBFETCH_CACHE_TTL_MS` / `CLAUDE_CODE_WEBFETCH_DEADLINE_MS` | WebFetch 缓存与截止时间 |
+| `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION` | WebSearch 每会话上限(默认 200) |
+| `CLAUDE_CODE_WEB_SEARCH_REFILLS_PER_HOUR` | WebSearch 配额每小时回填量 |
+| `CLAUDE_CODE_DISABLE_WEB_FETCH` | 设 `1` 关闭 WebFetch 工具 |
+| `SLASH_COMMAND_TOOL_CHAR_BUDGET` | Skill 元数据字符预算(窗口 1%,兜底 8000) |
+| `MAX_MCP_OUTPUT_TOKENS` | MCP 工具响应 token 上限(默认 25000) |
+| `ENABLE_TOOL_SEARCH` | 工具搜索开关,取值见[工具搜索](?path=/docs/tool-search--docs) |
+
+### MCP
+
+| 变量 | 作用 |
+| --- | --- |
+| `MCP_TIMEOUT` / `MCP_TOOL_TIMEOUT` | MCP 启动(默认 30s)/工具执行(默认约 28h)超时 |
+| `MCP_CONNECTION_NONBLOCKING` | 设 `0` 首次查询前等待 MCP 连接(默认非阻塞) |
+| `MCP_CONNECT_TIMEOUT_MS` | 阻塞启动等待连接批次的时长(默认 5000) |
+| `MCP_SERVER_CONNECTION_BATCH_SIZE` / `MCP_REMOTE_SERVER_CONNECTION_BATCH_SIZE` | stdio/远程 server 启动并行数(默认 3/20) |
+| `MCP_DISCOVERY_CACHE`(+`_TTL_S`/`_MAX_STALE_S`/`_STRIKES`) | MCP 发现缓存开关与刷新策略 |
+| `MCP_CLIENT_SECRET` / `MCP_OAUTH_CALLBACK_PORT` | 预配置 OAuth 凭据与回调端口 |
+| `MCP_PROTOCOL_NEGOTIATION` / `MCP_SDK_GENERATION` | 协议探测(`auto`/`legacy`)与运行时代际(`v1`/`v2`) |
+| `CLAUDE_AGENT_SDK_MCP_NO_PREFIX` | 设 `1` 跳过 SDK MCP 工具的 `mcp__<server>__` 前缀 |
+| `CLAUDE_CODE_MCP_ALLOWLIST_ENV` | 设 `1` stdio MCP 只用安全基线环境 |
+| `CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS` / `CLAUDE_CODE_MCP_STARTUP_WAIT_MS` / `CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT` / `CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH` | MCP 转后台时长/启动等待/工具空闲超时/描述长度上限 |
+| `CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND` | 设 `1` 交互会话中等待 MCP 任务结果 |
+
+### 会话、resume 与远程
+
+| 变量 | 作用 |
+| --- | --- |
+| `CLAUDE_CODE_RESUME_PROMPT` / `CLAUDE_CODE_RESUME_INTERRUPTED_TURN`(+`_MAX_AGE_MS`) / `CLAUDE_CODE_RESUME_SHOWS_CUT_OFF_CALLS` | resume 时的提示词/中断轮恢复/截断调用显示 |
+| `CLAUDE_CODE_SESSION_ID` / `CLAUDE_CODE_TASK_LIST_ID` / `CLAUDE_CODE_REMOTE_SESSION_ID` | 会话/任务清单/远程会话 ID |
+| `CLAUDE_CODE_FORCE_SESSION_PERSISTENCE` | 设 `1` 强制嵌套会话也持久化 |
+| `CLAUDE_CODE_REMOTE` / `CLAUDE_CODE_RESTRICTED` / `CLAUDE_CODE_SAFE_MODE` | 远程/受限/安全模式标记 |
+| `CLAUDE_CODE_MESSAGING_SOCKET` / `CLAUDE_CODE_MESSAGING_TOKEN` | 【自动设置】会话收件箱 socket 与令牌 |
+| `CLAUDE_CODE_EXIT_AFTER_STOP_DELAY` | 空闲后自动退出前的等待毫秒 |
+| `CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS` | 设 `1` 消息流附加 `session_state_changed` |
+| `CLAUDE_CODE_TRANSCRIPT_LOCAL_GC` | 会话转录本地回收开关 |
+| `CLAUDE_CONFIG_DIR` | 配置根目录重定位(含 `~/.claude.json`) |
+| `CLAUDE_ENV_FILE` | 额外 env 文件路径 |
+| `CLAUDE_CODE_TMPDIR` / `CLAUDE_JOB_DIR` / `CLAUDE_PID` | 临时目录/任务目录/进程号 |
+| `CLAUDE_CLIENT_PRESENCE_FILE` | 存在时暂停移动推送的文件路径 |
+| `CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX` | Remote Control 会话名前缀 |
+
+### 插件与 skills
+
+| 变量 | 作用 |
+| --- | --- |
+| `CLAUDE_CODE_PLUGIN_DIRS` / `CLAUDE_CODE_PLUGIN_CACHE_DIR` / `CLAUDE_CODE_PLUGIN_SEED_DIR` | 插件目录/缓存/种子目录 |
+| `CLAUDE_CODE_PLUGIN_DIR_WATCH` / `CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS` / `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` / `CLAUDE_CODE_PLUGIN_KEEP_MARKETPLACE_ON_FAILURE` | 插件目录监听/git 超时/HTTPS 优先/失败保留市场 |
+| `CLAUDE_CODE_SYNC_PLUGIN_INSTALL`(+`_TIMEOUT_MS`) / `CLAUDE_CODE_SYNC_SKILLS`(+`_INSTALL_TIMEOUT_MS`/`_WAIT_TIMEOUT_MS`) | claude.ai 技能与插件的同步安装及超时 |
+| `FORCE_AUTOUPDATE_PLUGINS` / `CLAUDE_CODE_PACKAGE_MANAGER_AUTO_UPDATE` | 插件/包管理器自动更新 |
+| `CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL` | 设 `1` 跳过官方插件市场自动注册 |
+| `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS` / `CLAUDE_CODE_DISABLE_POLICY_SKILLS` | 禁用内置技能/托管技能目录 |
+| `CLAUDE_CODE_DISABLE_WORKFLOWS` | 设 `1` 禁用 workflows |
+| `CLAUDE_CODE_DISABLE_EXPLORE_PLAN_AGENTS` | 设 `1` 禁用内置 Explore/Plan 子代理 |
+| `CLAUDE_CODE_DISABLE_ADVISOR_TOOL` | 设 `1` 禁用 advisor 工具 |
+| `CLAUDE_CODE_DISABLE_ARTIFACT` | 设 `1` 关闭 Artifact 工具(settings 无法重开) |
+| `CLAUDE_CODE_ARTIFACT_COMMENTS`(+`_AUTOREACT`) / `CLAUDE_CODE_ARTIFACT_PUBLISH_EDITS` / `CLAUDE_CODE_ARTIFACT_AUTO_OPEN` | artifact 评论/发布微调/自动打开开关 |
+| `CLAUDE_CODE_DISABLE_STRUCTURED_OUTPUTS` | 设 `1` 不发 structured-output 字段 |
+
+### 终端 UI 与可访问性
+
+| 变量 | 作用 |
+| --- | --- |
+| `CLAUDE_CODE_NO_FLICKER` | 设 `1` 启用全屏渲染(研究预览) |
+| `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` / `CLAUDE_CODE_ALT_SCREEN_FULL_REPAINT` | 全屏模式禁用/每帧全量重绘 |
+| `CLAUDE_CODE_DISABLE_MOUSE` / `CLAUDE_CODE_DISABLE_MOUSE_CLICKS` | 禁用鼠标跟踪/仅禁点击拖动 |
+| `CLAUDE_CODE_DISABLE_VIRTUAL_SCROLL` / `CLAUDE_CODE_SCROLL_SPEED` | 虚拟滚动禁用/滚动速度 |
+| `CLAUDE_CODE_SYNTAX_HIGHLIGHT` / `CLAUDE_CODE_FORCE_STRIKETHROUGH` / `CLAUDE_CODE_FORCE_TERMINAL_IMAGES` / `CLAUDE_CODE_FORCE_SYNC_OUTPUT` | 语法高亮/删除线/终端图片/同步输出 |
+| `CLAUDE_CODE_NATIVE_CURSOR` / `CLAUDE_CODE_ACCESSIBILITY` / `CLAUDE_AX_SCREEN_READER`(+`_PREPARK_MS`/`_STARTUP_QUIET_MS`) | 原生光标/放大镜跟踪/屏幕阅读器三件 |
+| `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` / `CLAUDE_CODE_HIDE_CWD` | 终端标题/启动 logo 工作目录 |
+| `CLAUDE_CODE_BS_AS_CTRL_BACKSPACE` | `0x08` 读作 Backspace(`0`)或 Ctrl+Backspace(`1`) |
+| `CLAUDE_CODE_TMUX_TRUECOLOR` / `FORCE_HYPERLINK` / `CLAUDE_CODE_NONBLOCKING_STDOUT` | tmux 真彩/超链接强制/非阻塞 stdout |
+| `CLAUDE_CODE_USER_DIALOG_TIMEOUT_MS` / `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS` / `CLAUDE_CODE_IDE_HOST_OVERRIDE` / `CLAUDE_CODE_AUTO_CONNECT_IDE` / `CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL` / `CLAUDE_CODE_IDE_SKIP_VALID_CHECK` | 用户对话框超时/打印等待/IDE 主机覆盖/自动连接/跳过安装/跳过校验 |
+| `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION` / `CLAUDE_CODE_ENABLE_AWAY_SUMMARY` / `CLAUDE_CODE_YOU_SHOULD_KNOW_DEBUG` / `CLAUDE_CODE_SEND_FEEDBACK` | 输入建议/离开总结/提示调参/反馈 |
+| `CLAUDE_CODE_WARN_DISK_FREE_GIB` / `CLAUDE_CODE_WARN_MEMORY_FREE_GIB` / `CLAUDE_CODE_TOOL_MEMORY_LIMIT`(+`_CGROUP_EXCLUDE`) | 磁盘/内存告警阈值与工具内存限制 |
+| `CLAUDE_CODE_NEW_INIT` / `CLAUDE_CODE_SCRIPT_CAPS` / `CLAUDE_CODE_PROJECT_DIR_NAME` / `CLAUDE_CODE_PROCESS_WRAPPER` / `CLAUDE_CODE_STARTUP_FAILURE_RESULTS` | 交互式 init/脚本上限/项目名/进程包装器/启动失败结果 |
+
+### 遥测与隐私
+
+| 变量 | 作用 |
+| --- | --- |
+| **`CLAUDE_CODE_ENABLE_TELEMETRY`** | 设 `1` 启用 OpenTelemetry 指标采集;深入配置见[可观测性](?path=/docs/observability--docs) |
+| `OTEL_METRICS_EXPORTER` / `OTEL_LOGS_EXPORTER` / `OTEL_EXPORTER_OTLP_ENDPOINT` / `_PROTOCOL` / `_HEADERS` / `OTEL_METRIC_EXPORT_INTERVAL` / `OTEL_RESOURCE_ATTRIBUTES` | 标准 OTel 导出器族(project/local 层不可设,间隔与资源属性除外) |
+| `OTEL_LOG_ASSISTANT_RESPONSES` / `OTEL_LOG_USER_PROMPTS` / `OTEL_LOG_TOOL_CONTENT` / `OTEL_LOG_TOOL_DETAILS` / `OTEL_LOG_RAW_API_BODIES` / `OTEL_LOG_MANAGED_SETTINGS` | 各类内容进遥测的开关(默认脱敏) |
+| `CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH` / `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT` / `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` | 遥测内容截断上限 |
+| `CLAUDE_CODE_OTEL_DIAG_STDERR` / `CLAUDE_CODE_OTEL_FLUSH_TIMEOUT_MS` / `CLAUDE_CODE_OTEL_SHUTDOWN_TIMEOUT_MS` / `CLAUDE_CODE_OTEL_HEADERS_HELPER_DEBOUNCE_MS` | 导出器诊断/刷新/关停超时/动态头刷新间隔 |
+| `OTEL_METRICS_INCLUDE_ACCOUNT_UUID` / `_SESSION_ID` / `_ENTRYPOINT` / `_VERSION` / `_REPOSITORY` / `_RESOURCE_ATTRIBUTES` | 指标属性包含位(前两者默认含,其余默认不含) |
+| `CLAUDE_CODE_PROPAGATE_TRACEPARENT` / `TRACEPARENT` / `BETA_TRACING_ENDPOINT` / `ENABLE_BETA_TRACING_DETAILED` | trace 传播与 beta 追踪 |
+| **`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`** | 【设了就生效,`0` 也算】关闭非必要流量(自动更新/遥测/错误上报等)+feature-flag 拉取,详见[隐私与流量开关](#隐私与流量开关) |
+| `DISABLE_TELEMETRY` / `DISABLE_ERROR_REPORTING` / `DO_NOT_TRACK` / `DISABLE_GROWTHBOOK` | 遥测/错误上报/跟踪/flag 拉取开关(前两个也是"设了就生效") |
+| `IS_DEMO` | 【设了就生效】演示模式(遮蔽账号信息) |
+| `CLAUDE_CODE_SEND_FEEDBACK` / `DISABLE_FEEDBACK_COMMAND` / `DISABLE_EXTRA_USAGE_COMMAND` / `DISABLE_COST_WARNINGS` / `DISABLE_DOCTOR_COMMAND` / `DISABLE_LOGIN_COMMAND` / `DISABLE_LOGOUT_COMMAND` / `DISABLE_UPGRADE_COMMAND` / `DISABLE_INSTALL_GITHUB_APP_COMMAND` / `DISABLE_INSTALLATION_CHECKS` | 各命令/提示的禁用位 |
+| `DISABLE_AUTOUPDATER` / `DISABLE_UPDATES` | 自动更新禁用位 |
+| `CLAUDE_CODE_ENABLE_SHARE_BUNDLE` | 设 `1` `/share` 存本地归档而非上传 |
+
+### 提示缓存
+
+| 变量 | 作用 |
+| --- | --- |
+| `DISABLE_PROMPT_CACHING` | 全局关闭提示缓存 |
+| `DISABLE_PROMPT_CACHING_OPUS` / `_SONNET` / `_HAIKU` / `_FABLE` | 按档位关闭 |
+| `ENABLE_PROMPT_CACHING_1H` / `ENABLE_PROMPT_CACHING_1H_BEDROCK` | 1 小时缓存(官方/Bedrock) |
+| `FORCE_PROMPT_CACHING_5M` | 强制 5 分钟缓存 |
+
+### provider 选择与宿主托管
+
+| 变量 | 作用 |
+| --- | --- |
+| `CLAUDE_CODE_USE_BEDROCK` / `_USE_VERTEX` / `_USE_FOUNDRY` / `_USE_MANTLE` / `_USE_ANTHROPIC_AWS` | 五个 provider 选择开关(settings env 块里设空字符串可视为未设) |
+| `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST` | 宿主平台代管 provider 时设;此时 settings 文件里的 provider/端点/凭证/模型选择变量全部被忽略 |
+| `CLAUDE_CODE_SKIP_AWS_CRED_CACHE` | 跳过 AWS 凭据缓存 |
+| `CLAUDE_CODE_AWS_CHAIN_RESOLVE_TIMEOUT_MS` | AWS 凭据链解析超时(默认 60000) |
+| `CLAUDE_CODE_SKIP_FAST_MODE_NETWORK_ERRORS` / `CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK` / `CLAUDE_CODE_DISABLE_FAST_MODE` | fast mode 的网络错误/组织检查/整体禁用 |
+| `CLAUDE_CODE_ENABLE_OPUS_4_7_FAST_MODE` | 【已移除】 |
+| `CLAUDE_CODE_AUTO_MODE_MODEL` / `CLAUDE_CODE_AUTO_MODE_SERVER` | 自动模式分类器的模型/是否走服务端(`0` 改本地) |
+| `CLAUDE_CODE_REFUSAL_FALLBACK`→`CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK` | 设 `1` 关闭安全标记后的自动换模型 |
+| `CLAUDE_CODE_SKIP_MODEL_ACCESS_MEMORY` | 跳过模型访问记忆 |
+
+### 内部与自动设置
+
+| 变量 | 作用 |
+| --- | --- |
+| `CLAUDECODE` | 【自动设置】CLI 在自己的子进程里设 `1`,用于检测嵌套 |
+| `CLAUDE_CODE_CHILD_SESSION` | 【自动设置】工具/hook 子进程中为 `1`(MCP server 除外) |
+| `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` / `CLAUDE_CODE_STOP_HOOK_BLOCK_CAP` | SessionEnd hooks 超时/Stop hook 阻止上限 |
+| `CLAUDE_CODE_PERMISSION_PROMPT_NOTIFY_HOOKS`→`CLAUDE_CODE_DISABLE_PERMISSION_PROMPT_NOTIFY_HOOKS` | 设 `1` SDK `canUseTool` 会话不跑 Notification hooks |
+| `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` | 设 `1` 从子进程环境清除凭证,见[隐私与流量开关](#隐私与流量开关) |
+| `CLAUDE_CODE_DEBUG_LOGS_DIR` / `CLAUDE_CODE_DEBUG_LOG_LEVEL` / `DEBUG` | 调试日志路径/级别/总开关 |
+| `CLAUDE_CODE_SYNC_OUTPUT` 等 UI 调参、`CLAUDE_CODE_*` 已移除项(`CONNECT_TIMEOUT_MS`、`MAX_SUBAGENTS_PER_SESSION`、`OPUS_4_6_FAST_MODE_OVERRIDE`、`AUTO_BACKGROUND_WORKER_CHECKIN_SECONDS`)、`TASK_MAX_OUTPUT_LENGTH`(v2.1.277 起无操作) | 历史遗留,升级时留意 |
+
+## env 的进入通道与覆盖规则
+
+环境变量从两条路进入 CLI 子进程,**同名时 settings 层赢**——官方原话:"settings 文件的值在大多数会话中生效,Claude Code 把每个 env 条目写入进程环境,替换从 shell 继承的值"。这也是本课开头 mock 验证时"光 `export` 不够、必须改 settings 副本"的原因。
+
+| 来源 | 写在哪 | 生效时机 |
+| --- | --- | --- |
+| 进程环境 | shell `export`、`options.env` | CLI 启动时读一次,运行中改无效 |
+| settings `env` 键 | user/project/local/flag 层 | 多数行为保存文件后即时应用到运行中会话;启动期功能(OTel 等)保留启动值 |
+
+三条细则:
+
+- **env 块只能设不能删。** 要"取消"shell 里遗留的变量,设空字符串——provider 选择把空值视同未设(`"CLAUDE_CODE_USE_VERTEX": ""`),子进程仍会继承到空值。
+- **数字写法有版本坑。** `2e3` 读作 2000、`64_000` 读作 64000,但 v2.1.211 之前这些写法会静默变成极小值(`1e6` 变 1)。CI 里锁老版本时用纯数字。
+- **`~` 与 `$HOME` 不展开。** env 值原样拷贝,不经过 shell,路径写绝对路径。
+
+个别变量的方向还要单记:`ANTHROPIC_MODEL` **优先于** settings 的 `model` 键(变量未设才轮到键),但交互式 `--model`/`/model` 又能盖过变量;`CLAUDE_CODE_EFFORT_LEVEL` 则**反过来盖过** `--effort` 与 `/effort`。哪个赢取决于变量,没有全局统一规则,拿不准就抓请求体。
+
+## 接入三件套:API_KEY、AUTH_TOKEN、BASE_URL
+
+第三方网关的最小配置,三者分工:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:8317",
+    "ANTHROPIC_AUTH_TOKEN": "any-placeholder"
+  }
+}
+```
+
+- **`ANTHROPIC_API_KEY`** 走 `X-Api-Key` 头,设了就覆盖订阅登录(交互模式首次批准一次;想回订阅要 `unset`);`-p` 非交互模式下只要在就一定用它。
+- **`ANTHROPIC_AUTH_TOKEN`** 走 `Authorization: Bearer` 头,值自动加前缀——网关不校验时填占位符即可。
+- **`ANTHROPIC_BASE_URL`** 换端点。注意两个连锁反应:指向非官方主机时 Remote Control 自动禁用;CLI 对会话的 provider 判定仍按 firstParty 处理,这决定了下文哪些能力检查会被短路。
+
+四档别名映射让 `model: "opus"` 落到实际模型(`ANTHROPIC_DEFAULT_OPUS_MODEL` 等,见全量速查);展示名与能力声明用 `_*_NAME`/`_*_DESCRIPTION`/`_*_SUPPORTED_CAPABILITIES` 成对补齐——但 `SUPPORTED_CAPABILITIES` 族**只在非 firstParty provider 下被读取**,走 `BASE_URL` 网关时设了也不生效。
+
+## 模型映射与上下文修正
+
+网关后面的模型名 CLI 不认识,相关假设要手工修正,否则自动压缩与输出预算会算错:
+
+| 场景 | 配置 |
+| --- | --- |
+| 网关模型窗口与名字内置值不符 | `CLAUDE_CODE_MAX_CONTEXT_TOKENS` 覆盖假定窗口 |
+| 压缩触发点太早/太晚 | `CLAUDE_CODE_AUTO_COMPACT_WINDOW` 或 `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` |
+| 输出上限不对 | `CLAUDE_CODE_MAX_OUTPUT_TOKENS`(未知模型默认 32000、上限 128000;调大会提前触发压缩) |
+| 模型不认识、想进 `/model` 选择器 | `ANTHROPIC_CUSTOM_MODEL_OPTION`(+显示三件) |
+| 让 CLI 直接问网关有哪些模型 | `CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1` |
+
+## 能力与 effort 治理(重点)
+
+档位阶梯 `low → medium → high → xhigh → max`,请求里体现为 `output_config.effort` 与 `thinking` 字段。这一组是"网关 + 非 Claude 模型"场景最容易踩坑的地方,单独立章展开。
+
+### effort 档位的优先级链
+
+同一个档位值有多个入口,从高到低:
+
+| 优先级 | 入口 | 接受 `max`? | 作用范围 |
+| --- | --- | --- | --- |
+| 1 | hook 注入 | 是 | 单次请求 |
+| 2 | `CLAUDE_CODE_EFFORT_LEVEL` | **是** | 全局;官方确认盖过 `--effort`、`/effort` 与 settings 的 `effortLevel`,但仍受 `maxEffortLevel` 上限 |
+| 3 | 单轮临时值(`/effort`、SDK `Options.effort`) | 是 | 当轮 |
+| 4 | settings `modelSettings.<model>.effortLevel` | **否,静默丢弃** | 单模型持久 |
+| 5 | 兜底链(目录 `default_effort` 等) | — | 最终兜底 `high` |
+
+关键的坑在优先级 4:settings 的 `effortLevel` 只认 `low/medium/high/xhigh`,写 `"max"` 被 schema 静默丢弃(等于没设),请求档位落到兜底——典型症状"明明写了 max,请求里却是 high"。`CLAUDE_CODE_EFFORT_LEVEL` 是 env 通道,不做这层校验:
+
+```json
+{ "env": { "CLAUDE_CODE_EFFORT_LEVEL": "max" } }
+```
+
+代价是**全局**:所有模型所有请求都带 `effort: "max"`。设 `auto` 或 `unset` 表示明确放弃,回落兜底链。
+
+进请求前值还要过两道静默加工:先 clamp 到 `modelSettings.<model>.maxEffortLevel`(该字段接受 `max`,语义是**上限**而非设定值);再过能力闸——`max` 需要 `max_effort` 放行、`xhigh` 需要 `xhigh_effort` 放行,被拒时**一刀切回 `high`**(不是降到次高档)。给个别模型关掉 max 用负声明:
+
+```json
+"CLAUDE_CODE_MODEL_CAPABILITIES": "kimi/*=-max_effort"
+```
+
+### 能力覆盖表(未文档化)
+
+`CLAUDE_CODE_MODEL_CAPABILITIES` **不在官方 env-vars 页上**(变量表 `CLAUDE_CODE_MESSAGING_TOKEN` 与 `CLAUDE_CODE_NATIVE_CURSOR` 之间紧邻,无此行)。以下语法与行为来自 v2.1.310 逆向+请求体实测:
+
+```
+模型规则;模型规则;...
+每条规则: 模型名=能力1,能力2,-能力3
+```
+
+- **分号**分隔模型条目,**逗号**分隔能力;模型名支持尾部 `*` 通配,匹配时剥掉 `[1m]` 后缀
+- 能力前加 `-` 是**负声明**:强制判为不支持
+- 不带 `=` 的裸条目作用于所有模型
+- 优先级:本表 > 内置模型目录 > 硬编码黑名单 > provider 兜底
+
+| 能力 | 负声明效果(实测) |
+| --- | --- |
+| `effort` | 请求**整个不带** `output_config` |
+| `xhigh_effort` | `xhigh` 档被砍为 `high`(封顶线) |
+| `max_effort` | `max` 档被砍为 `high`,连 env 通道的 max 都能拦 |
+| `adaptive_thinking` | thinking 从 `{"type":"adaptive"}` 退回 `{"type":"enabled","budget_tokens":N}` |
+
+正向声明在网关场景冗余(默认放行);**负声明是治理"网关后面的模型不支持某字段"的唯一客户端手段**。官方等价物是 `ANTHROPIC_DEFAULT_{TIER}_MODEL_SUPPORTED_CAPABILITIES`,但如前述,网关场景不生效。
+
+### 请求体注入与两个 max 通道
+
+`CLAUDE_CODE_EXTRA_BODY` 把 JSON 对象合并进请求体顶层,**不经任何 clamp 与能力闸**(官方描述明示"not clamped";`anthropic_beta` 键受策略管控可能被丢弃;值会写进会话转录):
+
+```json
+{ "env": { "CLAUDE_CODE_EXTRA_BODY": "{\"output_config\":{\"effort\":\"max\"}}" } }
+```
+
+| | `CLAUDE_CODE_EFFORT_LEVEL` | `CLAUDE_CODE_EXTRA_BODY` |
+| --- | --- | --- |
+| 语义 | 走正常档位链的 env 覆盖 | 请求体级 JSON 注入 |
+| 过能力闸/clamp | 过(可被负声明拦) | 不过(负声明只能整字段掐) |
+| per-model 裁剪 | 配 `-max_effort` 封顶 | 配 `-effort` 整字段消失 |
+| 适用 | "全部模型都拉满" | "个别模型拉满,其余干净请求" |
+
+两者都不接受 per-model 取值。实测组合"flash 拉 max、其余不发 effort":
+
+```json
+"CLAUDE_CODE_EXTRA_BODY": "{\"output_config\":{\"effort\":\"max\"}}",
+"CLAUDE_CODE_MODEL_CAPABILITIES": "zhipu/glm-5.3=-effort;kimi/*=-effort"
+```
+
+局限:被掐掉的模型连 `xhigh` 也没有(负声明是整字段消失);"指定模型 max、其余 xhigh"的精确矩阵现有客户端配置做不到,出路在网关侧改写。
+
+### thinking 的四个开关
+
+| 变量 | 与 effort 的关系 |
+| --- | --- |
+| `MAX_THINKING_TOKENS` | 固定预算;adaptive 模型忽略数值;`0` 关 thinking(官方 API;第三方改为不发参数);thinking 关掉后 CLI 对不接受该组合的模型自动把 effort 降到 `high` |
+| `CLAUDE_CODE_DISABLE_THINKING` | 请求整个不发 `thinking` 参数(代理兼容);模型默认会思考时省略参数不等于关闭 |
+| `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` | 关自适应推理,退回固定预算 |
+| `DISABLE_INTERLEAVED_THINKING` | 不发 interleaved-thinking beta 头 |
+
+## 无人值守:超时、重试与看门狗
+
+CI/长任务把"失败快速暴露"换成"等到底":
+
+- **`CLAUDE_CODE_MAX_RETRIES`**:默认 10、上限 15;`CLAUDE_CODE_RETRY_WATCHDOG=1` 解除上限并无限重试 429/529(花限/额度尽的 429 仍立即失败)。
+- **`API_TIMEOUT_MS`**:响应头等待时限;`CLAUDE_STREAM_IDLE_TIMEOUT_MS`、`CLAUDE_BYTE_STREAM_IDLE_TIMEOUT_MS` 与 `CLAUDE_ENABLE_*_WATCHDOG` 处理流卡死。
+- 退避曲线用 `CLAUDE_CODE_OVERLOADED_RETRY_BASE_DELAY_MS`/`_MAX_DELAY_MS` 调。
+
+## 子代理调度
+
+`CLAUDE_CODE_SUBAGENT_MODEL` 给子代理/team/workflow 代理定默认模型(代理定义的 `model` 字段优先;`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` 强制盖过定义);并发与嵌套用 `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`(默认 20)与 `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`(默认 3)收口。SDK 侧的完整分工见[子代理](?path=/docs/subagents--docs)。
+
+## 隐私与流量开关
+
+三个"设了就生效"的坑 + 两个治理工具:
+
+- **presence-based 变量**:`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`、`DISABLE_TELEMETRY`、`DISABLE_ERROR_REPORTING`、`CLAUDE_CODE_TMUX_TRUECOLOR`、`IS_DEMO`——任何非空值(含 `0`、`false`)都算开,关闭只能 unset 或空值。`FORCE_HYPERLINK` 是唯一例外,按数字读,`0` 才是关。
+- **`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`** 除了关自动更新/遥测/错误上报,还会停 feature-flag 拉取,连带失去 Remote Control、`/import`、claude.ai 技能插件同步等一批功能(完整清单见官方页);第三方 provider 会话本来就拉不到 flag——认证只有 `AUTH_TOKEN` 没有 API key 且 `BASE_URL` 非官方主机时,flag 拉取同样不可用。
+- **`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`** 从 Bash/hook/stdio MCP 子进程环境清除凭证(按变量名与值形状识别;`GITHUB_TOKEN` 族保留以维持 `gh` 可用;`HTTP(S)_PROXY` 保留含 URL 内嵌凭证),缩小提示注入的可读面;Linux 上还把 Bash 隔进独立 PID namespace。它是纵深防御的一层,不是唯一防线。
+
+## 验证手段
+
+本课变量多数静默生效——schema 丢值、闸门降档、presence 误开都没有警告,排错靠抓请求体:
+
+```ts
+// 起一个 mock 端点接住请求,打印 output_config 与 thinking,核对变量是否生效。
+// 前置:终端 A 跑 mock,终端 B 把 ANTHROPIC_BASE_URL 指过去(记得盖掉 settings 层的同名值)。
+// 预期:mock 打印出实际请求体的 effort/thinking 字段。
+import http from "node:http";
+
+http
+  .createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      const parsed = JSON.parse(body);
+      console.log("output_config:", JSON.stringify(parsed.output_config));
+      console.log("thinking:", JSON.stringify(parsed.thinking));
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          id: "msg_mock", type: "message", role: "assistant",
+          model: parsed.model, content: [{ type: "text", text: "ok" }],
+          stop_reason: "end_turn", stop_sequence: null,
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+      );
+    });
+  })
+  .listen(9999, "127.0.0.1");
+```
+
+注意:settings `env` 键里的 `ANTHROPIC_BASE_URL` 会盖过 shell 环境的同名变量,验证时要改 settings 副本(或 `--settings` 传只改端点的副本),不是只 `export` 一个新值。
+
+## 最佳实践
+
+- **第三方网关 + 异构模型:** 接入三件套负责"连上",`CLAUDE_CODE_MODEL_CAPABILITIES` 负声明负责"别发它不认的字段";模型窗口不对就用 `MAX_CONTEXT_TOKENS` 修正,某模型对 `output_config` 报 4xx 先想到 `-effort`。
+- **要 max 档:** 临时用 `/effort max`;持久化走 `CLAUDE_CODE_EFFORT_LEVEL`(全局)或 `CLAUDE_CODE_EXTRA_BODY`(可配负声明裁剪);不要写 settings `effortLevel: "max"`——静默丢弃。
+- **无人值守:** `RETRY_WATCHDOG` + 显式 `API_TIMEOUT_MS` + `MAX_TURNS`/`maxBudgetUsd` 三层兜底。
+- **CI 里锁版本时用纯数字:** 科学计数法在 v2.1.211 前会静默错值。
+- **改完必验证:** mock 端点抓请求体,再看请求头与遥测。
+
+## 常见问题
+
+- settings 里写了 `effortLevel: "max"`,请求里却是 `high`(或 `xhigh`)。
+  settings 的 `effortLevel` schema 只认 `low/medium/high/xhigh`,`"max"` 被静默丢弃,档位来自兜底链。要 `max` 走 env:`CLAUDE_CODE_EFFORT_LEVEL=max`,或 `CLAUDE_CODE_EXTRA_BODY` 注入。
+
+- 改了 settings 的 env 块,行为没变。
+  多数行为会热生效,但启动期读取的功能(OTel、provider 选择)保留启动值;另外确认没有更高层的 settings 覆盖、以及变量不在 project/local 层禁设清单里(`CLAUDE_CONFIG_DIR`、OTel 导出器族等)。
+
+- 超时设了 `1e6` 却变成 1 秒。
+  老版本(v2.1.211 前)科学计数法会静默变小值。升级,或写纯数字 `1000000`。
+
+- `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=0` 了怎么还在禁用?
+  它是"设了就生效"型:任何非空值(含 `0`、`false`)都开启。unset 或设空值才关闭。同族还有 `DISABLE_TELEMETRY`、`DISABLE_ERROR_REPORTING`、`CLAUDE_CODE_TMUX_TRUECOLOR`、`IS_DEMO`。
+
+- `CLAUDE_CODE_MODEL_CAPABILITIES` 官方文档查不到。
+  它确实不在 env-vars 页上,属于未文档化变量;本课语法与行为来自 v2.1.310 逆向+实测,升级后需复测。官方替代品 `ANTHROPIC_DEFAULT_{TIER}_MODEL_SUPPORTED_CAPABILITIES` 在网关场景不生效(仅非 firstParty 读取)。
+
+- 明明设了 `effort: "max"`,某模型请求里变成 `high` 而不是 `xhigh`。
+  能力闸的降级是"越线一律砍到 `high`",不会回落次高档。`-max_effort` 等负声明拦下时就是 `high`。
+
+- `ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES` 设了没反应。
+  该族仅非 firstParty provider 读取;`BASE_URL` 网关场景该分支被短路。用 `CLAUDE_CODE_MODEL_CAPABILITIES` 替代。
+
+## 总结回顾
+
+摘要:
+
+环境变量从 shell/`options.env` 与 settings `env` 键两条路进入子进程,同名 settings 赢;`options.env` 替换式、显式设置须展开 `process.env`;shell 值启动读一次,settings 块多数可热生效;数字接受科学计数法(v2.1.211 前有静默错值坑),5 个 presence-based 变量设 `0` 也算开。全量清单按用途分约 16 组:认证端点(`API_KEY`/`AUTH_TOKEN`/`BASE_URL` 三件套 + 四档 `DEFAULT_TIER_MODEL` 映射)、模型与上下文(`MAX_CONTEXT_TOKENS`/`AUTO_COMPACT_WINDOW`/`MAX_OUTPUT_TOKENS` 修正网关假设)、effort 与 thinking(优先级链 hook > env > 单轮 > settings > 兜底;settings 丢 `max`,env 认 `max`;能力闸越线砍到 `high`)、请求与重试(`RETRY_WATCHDOG` 解除重试上限)、子代理调度、隐私(`DISABLE_NONESSENTIAL_TRAFFIC` 连带停 feature-flag 拉取;`SUBPROCESS_ENV_SCRUB` 清子进程凭证)。`CLAUDE_CODE_MODEL_CAPABILITIES` 未文档化,负声明是网关场景掐字段的唯一客户端手段;`CLAUDE_CODE_EXTRA_BODY` 注入请求体不经 clamp。全部静默生效,验证靠 mock 端点抓请求体。
+
+一句话:
+
+> 速查表当字典,子章节看重点——接入靠三件套,档位链认优先级,能力表管放行与掐断;静默行为多,抓请求体说话。
+
+知识要点:
+
+- `options.env` 与 settings `env` 键谁赢?为什么显式设置必须展开 `process.env`?
+- 数字写法与 presence-based 开关各有什么版本/语义坑?
+- 四档 `ANTHROPIC_DEFAULT_{TIER}_MODEL` 与 `SUPPORTED_CAPABILITIES` 族在网关场景的有效性差异?
+- effort 档位五个入口的优先级?settings 与 env 对 `"max"` 的待遇差在哪?
+- `max_effort` 被拒时档位如何降级?为什么不是降到 `xhigh`?
+- `CLAUDE_CODE_EXTRA_BODY` 的注入位置与边界?怎么与负声明组合出 per-model 效果?
+- `DISABLE_NONESSENTIAL_TRAFFIC` 设 `0` 为什么不生效?它会连带关掉什么?
+- 排查这类静默配置的通用手段是什么?
+
+## 参考资料
+
+- [Claude Code environment variables](https://code.claude.com/docs/en/env-vars)(官方全量清单与本课总览的依据;覆盖规则、数字写法、presence 例外、scrub 与 feature-flag 章节均出自该页)
+- [Agent SDK configuration](https://code.claude.com/docs/en/agent-sdk/configuration)(options.env 职责与 settings 层关系)
+- [Model configuration](https://code.claude.com/docs/en/model-config)(`ANTHROPIC_MODEL`、四档别名、effort 档位的官方说明)
+- [Settings](https://code.claude.com/docs/en/settings)(settings `env` 键的官方说明)
+- `CLAUDE_CODE_MODEL_CAPABILITIES` 的语法、effort 优先级链的 schema 丢弃行为、能力闸降级细节无官方文档,以 Claude Code CLI v2.1.310 实测为准(mock 端点抓请求体 + 二进制比对);升级后结论需复测。

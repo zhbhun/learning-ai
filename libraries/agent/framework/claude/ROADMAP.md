@@ -17,6 +17,8 @@
       选择模型，用 preset 与追加方式定制 system prompt。
     - [2.1.3 设置来源](cheatsheets/settings-sources/README.mdx)
       理解 settingSources 如何加载 user/project/local 设置与 CLAUDE.md，用 resolveSettings 核对生效配置。
+    - [2.1.4 环境变量](cheatsheets/env-vars/README.mdx)
+      掌握 env 的替换式注入与 ANTHROPIC_* 接入变量；用 MODEL_CAPABILITIES、EFFORT_LEVEL、EXTRA_BODY 控制模型能力与 effort 档位。
   - 2.2 权限与安全
     - [2.2.1 权限模式](cheatsheets/permission-modes/README.mdx)
       区分 default、acceptEdits、plan、bypassPermissions 四种模式的行为与适用场景。
