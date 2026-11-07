@@ -1,0 +1,2 @@
+- [mcp-toolbox](https://github.com/googleapis/mcp-toolbox) - MCP Toolbox for Databases is an open source MCP server for databases.
+- [dbhub](https://github.com/bytebase/dbhub) - oken conscious database MCP server for Postgres, MySQL, SQL Server, Oracle, MariaDB, SQLite.
